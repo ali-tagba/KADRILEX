@@ -83,9 +83,9 @@ export async function GET() {
             upcomingAudiences: formattedAudiences
         })
     } catch (error) {
-        console.error('Error fetching dashboard stats:', error)
+        console.error('SERVER ERROR in /api/dashboard/stats:', error)
         return NextResponse.json(
-            { error: 'Failed to fetch dashboard stats' },
+            { error: 'Failed to fetch dashboard stats', details: String(error) },
             { status: 500 }
         )
     }
