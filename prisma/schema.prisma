@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   // "AVOCAT", "ASSISTANT", "ADMIN"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Client {
+  id                String   @id @default(cuid())
+  type              String   // "PERSONNE_PHYSIQUE" | "PERSONNE_MORALE"
+  
+  // Personne Morale fields
+  raisonSociale     String?  // For companies
+  formeJuridique    String?  // "SARL", "SA", "SAS", etc.
+  numeroRCCM        String?  // Registre du Commerce
+  representantLegal String?  // Legal representative name
+  
+  // Personne Physique fields
+  nom               String?  // For individuals
+  prenom            String?  // For individuals
+  profession        String?  // Profession for individuals
+  
+  // Common fields
+  email             String?
+  telephone         String?
+  adresse           String?
+  ville             String?
+  pays              String   @default("Côte d'Ivoire")
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contacts  Contact[]
+  dossiers  Dossier[]
+  audiences Audience[]
+  invoices  Invoice[]
+  flashCrs  FlashCR[]
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  clientId    String
+  nom         String
+  prenom      String?
+  fonction    String   // "DG", "RESPONSABLE_JURIDIQUE", "CONTACT_ADMIN", etc.
+  email       String?
+  telephone   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model Dossier {
+  id           String   @id @default(cuid())
+  numero       String   @unique
+  clientId     String
+  type         String   // "CIVIL", "COMMERCIAL", "PENAL", "ADMINISTRATIF"
+  statut       String   @default("EN_COURS") // "EN_COURS", "TERMINE", "EN_ATTENTE", "CLOSTURE"
+  juridiction  String?
+  dateOuverture DateTime @default(now())
+  dateCloture   DateTime?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  files        DossierFile[]
+  audiences    Audience[]
+  invoices     Invoice[]
+  flashCrs     FlashCR[]
+
+  @@index([clientId])
+}
+
+model DossierFile {
+  id        String   @id @default(cuid())
+  dossierId String
+  parentId  String?  // For nested folders
+  name      String
+  type      String   // "FOLDER" | "FILE"
+  url       String?  // For actual files
+  mimeType  String?
+  size      Int?     // File size in bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dossier  Dossier       @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  parent   DossierFile?  @relation("FileHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children DossierFile[] @relation("FileHierarchy")
+
+  @@index([dossierId])
+  @@index([parentId])
+}
+
+model Audience {
+  id          String    @id @default(cuid())
+  clientId    String
+  dossierId   String
+  date        DateTime
+  heure       String?   // Time of audience (e.g., "14:30")
+  juridiction String?
+  titre       String?
+  avocat      String?   // Lawyer name (simplified)
+  statut      String    @default("A_VENIR") // "A_VENIR", "TERMINEE", "REPORTEE", "ANNULEE"
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossier  Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  flashCR  FlashCR?
+  invoices Invoice[]
+
+  @@index([clientId])
+  @@index([dossierId])
+  @@index([date])
+}
+
+model FlashCR {
+  id            String   @id @default(cuid())
+  audienceId    String   @unique
+  clientId      String
+  dossierId     String
+  contenu       String
+  destinataires String   // Comma-separated emails or JSON
+  statut        String   @default("BROUILLON") // "BROUILLON", "ENVOYE", "ARCHIVE"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  audience Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossier  Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([audienceId])
+  @@index([clientId])
+  @@index([dossierId])
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  numero          String    @unique
+  date            DateTime
+  dateEcheance    DateTime?
+  clientId        String
+  dossierId       String?
+  audienceId      String?
+  montantHT       Float
+  montantTVA      Float     @default(0) // TVA amount
+  montantTTC      Float
+  montantPaye     Float     @default(0)
+  statut          String    @default("IMPAYEE") // "PAYEE", "IMPAYEE", "PARTIELLE"
+  methodePaiement String?   // Payment method
+  datePaiement    DateTime?
+  attachmentUrl   String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossier  Dossier?  @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  audience Audience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([dossierId])
+  @@index([audienceId])
+  @@index([date])
+}

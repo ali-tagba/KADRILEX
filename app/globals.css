@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  /* Dedalys Premium Color System - Refined Royal Blue */
+  --color-primary: #1E40AF;
+  --color-primary-foreground: #ffffff;
+  --color-primary-dark: #1e3a8a;
+
+  --color-secondary: #ffffff;
+  --color-secondary-foreground: #334155;
+
+  --color-accent: #D97706;
+  /* Gold/Amber from reference */
+  --color-accent-foreground: #ffffff;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #2563EB;
+
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.25rem;
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0
+    }
+
+    to {
+      height: var(--radix-accordion-content-height)
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height)
+    }
+
+    to {
+      height: 0
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0
+    }
+
+    to {
+      opacity: 1
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(20px);
+      opacity: 0
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1
+    }
+  }
+}
+
+/* Base Styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+
+  /* Strict Typography Scale */
+  h1 {
+    @apply text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-tight text-slate-900;
+  }
+
+  h3 {
+    @apply text-xl font-semibold tracking-tight text-slate-900;
+  }
+
+  p {
+    @apply text-sm text-slate-600 leading-relaxed;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+}
