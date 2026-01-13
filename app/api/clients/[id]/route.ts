@@ -46,13 +46,14 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await request.json()
+        const { id } = await params
 
         const client = await prisma.client.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 type: body.type,
                 raisonSociale: body.raisonSociale,
@@ -81,11 +82,12 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         await prisma.client.delete({
-            where: { id: params.id },
+            where: { id },
         })
 
         return NextResponse.json({ success: true })

@@ -12,24 +12,26 @@ interface AudienceListProps {
     audiences: Audience[]
 }
 
-const getStatusBadge = (status: AudienceStatus, date: string) => {
-    const isLate = new Date(date) < new Date() && status === 'UPCOMING'
+const getStatusBadge = (status: string, date: string) => {
+    // Check if audience is "At risk" (upcoming but in the past) or truly just "UPCOMING" logic
+    // We map French DB status to view logic
+    const isLate = new Date(date) < new Date() && status === 'A_VENIR'
 
     if (isLate) {
-        return <Badge variant="red" className="bg-red-50 text-red-600 border-red-200 shadow-none">En retard</Badge>
+        return <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 shadow-none">En retard</Badge>
     }
 
     switch (status) {
-        case "UPCOMING":
+        case "A_VENIR":
             return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 shadow-none">À venir</Badge>
-        case "COMPLETED":
+        case "TERMINEE":
             return <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-100 shadow-none">Terminée</Badge>
-        case "POSTPONED":
+        case "REPORTEE":
             return <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Reportée</Badge>
-        case "CANCELLED":
+        case "ANNULEE":
             return <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50">Annulée</Badge>
         default:
-            return null
+            return <Badge variant="outline">{status}</Badge>
     }
 }
 
@@ -49,7 +51,7 @@ export function AudienceList({ audiences }: AudienceListProps) {
     return (
         <div className="h-full overflow-y-auto p-4 md:p-6 custom-scrollbar space-y-4">
             {sortedAudiences.map((audience) => {
-                const isLate = new Date(audience.date) < new Date() && audience.status === 'UPCOMING'
+                const isLate = new Date(audience.date) < new Date() && audience.statut === 'A_VENIR'
                 const dateObj = new Date(audience.date)
 
                 return (
@@ -75,7 +77,7 @@ export function AudienceList({ audiences }: AudienceListProps) {
                                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
                                         <div>
                                             <h3 className="font-bold text-lg text-slate-900 group-hover:text-blue-700 transition-colors flex items-center gap-2">
-                                                {audience.title}
+                                                {audience.titre || "Audience"}
                                             </h3>
                                             <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
                                                 <div className="flex items-center gap-1.5">
@@ -85,7 +87,7 @@ export function AudienceList({ audiences }: AudienceListProps) {
                                             </div>
                                         </div>
                                         <div>
-                                            {getStatusBadge(audience.status, audience.date)}
+                                            {getStatusBadge(audience.statut, audience.date)}
                                         </div>
                                     </div>
 
@@ -117,35 +119,30 @@ export function AudienceList({ audiences }: AudienceListProps) {
                                             </div>
                                         </div>
 
-                                        {/* Avocats */}
+                                        {/* Avocat */}
                                         <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50/50 border border-slate-100 hover:bg-blue-50/30 transition-colors">
                                             <div className="mt-0.5 p-1.5 bg-white rounded shadow-sm border border-slate-100">
                                                 <User className="w-3.5 h-3.5 text-slate-600" />
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-[10px] uppercase font-bold text-slate-400 leading-tight mb-0.5">Avocats</p>
+                                                <p className="text-[10px] uppercase font-bold text-slate-400 leading-tight mb-0.5">Avocat</p>
                                                 <div className="flex flex-col gap-0.5">
                                                     <p className="text-xs font-medium text-slate-700 truncate">
-                                                        <span className="text-slate-400 font-normal mr-1">Ch:</span>{audience.avocatId}
+                                                        {audience.avocat || "Non assigné"}
                                                     </p>
-                                                    {audience.avocatSignataireId && (
-                                                        <p className="text-xs font-medium text-slate-700 truncate">
-                                                            <span className="text-slate-400 font-normal mr-1">Sig:</span>{audience.avocatSignataireId}
-                                                        </p>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Flash CR Status */}
-                                        <div className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors ${audience.flashCrId ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50/50 border-slate-100'}`}>
-                                            <div className={`mt-0.5 p-1.5 rounded shadow-sm border ${audience.flashCrId ? 'bg-white border-emerald-100 text-emerald-600' : 'bg-white border-slate-100 text-slate-400'}`}>
-                                                {audience.flashCrId ? <CheckCircle2 className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                                        <div className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors ${audience.flashCR ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                                            <div className={`mt-0.5 p-1.5 rounded shadow-sm border ${audience.flashCR ? 'bg-white border-emerald-100 text-emerald-600' : 'bg-white border-slate-100 text-slate-400'}`}>
+                                                {audience.flashCR ? <CheckCircle2 className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="text-[10px] uppercase font-bold text-slate-400 leading-tight mb-0.5">Compte Rendu</p>
-                                                <p className={`text-sm font-medium truncate ${audience.flashCrId ? 'text-emerald-700' : 'text-slate-400 italic'}`}>
-                                                    {audience.flashCrId ? "Disponible" : "Non rédigé"}
+                                                <p className={`text-sm font-medium truncate ${audience.flashCR ? 'text-emerald-700' : 'text-slate-400 italic'}`}>
+                                                    {audience.flashCR ? "Disponible" : "Non rédigé"}
                                                 </p>
                                             </div>
                                         </div>
@@ -157,7 +154,7 @@ export function AudienceList({ audiences }: AudienceListProps) {
                                     <Button variant="ghost" size="sm" className="w-full justify-start text-slate-600 hover:text-blue-600 hover:bg-blue-50">
                                         Voir Dossier
                                     </Button>
-                                    {audience.flashCrId ? (
+                                    {audience.flashCR ? (
                                         <Button variant="outline" size="sm" className="w-full justify-start text-emerald-600 border-emerald-200 bg-white hover:bg-emerald-50 shadow-sm">
                                             <FileText className="w-3.5 h-3.5 mr-2" />
                                             Lire le CR
