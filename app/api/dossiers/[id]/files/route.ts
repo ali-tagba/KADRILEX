@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const files = await prisma.dossierFile.findMany({
-            where: { dossierId: params.id },
+            where: { dossierId: id },
             orderBy: [
                 { type: 'desc' }, // Folders first
                 { name: 'asc' },
@@ -26,14 +27,15 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await request.json()
+        const { id } = await params
 
         const file = await prisma.dossierFile.create({
             data: {
-                dossierId: params.id,
+                dossierId: id,
                 parentId: body.parentId || null,
                 name: body.name,
                 type: body.type, // "FOLDER" or "FILE"

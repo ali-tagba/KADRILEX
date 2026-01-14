@@ -3,13 +3,14 @@ import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await request.json()
+        const { id } = await params
 
         const file = await prisma.dossierFile.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 name: body.name,
             },
@@ -27,12 +28,13 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Prisma will cascade delete children due to onDelete: Cascade
+        const { id } = await params
         await prisma.dossierFile.delete({
-            where: { id: params.id },
+            where: { id },
         })
 
         return NextResponse.json({ success: true })

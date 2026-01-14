@@ -5,9 +5,10 @@ import { join } from 'path'
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const formData = await request.formData()
         const file = formData.get('file') as File
 
@@ -41,9 +42,9 @@ export async function POST(
         // Update invoice with file URL
         const fileUrl = `/uploads/invoices/${filename}`
         const invoice = await prisma.invoice.update({
-            where: { id: params.id },
+            where: { id },
             data: {
-                fichierUrl: fileUrl,
+                attachmentUrl: fileUrl,
             },
             include: {
                 client: true,

@@ -18,7 +18,7 @@ const getStatusBadge = (status: string, date: string) => {
     const isLate = new Date(date) < new Date() && status === 'A_VENIR'
 
     if (isLate) {
-        return <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 shadow-none">En retard</Badge>
+        return <Badge variant="red" className="bg-red-50 text-red-600 border-red-200 shadow-none">En retard</Badge>
     }
 
     switch (status) {

@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const invoice = await prisma.invoice.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 client: true,
                 dossier: true,
@@ -34,13 +35,14 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await request.json()
+        const { id } = await params
 
         const invoice = await prisma.invoice.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 numero: body.numero,
                 date: body.date ? new Date(body.date) : undefined,
@@ -49,7 +51,7 @@ export async function PATCH(
                 montantTTC: body.montantTTC,
                 montantPaye: body.montantPaye,
                 statut: body.statut,
-                moyenPaiement: body.moyenPaiement,
+                methodePaiement: body.moyenPaiement,
                 datePaiement: body.datePaiement ? new Date(body.datePaiement) : undefined,
             },
             include: {
@@ -71,11 +73,12 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         await prisma.invoice.delete({
-            where: { id: params.id },
+            where: { id },
         })
 
         return NextResponse.json({ success: true })
