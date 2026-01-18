@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KadriLex - Gestion de Cabinet Juridique
 
-## Getting Started
+Solution complète de gestion pour cabinets juridiques au Niger.
 
-First, run the development server:
+## 🚀 Déploiement
+
+### Prérequis
+- Node.js 20+
+- PostgreSQL database
+- Compte Vercel (pour le déploiement)
+
+### Installation locale
 
 ```bash
+# Installer les dépendances
+npm install
+
+# Configurer la base de données
+# Créer un fichier .env avec DATABASE_URL
+
+# Générer le client Prisma
+npx prisma generate
+
+# Exécuter les migrations
+npx prisma migrate dev
+
+# Peupler la base de données avec les données Niger/Niamey
+npx prisma db seed
+
+# Lancer le serveur de développement
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'application sera accessible sur `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Déploiement sur Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Créer un nouveau projet sur Vercel
+2. Connecter ce repository GitHub
+3. Configurer les variables d'environnement :
+   - `DATABASE_URL` : URL de connexion PostgreSQL
+4. Déployer
 
-## Learn More
+## 📊 Données de démonstration
 
-To learn more about Next.js, take a look at the following resources:
+L'application est pré-remplie avec des données fictives adaptées au contexte nigérien :
+- 8 clients (4 entreprises nigériennes + 4 particuliers)
+- 18 dossiers juridiques
+- 25 audiences
+- 15 factures
+- Juridictions du Niger (Tribunal de Commerce de Niamey, Cour d'Appel de Niamey, etc.)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🏢 Entreprises fictives incluses
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **SONITEL** - Société Nigérienne des Télécommunications
+- **Banque Islamique du Niger (BIN)**
+- **SONICHAR** - Société Nigérienne du Charbon
+- **Niger Lait SARL**
 
-## Deploy on Vercel
+## 📱 Contact
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Pour toute question concernant cette application, veuillez contacter l'administrateur.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📄 Licence
+
+Propriétaire - Tous droits réservés

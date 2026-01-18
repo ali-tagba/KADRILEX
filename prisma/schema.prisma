@@ -41,7 +41,7 @@ model Client {
   telephone         String?
   adresse           String?
   ville             String?
-  pays              String   @default("Côte d'Ivoire")
+  pays              String   @default("Niger")
   notes             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

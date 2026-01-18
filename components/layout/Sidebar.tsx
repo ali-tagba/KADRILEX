@@ -32,10 +32,10 @@ export function Sidebar() {
             <div className="p-6 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                        <span className="text-white font-bold text-xl">D</span>
+                        <span className="text-white font-bold text-xl">K</span>
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Dedalys</h1>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">KadriLex</h1>
                         <p className="text-xs text-slate-500 font-medium tracking-wide">WORKSPACE</p>
                     </div>
                 </div>
