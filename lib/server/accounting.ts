@@ -113,7 +113,7 @@ export class AccountingService {
     const compteTvaNum = estEmise ? "443100" : "445200"
     const compteTva = await prisma.compteComptable.findUnique({ where: { numero: compteTvaNum } })
 
-    const lignes: Prisma.EcritureLigneCreateWithoutEcritureInput[] = []
+    const lignes: Prisma.LigneEcritureCreateWithoutEcritureInput[] = []
 
     if (estEmise) {
       // Facture émise : on débite le client (créance), on crédite le produit et la TVA
@@ -318,9 +318,8 @@ export class AccountingService {
     const compteCredit = await requireCompte(compteCreditNum)
     const compteTva = await prisma.compteComptable.findUnique({ where: { numero: "445200" } })
 
-    const lignes: Prisma.EcritureLigneCreateWithoutEcritureInput[] = [
-      { compteId: compteCharge.id, debit: depense.montantHT, credit: 0, libelle: depense.libelle },
-    ]
+    const lignes: Prisma.LigneEcritureCreateWithoutEcritureInput[] = []
+    lignes.push({ compteId: compteCharge.id, debit: depense.montantHT, credit: 0, libelle: depense.libelle })
     if (depense.montantTVA > 0 && compteTva) {
       lignes.push({ compteId: compteTva.id, debit: depense.montantTVA, credit: 0, libelle: `TVA — ${depense.libelle}` })
     }
