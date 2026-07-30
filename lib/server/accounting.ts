@@ -113,7 +113,7 @@ export class AccountingService {
     const compteTvaNum = estEmise ? "443100" : "445200"
     const compteTva = await prisma.compteComptable.findUnique({ where: { numero: compteTvaNum } })
 
-    const lignes: Prisma.LigneEcritureCreateWithoutEcritureInput[] = []
+    const lignes: Prisma.LigneEcritureCreateManyEcritureInput[] = []
 
     if (estEmise) {
       // Facture émise : on débite le client (créance), on crédite le produit et la TVA
@@ -141,7 +141,7 @@ export class AccountingService {
         validee: true,
         annule: false,
         dossierId: facture.dossierId,
-        lignes: { create: lignes },
+        lignes: { createMany: { data: lignes } },
       },
     })
   }
@@ -224,7 +224,7 @@ export class AccountingService {
     const compteTiersNum = estEmise ? "411000" : "401000"
     const compteTiers = await requireCompte(compteTiersNum)
 
-    const lignes: Prisma.EcritureLigneCreateWithoutEcritureInput[] = estEmise
+    const lignes: Prisma.LigneEcritureCreateManyEcritureInput[] = estEmise
       ? [
           // Encaissement : Banque augmente, Créance client diminue
           { compteId: compteTreso.id, debit: paiement.montant, credit: 0, libelle: `Encaissement ${paiement.facture.numero}` },
@@ -246,7 +246,7 @@ export class AccountingService {
         validee: true,
         annule: false,
         dossierId: paiement.facture.dossierId,
-        lignes: { create: lignes },
+        lignes: { createMany: { data: lignes } },
       },
     })
   }
@@ -318,7 +318,7 @@ export class AccountingService {
     const compteCredit = await requireCompte(compteCreditNum)
     const compteTva = await prisma.compteComptable.findUnique({ where: { numero: "445200" } })
 
-    const lignes: Prisma.LigneEcritureCreateWithoutEcritureInput[] = []
+    const lignes: Prisma.LigneEcritureCreateManyEcritureInput[] = []
     lignes.push({ compteId: compteCharge.id, debit: depense.montantHT, credit: 0, libelle: depense.libelle })
     if (depense.montantTVA > 0 && compteTva) {
       lignes.push({ compteId: compteTva.id, debit: depense.montantTVA, credit: 0, libelle: `TVA — ${depense.libelle}` })
@@ -341,7 +341,7 @@ export class AccountingService {
         validee: true,
         annule: false,
         dossierId: depense.dossierId,
-        lignes: { create: lignes },
+        lignes: { createMany: { data: lignes } },
       },
     })
   }
