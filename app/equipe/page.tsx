@@ -1,17 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/toaster"
 import {
     ROLES,
     ROLE_KEYS,
     fullName,
-    generateAccessCode,
     type RoleKey,
 } from "@/lib/constants/team"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
+import { type MockMembre } from "@/lib/mock/employes"
 import { sortMembres } from "@/lib/mock/membre-stats"
 import { MembreTableView } from "@/components/equipe/membre-table-view"
 import { MembreGalleryView } from "@/components/equipe/membre-gallery-view"
@@ -26,7 +25,8 @@ type ActifFilter = "ALL" | "ACTIFS" | "ARCHIVES"
 export default function EquipePage() {
     const { can } = useCurrentUser()
     const canWrite = can("equipe.write")
-    const [membres, setMembres] = useState<MockMembre[]>(() => sortMembres(mockMembres))
+    const [membres, setMembres] = useState<MockMembre[]>([])
+    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [roleFilter, setRoleFilter] = useState<RoleKey | "ALL">("ALL")
     const [actifFilter, setActifFilter] = useState<ActifFilter>("ACTIFS")
@@ -34,6 +34,19 @@ export default function EquipePage() {
 
     const [formOpen, setFormOpen] = useState(false)
     const [editing, setEditing] = useState<MockMembre | null>(null)
+
+    useEffect(() => {
+        fetch("/api/membres")
+            .then(res => res.json())
+            .then(data => {
+                setMembres(sortMembres(data))
+                setLoading(false)
+            })
+            .catch(err => {
+                toast.error("Erreur lors du chargement de l'équipe")
+                setLoading(false)
+            })
+    }, [])
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase()
@@ -404,7 +417,11 @@ export default function EquipePage() {
 
             {/* Contenu */}
             <div className="flex-1 min-h-0">
-                {viewMode === "table" ? (
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <span className="material-symbols-outlined animate-spin text-[32px] text-outline">sync</span>
+                    </div>
+                ) : viewMode === "table" ? (
                     <MembreTableView
                         membres={filtered}
                         canWrite={canWrite}
