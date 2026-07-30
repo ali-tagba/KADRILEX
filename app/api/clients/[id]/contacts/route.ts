@@ -1,52 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    can,
+    HttpError,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+} from "@/lib/server/api-helpers"
+import { ContactCreateSchema } from "@/lib/server/schemas"
 
 export async function GET(
-    request: NextRequest,
-    { params }: { params: any }
+    _req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const membre = await requirePermission("clients.view")
         const { id } = await params
+        const client = await prisma.client.findUnique({
+            where: { id },
+            include: { equipe: true },
+        })
+        if (!client) throw new HttpError(404, "Client introuvable")
+        const resource = {
+            responsableId: client.responsableId,
+            equipeIds: client.equipe.map((e) => e.membreId),
+        }
+        if (!can(membre, "clients.view", resource)) {
+            throw new HttpError(403, "Accès refusé")
+        }
         const contacts = await prisma.contact.findMany({
             where: { clientId: id },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "asc" },
         })
-
-        return NextResponse.json(contacts)
-    } catch (error) {
-        console.error('Error fetching contacts:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch contacts' },
-            { status: 500 }
-        )
+        return Response.json(contacts)
+    } catch (e) {
+        return handleApiError(e)
     }
 }
 
 export async function POST(
-    request: NextRequest,
-    { params }: { params: any }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const body = await request.json()
         const { id } = await params
-
-        const contact = await prisma.contact.create({
-            data: {
-                clientId: id,
-                nom: body.nom,
-                prenom: body.prenom,
-                fonction: body.fonction,
-                email: body.email,
-                telephone: body.telephone,
-            },
+        const client = await prisma.client.findUnique({
+            where: { id },
+            include: { equipe: true },
         })
-
-        return NextResponse.json(contact, { status: 201 })
-    } catch (error) {
-        console.error('Error creating contact:', error)
-        return NextResponse.json(
-            { error: 'Failed to create contact' },
-            { status: 500 }
-        )
+        if (!client) throw new HttpError(404, "Client introuvable")
+        const resource = {
+            responsableId: client.responsableId,
+            equipeIds: client.equipe.map((e) => e.membreId),
+        }
+        await requirePermission("clients.write", resource)
+        const data = await parseJson(req, ContactCreateSchema)
+        const created = await prisma.contact.create({
+            data: { clientId: id, ...data },
+        })
+        return Response.json(created, { status: 201 })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

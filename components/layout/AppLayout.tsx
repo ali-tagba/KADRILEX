@@ -1,23 +1,41 @@
+"use client"
+
+import { useEffect } from "react"
+import { usePathname } from "next/navigation"
+import { CurrentUserProvider } from "@/lib/auth/current-user-context"
+import { DataSyncProvider } from "@/components/data-sync-provider"
 import { Sidebar } from "./Sidebar"
 import { MobileNav } from "./MobileNav"
 
+const STANDALONE_ROUTES = new Set(["/login"])
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname()
+    const isStandalone = STANDALONE_ROUTES.has(pathname)
+    if (isStandalone) {
+        return <CurrentUserProvider>{children}</CurrentUserProvider>
+    }
+
     return (
-        <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
-            {/* Sidebar - Fixed width, strictly anchored */}
-            <div className="hidden lg:block w-[280px] flex-shrink-0 border-r border-slate-200 bg-white">
-                <Sidebar />
-            </div>
+        <CurrentUserProvider>
+            <DataSyncProvider>
+                <div className="flex h-screen w-full bg-[--color-background] overflow-hidden">
+                    {/* Sidebar — fixed width */}
+                    <div className="hidden lg:block flex-shrink-0">
+                        <Sidebar />
+                    </div>
 
-            {/* Mobile Nav - visible only on small screens */}
-            <MobileNav />
+                    {/* Mobile nav */}
+                    <MobileNav />
 
-            {/* Main Content - Flex grow, scrollable independent of sidebar */}
-            <main className="flex-1 h-full overflow-y-auto overflow-x-hidden">
-                <div className="max-w-7xl mx-auto p-6 lg:p-10 mb-20 lg:mb-0">
-                    {children}
+                    {/* Main */}
+                    <main className="flex-1 h-full overflow-hidden flex flex-col min-w-0">
+                        {children}
+                    </main>
                 </div>
-            </main>
-        </div>
+
+                {/* Bascule de rôle (dev) — à conditionner sur env en V2 */}
+            </DataSyncProvider>
+        </CurrentUserProvider>
     )
 }

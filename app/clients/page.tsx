@@ -1,175 +1,240 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ClientFilters } from "@/components/clients/client-filters"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/toaster"
+import { ClientToolbar } from "@/components/clients/client-toolbar"
+import { ClientFormDialog, type ClientFormDraft } from "@/components/clients/client-form-dialog"
+import { useCurrentUser } from "@/lib/auth/current-user-context"
+import { PageGate } from "@/components/auth/require-permission"
+import { usePersistedFilters } from "@/lib/hooks/use-persisted-filters"
+import { ClientFilterDrawer } from "@/components/clients/client-filter-drawer"
 import { ClientTable } from "@/components/clients/client-table"
-import { ClientFormDialog } from "@/components/clients/client-form-dialog"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Building2, User } from "lucide-react"
+import { ClientGallery } from "@/components/clients/client-gallery"
+import {
+    INITIAL_FILTERS,
+    applyFilters,
+    countActiveFilters,
+    type ClientFiltersState,
+} from "@/components/clients/filters-state"
+import type { MockClient } from "@/lib/mock/clients"
 
 export default function ClientsPage() {
-    const [clients, setClients] = useState<any[]>([])
+    const router = useRouter()
+    const { filterByVisibility } = useCurrentUser()
+    const [clients, setClients] = useState<MockClient[]>([])
     const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState("")
-    const [viewMode, setViewMode] = useState<"list" | "gallery">("list")
-    const [typeFilter, setTypeFilter] = useState<"ALL" | "PERSONNE_MORALE" | "PERSONNE_PHYSIQUE">("ALL")
-    const [dialogOpen, setDialogOpen] = useState(false)
-
-    // Fetch clients from API
-    const fetchClients = async () => {
-        try {
-            setLoading(true)
-            const response = await fetch('/api/clients')
-            if (!response.ok) throw new Error('Failed to fetch clients')
-            const data = await response.json()
-            setClients(data)
-        } catch (error) {
-            console.error('Error fetching clients:', error)
-        } finally {
-            setLoading(false)
-        }
-    }
+    const [error, setError] = useState<string | null>(null)
+    const [filters, setFilters] = usePersistedFilters<ClientFiltersState>("clients", INITIAL_FILTERS)
+    const [drawerOpen, setDrawerOpen] = useState(false)
+    const [createOpen, setCreateOpen] = useState(false)
 
     useEffect(() => {
-        fetchClients()
-    }, [])
-
-    // Filter logic
-    const filteredClients = clients.filter(client => {
-        // Type filter
-        if (typeFilter !== "ALL" && client.type !== typeFilter) return false
-
-        // Search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase()
-            const searchFields = [
-                client.email || '',
-                client.telephone || '',
-                client.type === "PERSONNE_PHYSIQUE"
-                    ? `${client.nom} ${client.prenom}`
-                    : client.raisonSociale || '',
-            ]
-            return searchFields.some(field => field.toLowerCase().includes(query))
+        let alive = true
+        fetch("/api/clients", { credentials: "include" })
+            .then((r) => {
+                if (r.status === 401) {
+                    router.push("/login")
+                    return null
+                }
+                if (!r.ok) throw new Error(`HTTP ${r.status}`)
+                return r.json()
+            })
+            .then((data: MockClient[] | null) => {
+                if (!alive || !data) return
+                setClients(data)
+            })
+            .catch((e) => {
+                if (!alive) return
+                setError(e instanceof Error ? e.message : "Erreur inconnue")
+            })
+            .finally(() => {
+                if (alive) setLoading(false)
+            })
+        return () => {
+            alive = false
         }
+    }, [router])
 
-        return true
-    })
+    const availableYears = useMemo(() => {
+        const years = new Set<string>()
+        for (const c of clients) {
+            years.add(new Date(c.createdAt).getFullYear().toString())
+        }
+        return Array.from(years).sort((a, b) => Number(b) - Number(a))
+    }, [clients])
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-200 border-t-blue-600"></div>
-            </div>
-        )
+    const counters = useMemo(() => {
+        /* Compteurs basés sur la liste visible (respecte le scope RBAC) */
+        const list = filterByVisibility(clients, "clients.view")
+        const total = list.length
+        const pm = list.filter((c) => c.type === "PERSONNE_MORALE").length
+        const pp = total - pm
+        return { total, pm, pp }
+    }, [clients, filterByVisibility])
+
+    /* Filtrage RBAC : si scope OWN, on ne montre que les clients du membre */
+    const visibleClients = useMemo(
+        () => filterByVisibility(clients, "clients.view"),
+        [clients, filterByVisibility]
+    )
+    const filteredClients = useMemo(
+        () => applyFilters(visibleClients, filters),
+        [visibleClients, filters]
+    )
+
+    const activeCount = countActiveFilters(filters)
+    const hasActiveContext = activeCount > 0 || filters.search.length > 0
+
+    const resetAll = () => setFilters(INITIAL_FILTERS)
+
+    const handleCreateClient = async (draft: ClientFormDraft) => {
+        const isPM = draft.type === "PERSONNE_MORALE"
+        try {
+            const res = await fetch("/api/clients", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    type: draft.type,
+                    raisonSociale: isPM ? (draft.raisonSociale || null) : null,
+                    formeJuridique: isPM ? (draft.formeJuridique || null) : null,
+                    numeroRCCM: isPM ? (draft.numeroRCCM || null) : null,
+                    nif: isPM ? (draft.nif || null) : null,
+                    conventionnee: draft.conventionnee,
+                    siegeSocial: isPM ? (draft.siegeSocial || null) : null,
+                    representantLegal: isPM ? (draft.representantLegal || null) : null,
+                    nom: !isPM ? (draft.nom || null) : null,
+                    prenom: !isPM ? (draft.prenom || null) : null,
+                    profession: !isPM ? (draft.profession || null) : null,
+                    pieceIdentite: !isPM ? (draft.pieceIdentite || null) : null,
+                    nationalite: !isPM ? (draft.nationalite || null) : null,
+                    dateNaissance: !isPM && draft.dateNaissance
+                        ? new Date(draft.dateNaissance + "T10:00").toISOString()
+                        : null,
+                    lieuNaissance: !isPM ? (draft.lieuNaissance || null) : null,
+                    whatsapp: !isPM ? (draft.whatsapp || null) : null,
+                    email: draft.email || null,
+                    telephone: draft.telephone || null,
+                    adresse: draft.adresse || null,
+                    ville: draft.ville || null,
+                    pays: draft.pays || "Niger",
+                    notes: draft.notes || null,
+                    actif: draft.actif,
+                    honorairesConvenus: draft.honorairesConvenus || null,
+                }),
+            })
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${res.status}`)
+            }
+            const created: MockClient = await res.json()
+            setClients((prev) => [created, ...prev])
+            setCreateOpen(false)
+        } catch (e) {
+            toast.error("Échec création client : " + (e instanceof Error ? e.message : "Erreur inconnue"))
+        }
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] gap-4 pb-4">
-            {/* Header */}
-            <div className="flex-none flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                            Portefeuille Clients
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium">
-                            {filteredClients.length} clients actifs
-                        </p>
-                    </div>
-                    <Button
-                        size="default"
-                        className="shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                        onClick={() => setDialogOpen(true)}
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nouveau Client
-                    </Button>
+        <PageGate perm="clients.view" moduleName="Clients">
+        <div className="flex flex-col h-full overflow-hidden p-container-margin gap-density-medium">
+            {/* Header — compact 1 ligne */}
+            <header className="flex-none flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-baseline gap-3 flex-wrap min-w-0">
+                    <p className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
+                        Portefeuille
+                    </p>
+                    <h1 className="font-h1 text-h1 text-primary-container">Clients</h1>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        <span className="text-on-surface font-medium">{counters.total}</span> au total
+                        <span className="text-outline-variant mx-1.5">·</span>
+                        <span className="text-on-surface">{counters.pm}</span> sociétés
+                        <span className="text-outline-variant mx-1.5">·</span>
+                        <span className="text-on-surface">{counters.pp}</span> particuliers
+                        {hasActiveContext && (
+                            <>
+                                <span className="text-outline-variant mx-1.5">·</span>
+                                <span className="text-accent font-medium">
+                                    {filteredClients.length} filtré{filteredClients.length > 1 ? "s" : ""}
+                                </span>
+                            </>
+                        )}
+                    </p>
                 </div>
 
-                {/* Filters Component */}
-                <ClientFilters
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    typeFilter={typeFilter}
-                    setTypeFilter={setTypeFilter}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
+                <button
+                    className="flex-shrink-0 bg-accent text-white px-4 py-2 rounded font-body-sm text-body-sm font-medium flex items-center gap-2 hover:bg-opacity-90 transition-colors shadow-sm active:scale-[0.98] duration-150 ease-out"
+                    onClick={() => setCreateOpen(true)}
+                >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    Nouveau client
+                </button>
+            </header>
+
+            {/* Toolbar compact : recherche + filtres + vue */}
+            <div className="flex-none">
+                <ClientToolbar
+                    filters={filters}
+                    onSearchChange={(search) => setFilters((f) => ({ ...f, search }))}
+                    onClearSearch={() => setFilters((f) => ({ ...f, search: "" }))}
+                    onOpenFilters={() => setDrawerOpen(true)}
+                    onViewModeChange={(viewMode) => setFilters((f) => ({ ...f, viewMode }))}
                 />
             </div>
 
-            {/* Content Area - Main Scrollable Container */}
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm relative flex flex-col">
-                {filteredClients.length === 0 ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/50">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 border border-slate-100">
-                            <Search className="h-8 w-8 text-slate-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-slate-900">Aucun client trouvé</h3>
-                        <p className="text-slate-500 mt-1">Essayez de modifier vos filtres</p>
-                        <Button
-                            variant="link"
-                            onClick={() => { setSearchQuery(""); setTypeFilter("ALL"); }}
-                            className="mt-2 text-blue-600 font-medium"
-                        >
-                            Réinitialiser les filtres
-                        </Button>
+            {/* Zone contenu — scroll interne */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+                {loading ? (
+                    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-12 text-center font-body-sm text-on-surface-variant h-full flex items-center justify-center">
+                        Chargement…
                     </div>
+                ) : error ? (
+                    <div className="bg-error-container border border-outline-variant rounded-lg p-6 text-center">
+                        <p className="font-body-sm text-on-error-container">
+                            Impossible de charger les clients ({error})
+                        </p>
+                    </div>
+                ) : filteredClients.length === 0 ? (
+                    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg h-full flex flex-col items-center justify-center text-center p-12">
+                        <span className="material-symbols-outlined text-[40px] text-outline-variant">
+                            search_off
+                        </span>
+                        <p className="font-body-md text-body-md text-on-surface mt-2 font-medium">
+                            Aucun client ne correspond à ces filtres
+                        </p>
+                        <button
+                            onClick={resetAll}
+                            className="mt-3 text-accent font-body-sm font-medium hover:underline"
+                        >
+                            Réinitialiser tous les filtres
+                        </button>
+                    </div>
+                ) : filters.viewMode === "table" ? (
+                    <ClientTable clients={filteredClients} pageSize={10} />
                 ) : (
-                    <>
-                        {/* LIST VIEW (TABLE) */}
-                        {viewMode === "list" && (
-                            <ClientTable
-                                clients={filteredClients}
-                                getDossiersCount={(id) => {
-                                    const client = clients.find(c => c.id === id)
-                                    return client?._count?.dossiers || 0
-                                }}
-                            />
-                        )}
-
-                        {/* GALLERY VIEW (CARDS) */}
-                        {viewMode === "gallery" && (
-                            <div className="h-full overflow-y-auto p-6 custom-scrollbar">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    {filteredClients.map((client) => (
-                                        <Card key={client.id} className="group hover:shadow-lg transition-all duration-300 border-slate-200 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] hover:border-blue-800/30">
-                                            <CardContent className="p-6">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className={`p-3 rounded-xl ${client.type === 'PERSONNE_MORALE' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                                        {client.type === 'PERSONNE_MORALE' ? <Building2 className="h-6 w-6" /> : <User className="h-6 w-6" />}
-                                                    </div>
-                                                    <Badge variant="outline" className="bg-slate-50">{client.type === 'PERSONNE_MORALE' ? 'Société' : 'Particulier'}</Badge>
-                                                </div>
-
-                                                <h3 className="font-bold text-lg text-slate-900 mb-1 truncate" title={client.type === "PERSONNE_PHYSIQUE" ? `${client.nom} ${client.prenom}` : client.raisonSociale}>
-                                                    {client.type === "PERSONNE_PHYSIQUE" ? `${client.nom} ${client.prenom}` : client.raisonSociale}
-                                                </h3>
-                                                <p className="text-sm text-slate-500 mb-6 truncate">{client.email}</p>
-
-                                                <Link href={`/clients/${client.id}`} className="block w-full">
-                                                    <Button className="w-full bg-slate-900 hover:bg-blue-600 text-white transition-colors font-medium">
-                                                        Voir le dossier
-                                                    </Button>
-                                                </Link>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </>
+                    <ClientGallery clients={filteredClients} />
                 )}
             </div>
 
-            {/* Client Form Dialog */}
-            <ClientFormDialog
-                open={dialogOpen}
-                onOpenChange={setDialogOpen}
-                onSuccess={fetchClients}
+            {/* Drawer filtres */}
+            <ClientFilterDrawer
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                filters={filters}
+                onChange={setFilters}
+                availableYears={availableYears}
             />
+
+            {/* Dialog création client */}
+            {createOpen && (
+                <ClientFormDialog
+                    existingClients={clients}
+                    onSave={handleCreateClient}
+                    onClose={() => setCreateOpen(false)}
+                />
+            )}
         </div>
+        </PageGate>
     )
 }

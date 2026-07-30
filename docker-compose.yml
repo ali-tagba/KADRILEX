@@ -1,0 +1,30 @@
+## KadriLex app — Next.js standalone
+## Rejoint le réseau supabase_default (créé par /opt/kadrilex-supabase/docker)
+## pour parler à supabase-db sur le hostname "db".
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kadrilex-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    networks:
+      - supabase
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  supabase:
+    external: true
+    name: supabase_default

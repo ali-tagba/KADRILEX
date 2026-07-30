@@ -1,0 +1,1036 @@
+// KadriLex — Schéma Prisma complet (Sprint 0)
+// Source : BACKEND_BLUEPRINT.md + lib/constants/* (source de vérité des enums)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS — alignés sur lib/constants/* (clés exactes utilisées
+// côté frontend pour ne pas casser le mock-mode)
+// ============================================================
+
+enum Role {
+  ASSOCIE_GERANT
+  ASSOCIE
+  AVOCAT
+  JURISTE
+  STAGIAIRE
+  SECRETAIRE
+}
+
+enum InvitationStatut {
+  ACTIF
+  INVITE
+  JAMAIS_CONNECTE
+  DESACTIVE
+}
+
+enum StatutContrat {
+  ASSOCIE
+  COLLABORATEUR_CDI
+  COLLABORATEUR_CDD
+  STAGIAIRE
+  SECRETAIRE_CDI
+  FREELANCE
+}
+
+enum ClientType {
+  PERSONNE_MORALE
+  PERSONNE_PHYSIQUE
+}
+
+enum DossierKind {
+  CLIENT
+  ADMIN
+}
+
+enum DossierType {
+  CIVIL
+  COMMERCIAL
+  PENAL
+  ADMINISTRATIF
+  SOCIAL
+  COUTUMIERE
+  AUTRE
+}
+
+enum DossierStatut {
+  EN_COURS
+  EN_ATTENTE
+  URGENT
+  CLOTURE
+  TERMINE
+  ARCHIVE
+}
+
+enum FileType {
+  FOLDER
+  FILE
+}
+
+enum AudienceNature {
+  PLAIDOIRIE
+  MISE_EN_ETAT
+  REFERE
+  CONCILIATION
+  DELIBERE
+  RENVOI
+  AUTRE
+}
+
+enum AudienceStatut {
+  A_VENIR
+  TERMINEE
+  REPORTEE
+  ANNULEE
+}
+
+enum ResultatAudience {
+  RENVOI
+  PLAIDOIRIE
+  DELIBERE
+  DELIBERE_RABATTU
+  DELIBERE_PROROGE
+  DECISION_RENDUE
+}
+
+enum TacheStatut {
+  A_FAIRE
+  EN_COURS
+  FAIT
+  ANNULE
+}
+
+enum TachePriorite {
+  BASSE
+  MOYENNE
+  HAUTE
+  URGENTE
+}
+
+enum DocCategorie {
+  JURISPRUDENCE
+  DECISION_JUSTICE
+  DOCTRINE
+  MODELE
+  INTERNE
+  AUTRE
+}
+
+enum DocType {
+  ARRET
+  JUGEMENT
+  ORDONNANCE
+  AVIS
+  DECRET
+  LOI
+  ARTICLE
+  OUVRAGE
+  THESE
+  MEMOIRE
+  NOTE
+  COMMENTAIRE
+  CHRONIQUE
+  CONTRAT
+  PROCEDURE
+  FORMULAIRE
+  AUTRE
+}
+
+enum DomaineJuridique {
+  AFFAIRES
+  SOCIAL
+  ADMINISTRATIF
+  INVESTISSEMENT
+  TIC
+  FISCAL
+  BANCAIRE
+  RECOUVREMENT
+  OHADA
+  CIVIL
+  COMMERCIAL
+  PENAL
+  TRAVAIL
+  PROPRIETE_INTELLECTUELLE
+  MINIER_PETROLIER
+  FONCIER
+  COUTUMIER
+  CONSTITUTIONNEL
+  INTL
+  AUTRE
+}
+
+enum NiveauJuridiction {
+  INSTANCE
+  GRANDE_INSTANCE
+  COMMERCE
+  ADMIN
+  APPEL
+  ETAT
+  SUPREME
+  CCJA
+  ARBITRAL
+  AUTRE
+}
+
+enum IssueJuris {
+  FAVORABLE
+  DEFAVORABLE
+  MIXTE
+  NA
+}
+
+enum DocStatut {
+  ACTIF
+  ARCHIVE
+}
+
+enum FactureDirection {
+  EMISE
+  RECUE
+}
+
+enum FactureStatut {
+  BROUILLON
+  EMISE
+  PARTIELLE
+  PAYEE
+  EN_RETARD
+  ANNULEE
+}
+
+enum ModePaiement {
+  VIREMENT
+  MOBILE_MONEY
+  ESPECES
+  CHEQUE
+  CARTE
+  PRELEVEMENT
+  AUTRE
+}
+
+enum TypeFournisseur {
+  HUISSIER
+  EXPERT
+  GREFFE
+  BAILLEUR
+  PRESTATAIRE_SERVICE
+  AUTRE
+}
+
+enum CategorieDepense {
+  LOYER
+  ELECTRICITE
+  INTERNET
+  EAU
+  ABONNEMENT_SOFTWARE
+  FOURNITURES
+  CARBURANT
+  REPAS
+  FORMATION
+  COTISATIONS
+  FRAIS_BANCAIRES
+  ASSURANCE
+  MAINTENANCE
+  AUTRE
+}
+
+enum DepenseStatut {
+  PAYEE
+  A_PAYER
+}
+
+enum FrequenceRecurrence {
+  MENSUEL
+  TRIMESTRIEL
+  SEMESTRIEL
+  ANNUEL
+}
+
+enum BulletinStatut {
+  BROUILLON
+  VALIDE
+  VERSE
+}
+
+enum TypeLigneBulletin {
+  GAIN
+  RETENUE
+  CHARGE_SALARIALE
+  CHARGE_PATRONALE
+}
+
+// ============================================================
+// MEMBRE — équipe du cabinet (remplace User)
+// ============================================================
+
+model Membre {
+  id     String @id @default(cuid())
+  prenom String
+  nom    String
+  email  String @unique
+
+  role                 Role
+  /// Surcharge des permissions par défaut du rôle (Partial<Record<PermissionKey, Scope>>)
+  permissionsOverrides Json?
+
+  telephone String?
+  photoUrl  String?
+
+  actif             Boolean          @default(true)
+  dateEmbauche     DateTime
+  dateSortie        DateTime?
+  motifSortie       String?
+  invitationStatut  InvitationStatut @default(INVITE)
+  derniereConnexion DateTime?
+
+  /// Hash bcrypt du codeAcces personnel (jamais en clair côté DB)
+  codeAccesHash   String
+  codeAccesGeneAt DateTime @default(now())
+
+  statutContrat   StatutContrat
+  fonction        String?
+  salaireBaseBrut Int           @default(0)
+
+  rib                    String?
+  banque                 String?
+  mobileMoney            String?
+  modeVersementParDefaut ModePaiement @default(VIREMENT)
+
+  /// Bridge legacy texte (AVOCATS_CABINET) — null après migration complète
+  avocatCabinetKey String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations inverses
+  clientsResponsable    Client[]          @relation("ClientResponsable")
+  dossiersResponsable   Dossier[]         @relation("DossierResponsable")
+  audiencesResponsable  Audience[]        @relation("AudienceResponsable")
+  tachesResponsable     Tache[]           @relation("TacheResponsable")
+  diligencesResponsable Diligence[]       @relation("DiligenceResponsable")
+  notesAuteur           DossierNote[]
+  bulletins             Bulletin[]
+  clientsEquipe         ClientEquipe[]
+  dossiersEquipe        DossierEquipe[]
+  audiencesEquipe       AudienceEquipe[]
+  tachesEquipe          TacheEquipe[]
+  diligencesEquipe      DiligenceEquipe[]
+  partagesEnvoyes       Partage[]         @relation("PartageFrom")
+  partagesRecus         Partage[]         @relation("PartageTo")
+
+  @@index([actif])
+  @@index([role])
+}
+
+// ============================================================
+// PARTAGE — notifications/partages inter-équipe (polymorphique)
+// ============================================================
+
+enum PartageEntityType {
+  CLIENT
+  DOSSIER
+  AUDIENCE
+  TACHE
+  DOCUMENT
+  FACTURE
+  BULLETIN
+  DEPENSE
+}
+
+model Partage {
+  id           String            @id @default(cuid())
+  fromMembreId String
+  fromMembre   Membre            @relation("PartageFrom", fields: [fromMembreId], references: [id], onDelete: Cascade)
+  toMembreId   String
+  toMembre     Membre            @relation("PartageTo", fields: [toMembreId], references: [id], onDelete: Cascade)
+
+  entityType   PartageEntityType
+  entityId     String
+  /// Pour affichage rapide sans lookup (ex: "DOS-26-012")
+  entityNumero String?
+  /// Titre court de l'entité (ex: "Affaire SONITEL c/ État")
+  entityLabel  String?
+
+  message      String?
+  readAt       DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([toMembreId, readAt])
+  @@index([fromMembreId])
+  @@index([entityType, entityId])
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+
+model Client {
+  id           String     @id @default(cuid())
+  numeroClient String     @unique // CLI-YY-NNN auto-généré
+  type         ClientType
+  iconHint     String     @default("business")
+
+  // Personne morale
+  raisonSociale     String?
+  formeJuridique    String?
+  numeroRCCM        String?
+  nif               String?
+  conventionnee     Boolean?
+  siegeSocial       String?
+  representantLegal String?
+
+  // Personne physique
+  nom           String?
+  prenom        String?
+  profession    String?
+  pieceIdentite String?
+  nationalite   String?
+  dateNaissance DateTime?
+  lieuNaissance String?
+  whatsapp      String?
+
+  // Communs
+  email     String?
+  telephone String?
+  adresse   String?
+  ville     String?
+  pays      String  @default("Niger")
+  notes     String?
+
+  // Méta cabinet
+  actif              Boolean @default(true)
+  honorairesConvenus String?
+
+  /// @deprecated voir responsable
+  avocatEnCharge String?
+
+  // RBAC
+  responsableId String?
+  responsable   Membre?        @relation("ClientResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  equipe        ClientEquipe[]
+
+  // Sub-collections
+  contacts   Contact[]
+  dossiers   Dossier[]
+  taches     Tache[]
+  factures   Facture[]
+  audiences  Audience[]  @relation("AudienceClient")
+  diligences Diligence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([actif])
+  @@index([responsableId])
+  @@index([ville])
+}
+
+model ClientEquipe {
+  clientId String
+  membreId String
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  membre   Membre   @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  addedAt  DateTime @default(now())
+
+  @@id([clientId, membreId])
+  @@index([membreId])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  nom       String
+  prenom    String?
+  fonction  String?
+  email     String?
+  telephone String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+// ============================================================
+// DOSSIERS
+// ============================================================
+
+model Dossier {
+  id            String        @id @default(cuid())
+  numero        String        @unique // DOS-YY-NNN ou ADM-YY-NNN
+  kind          DossierKind   @default(CLIENT)
+  type          DossierType
+  /// Texte libre + datalist NATURES_AFFAIRE
+  nature        String
+  titre         String
+  statut        DossierStatut @default(EN_COURS)
+  etatProcedure String?
+  juridiction   String?
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  /// Tableau de noms de parties adverses
+  partiesAdverses String[]
+
+  dateOuverture     DateTime
+  dateCloture       DateTime?
+  description       String?
+  
+  /// Array d'objets { phase: string, type: "FORFAIT" | "POURCENTAGE", montant: number }
+  honoraires        Json?
+  
+  /// Objet { beneficiaire: string, type: "FORFAIT" | "POURCENTAGE", montant: number }
+  retrocession      Json?
+
+  // RBAC
+  responsableId String?
+  responsable   Membre?         @relation("DossierResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  equipe        DossierEquipe[]
+
+  // Sub-collections
+  files      DossierFile[]
+  notes      DossierNote[]
+  audiences  Audience[]
+  taches     Tache[]
+  factures   Facture[]
+  documents  DocumentDossier[]
+  depenses   Depense[]
+  diligences Diligence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
+  @@index([type])
+  @@index([responsableId])
+  @@index([dateOuverture])
+}
+
+model DossierEquipe {
+  dossierId String
+  membreId  String
+  dossier   Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  membre    Membre   @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  addedAt   DateTime @default(now())
+
+  @@id([dossierId, membreId])
+  @@index([membreId])
+}
+
+model DossierFile {
+  id        String   @id @default(cuid())
+  dossierId String
+  dossier   Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   DossierFile?  @relation("FileTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children DossierFile[] @relation("FileTree")
+
+  name     String
+  type     FileType
+  mimeType String?
+  size     Int?
+  /// Signed URL ou path interne (Supabase Storage / R2)
+  url      String?
+  /// Pour les folders : code couleur (8 valeurs)
+  couleur  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+  @@index([parentId])
+}
+
+model DossierNote {
+  id        String   @id @default(cuid())
+  dossierId String
+  dossier   Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  auteurId  String
+  auteur    Membre   @relation(fields: [auteurId], references: [id])
+  contenu   String
+  createdAt DateTime @default(now())
+
+  @@index([dossierId])
+  @@index([auteurId])
+}
+
+// ============================================================
+// AUDIENCES
+// ============================================================
+
+model Audience {
+  id            String         @id @default(cuid())
+  numero        String         @unique // AUD-YY-NNN
+  titre         String
+  nature        AudienceNature
+  statut        AudienceStatut @default(A_VENIR)
+  dateDebut     DateTime
+  dureeMinutes  Int            @default(60)
+  juridiction   String?
+  salleAudience String?
+
+  /// Dossier rattaché — OPTIONNEL : une audience peut être « sèche »
+  /// (remplacement de confrère, référé urgent avant ouverture du dossier…)
+  dossierId String?
+  dossier   Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+
+  /// Client rattaché — OPTIONNEL et indépendant du dossier. Permet de lier
+  /// une audience sans dossier directement à un client connu.
+  clientId String?
+  client   Client? @relation("AudienceClient", fields: [clientId], references: [id], onDelete: SetNull)
+
+  // RBAC
+  responsableId String?
+  responsable   Membre?          @relation("AudienceResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  equipe        AudienceEquipe[]
+
+  notes       String?
+  compteRendu String?
+  resultat    ResultatAudience?
+
+  taches     Tache[]     @relation("AudienceTache")
+  diligences Diligence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+  @@index([clientId])
+  @@index([dateDebut])
+  @@index([statut])
+  @@index([responsableId])
+}
+
+model AudienceEquipe {
+  audienceId String
+  membreId   String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  membre     Membre   @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  addedAt    DateTime @default(now())
+
+  @@id([audienceId, membreId])
+  @@index([membreId])
+}
+
+// ============================================================
+// TÂCHES
+// ============================================================
+
+model Tache {
+  id          String        @id @default(cuid())
+  titre       String
+  description String?
+  statut      TacheStatut   @default(A_FAIRE)
+  priorite    TachePriorite @default(MOYENNE)
+  echeance    DateTime?
+
+  // RBAC
+  responsableId String?
+  responsable   Membre?       @relation("TacheResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  equipe        TacheEquipe[]
+
+  /// @deprecated assigneA texte libre (legacy bridge)
+  assigneA String?
+
+  // Liaisons (1 obligatoire ou 0 = tâche libre)
+  clientId   String?
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  dossierId  String?
+  dossier    Dossier?  @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  audienceId String?
+  audience   Audience? @relation("AudienceTache", fields: [audienceId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([statut])
+  @@index([priorite])
+  @@index([echeance])
+  @@index([responsableId])
+  @@index([dossierId])
+  @@index([audienceId])
+}
+
+model TacheEquipe {
+  tacheId  String
+  membreId String
+  tache    Tache    @relation(fields: [tacheId], references: [id], onDelete: Cascade)
+  membre   Membre   @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  addedAt  DateTime @default(now())
+
+  @@id([tacheId, membreId])
+  @@index([membreId])
+}
+
+// ============================================================
+// DILIGENCES — actes & démarches de procédure avec délais
+// (« agenda de suivi des diligences » du cabinet)
+// ============================================================
+
+enum DiligenceType {
+  CONCLUSIONS
+  ASSIGNATION
+  ACTE_APPEL
+  POURVOI_CASSATION
+  SIGNIFICATION
+  REQUETE
+  CONSTITUTION
+  DEPOT_PIECES
+  SOMMATION
+  RELANCE
+  CONSULTATION
+  PREPARATION_PLAIDOIRIE
+  RDV_CLIENT
+  AUTRE
+}
+
+enum DiligenceStatut {
+  A_FAIRE
+  EN_COURS
+  ACCOMPLIE
+  ANNULEE
+}
+
+model Diligence {
+  id          String          @id @default(cuid())
+  numero      String          @unique // DIL-YY-NNN
+  titre       String
+  description String?
+  type        DiligenceType   @default(AUTRE)
+  statut      DiligenceStatut @default(A_FAIRE)
+  priorite    TachePriorite   @default(MOYENNE)
+
+  /// Délai / date butoir de la diligence — cœur de l'agenda (forclusion).
+  dateEcheance  DateTime?
+  /// Renseignée quand la diligence passe à ACCOMPLIE.
+  dateAccomplie DateTime?
+
+  // Liens optionnels (une diligence peut être 100% libre)
+  dossierId  String?
+  dossier    Dossier?  @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  clientId   String?
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  audienceId String?
+  audience   Audience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
+  // RBAC
+  responsableId String?
+  responsable   Membre?           @relation("DiligenceResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  equipe        DiligenceEquipe[]
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([priorite])
+  @@index([dateEcheance])
+  @@index([responsableId])
+  @@index([dossierId])
+  @@index([clientId])
+  @@index([audienceId])
+}
+
+model DiligenceEquipe {
+  diligenceId String
+  membreId    String
+  diligence   Diligence @relation(fields: [diligenceId], references: [id], onDelete: Cascade)
+  membre      Membre    @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  addedAt     DateTime  @default(now())
+
+  @@id([diligenceId, membreId])
+  @@index([membreId])
+}
+
+// ============================================================
+// BIBLIOTHÈQUE
+// ============================================================
+
+model Document {
+  id                String             @id @default(cuid())
+  titre             String
+  categorie         DocCategorie
+  type              DocType?
+  domaineJuridique  DomaineJuridique?
+  juridiction       String?
+  niveauJuridiction NiveauJuridiction?
+  reference         String?
+  dateDocument      DateTime?
+  description       String?
+
+  /// Tags multi-valeurs (array)
+  tags String[]
+
+  auteur String?
+  source String?
+  notes  String?
+
+  // Fichier
+  fileName String?
+  fileSize Int?
+  fileUrl  String?
+  /// CSV : "Art. 28 AUPSRVE, Art. 90 AUDCG"
+  articlesCites String?
+
+  issue                IssueJuris?
+  estFavori            Boolean     @default(false)
+  nbConsultations      Int         @default(0)
+  derniereConsultation DateTime?
+
+  statut DocStatut @default(ACTIF)
+
+  // Liaison N×N avec dossiers
+  dossiers DocumentDossier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categorie])
+  @@index([domaineJuridique])
+  @@index([statut])
+  @@index([estFavori])
+}
+
+model DocumentDossier {
+  documentId String
+  dossierId  String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  dossier    Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  linkedAt   DateTime @default(now())
+
+  @@id([documentId, dossierId])
+  @@index([dossierId])
+}
+
+// ============================================================
+// FOURNISSEURS
+// ============================================================
+
+model Fournisseur {
+  id        String          @id @default(cuid())
+  nom       String
+  type      TypeFournisseur
+  nif       String?
+  email     String?
+  telephone String?
+  adresse   String?
+
+  factures Facture[]
+  depenses Depense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+// ============================================================
+// FACTURES (émises + reçues)
+// ============================================================
+
+model Facture {
+  id        String           @id @default(cuid())
+  numero    String           @unique // FAC-YY-NNN ou REC-YY-NNN
+  direction FactureDirection
+
+  date         DateTime
+  dateEcheance DateTime?
+
+  // Côté EMISE
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  dossierId  String?
+  dossier    Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  audienceId String?
+
+  // Côté RECUE
+  fournisseurId       String?
+  fournisseur         Fournisseur? @relation(fields: [fournisseurId], references: [id], onDelete: SetNull)
+  fournisseurNomLibre String?
+
+  // Montants (FCFA, entiers)
+  montantHT   Int @default(0)
+  tvaRate     Int @default(19)
+  montantTVA  Int @default(0)
+  montantTTC  Int @default(0)
+  montantPaye Int @default(0)
+
+  statut        FactureStatut @default(BROUILLON)
+  description   String?
+  notes         String?
+  /// Pour factures REÇUES : scan PDF uploadé par l'utilisateur
+  attachmentUrl String?
+
+  /// Pour factures ÉMISES : URL du PDF généré automatiquement par le cabinet
+  generatedPdfUrl String?
+  /// Date de dernière génération — sert à savoir si la facture a été modifiée depuis
+  generatedPdfAt  DateTime?
+
+  // Refacturation (pour factures reçues)
+  refacturable           Boolean @default(false)
+  refactureeViaFactureId String?
+
+  lignes    FactureLigne[]
+  paiements Paiement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([direction])
+  @@index([statut])
+  @@index([clientId])
+  @@index([dossierId])
+  @@index([fournisseurId])
+  @@index([date])
+  @@index([refacturable])
+}
+
+model FactureLigne {
+  id           String  @id @default(cuid())
+  factureId    String
+  facture      Facture @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  libelle      String
+  quantite     Decimal @default(1.00) @db.Decimal(10, 2)
+  prixUnitaire Int
+  total        Int
+  audienceId   String?
+
+  @@index([factureId])
+}
+
+model Paiement {
+  id        String       @id @default(cuid())
+  factureId String
+  facture   Facture      @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  date      DateTime
+  montant   Int
+  mode      ModePaiement
+  reference String?
+  notes     String?
+  /// Preuve uploadée (reçu, capture mobile money, scan virement…)
+  preuveUrl String?
+  createdAt DateTime     @default(now())
+
+  @@index([factureId])
+  @@index([date])
+}
+
+// ============================================================
+// DÉPENSES INTERNES
+// ============================================================
+
+model Depense {
+  id        String           @id @default(cuid())
+  libelle   String
+  categorie CategorieDepense
+  date      DateTime
+
+  montantHT  Int
+  tvaRate    Int @default(0)
+  montantTVA Int @default(0)
+  montantTTC Int
+
+  mode      ModePaiement
+  reference String?
+
+  recurrent           Boolean              @default(false)
+  recurrenceFrequence FrequenceRecurrence?
+  parentRecurrenceId  String?
+
+  fournisseurId       String?
+  fournisseur         Fournisseur? @relation(fields: [fournisseurId], references: [id], onDelete: SetNull)
+  fournisseurNomLibre String?
+
+  /// Liaison optionnelle à un dossier (frais imputable)
+  dossierId String?
+  dossier   Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+
+  attachmentUrl String?
+  notes         String?
+  statut        DepenseStatut @default(PAYEE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categorie])
+  @@index([date])
+  @@index([statut])
+  @@index([recurrent])
+  @@index([dossierId])
+}
+
+// ============================================================
+// PAIE
+// ============================================================
+
+model Bulletin {
+  id        String @id @default(cuid())
+  employeId String
+  employe   Membre @relation(fields: [employeId], references: [id], onDelete: Cascade)
+  annee     Int
+  mois      Int // 1..12
+
+  salaireBrut       Int
+  primes            Int @default(0)
+  retenues          Int @default(0)
+  chargesSalariales Int
+  chargesPatronales Int
+  /// Calculé : brut + primes - retenues - chargesSalariales
+  salaireNet         Int
+  /// Calculé : brut + primes + chargesPatronales
+  coutTotalEmployeur Int
+
+  statut        BulletinStatut @default(BROUILLON)
+  dateVersement DateTime?
+  modeVersement ModePaiement?
+  reference     String?
+
+  pdfUrl String?
+  notes  String?
+
+  lignes BulletinLigne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeId, annee, mois])
+  @@index([statut])
+  @@index([annee, mois])
+}
+
+model BulletinLigne {
+  id         String            @id @default(cuid())
+  bulletinId String
+  bulletin   Bulletin          @relation(fields: [bulletinId], references: [id], onDelete: Cascade)
+  libelle    String
+  type       TypeLigneBulletin
+  montant    Int
+
+  @@index([bulletinId])
+}
+
+// ============================================================
+// SECURITE  Rate Limiting
+// ============================================================
+
+model LoginAttempt {
+  ip        String   @id
+  count     Int      @default(1)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+}
+

@@ -1,0 +1,102 @@
+{
+	email mngauditconsultnotion@gmail.com
+}
+
+chat.82.25.116.169.sslip.io {
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:7860
+}
+
+paperclip.82.25.116.169.sslip.io {
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:3100
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+		format json
+	}
+}
+
+hermes.82.25.116.169.sslip.io {
+    basic_auth {
+        ousmane $2a$14$ID2Hu7PVNyiLcxBSilhj3.TbcRnWbpE067rRvYpH2c.Mrr0Z4WgGm
+    }
+    reverse_proxy 127.0.0.1:9119 {
+        header_up Host 127.0.0.1:9119
+    }
+}
+
+supabase.82.25.116.169.sslip.io {
+	encode gzip zstd
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy 127.0.0.1:8000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/supabase-access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+		format json
+	}
+}
+
+kadrilex.82.25.116.169.sslip.io {
+    encode gzip zstd
+    reverse_proxy 127.0.0.1:3000
+}
+
+82-25-116-169.nip.io {
+    @fanakaRoot path /fanaka /fanaka/
+    redir @fanakaRoot /fanaka/prototype/ 302
+
+    handle_path /fanaka/* {
+        encode gzip zstd
+        root * /var/www/fanaka
+        file_server
+
+        @assets path *.css *.js *.mp4 *.webm *.jpg *.jpeg *.png *.webp *.svg *.woff *.woff2
+        header @assets Cache-Control "public, max-age=2592000, immutable"
+
+        @html path *.html
+        header @html Cache-Control "no-store, must-revalidate"
+
+        header {
+            Strict-Transport-Security "max-age=31536000; includeSubDomains"
+            X-Content-Type-Options "nosniff"
+            Referrer-Policy "strict-origin-when-cross-origin"
+            -Server
+        }
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    log {
+        output file /var/log/caddy/fanaka-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+}

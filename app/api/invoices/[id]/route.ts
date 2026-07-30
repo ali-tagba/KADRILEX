@@ -1,92 +1,160 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    HttpError,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+} from "@/lib/server/api-helpers"
+import { FactureUpdateSchema } from "@/lib/server/schemas"
+import { calcTVA, calcTTC, recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
+import { AccountingService } from "@/lib/server/accounting"
 
 export async function GET(
-    request: NextRequest,
-    { params }: { params: any }
+    _req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requirePermission("finance.view")
         const { id } = await params
-        const invoice = await prisma.invoice.findUnique({
+        const f = await prisma.facture.findUnique({
             where: { id },
-            include: {
-                client: true,
-                dossier: true,
-                audience: true,
-            },
+            include: { client: true, dossier: true, fournisseur: true, paiements: true, lignes: true },
         })
-
-        if (!invoice) {
-            return NextResponse.json(
-                { error: 'Invoice not found' },
-                { status: 404 }
-            )
-        }
-
-        return NextResponse.json(invoice)
-    } catch (error) {
-        console.error('Error fetching invoice:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch invoice' },
-            { status: 500 }
-        )
+        if (!f) throw new HttpError(404, "Facture introuvable")
+        return Response.json(f)
+    } catch (e) {
+        return handleApiError(e)
     }
 }
 
 export async function PATCH(
-    request: NextRequest,
-    { params }: { params: any }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const body = await request.json()
+        await requirePermission("finance.write")
         const { id } = await params
+        const data = await parseJson(req, FactureUpdateSchema)
 
-        const invoice = await prisma.invoice.update({
+        const existing = await prisma.facture.findUnique({
             where: { id },
-            data: {
-                numero: body.numero,
-                date: body.date ? new Date(body.date) : undefined,
-                dateEcheance: body.dateEcheance ? new Date(body.dateEcheance) : undefined,
-                montantHT: body.montantHT,
-                montantTTC: body.montantTTC,
-                montantPaye: body.montantPaye,
-                statut: body.statut,
-                methodePaiement: body.moyenPaiement,
-                datePaiement: body.datePaiement ? new Date(body.datePaiement) : undefined,
-            },
-            include: {
-                client: true,
-                dossier: true,
-                audience: true,
-            },
+            include: { paiements: true },
+        })
+        if (!existing) throw new HttpError(404, "Facture introuvable")
+
+        const montantHT = data.montantHT ?? existing.montantHT
+        const tvaRate = data.tvaRate ?? existing.tvaRate
+        const montantTVA = calcTVA(montantHT, tvaRate)
+        const montantTTC = calcTTC(montantHT, tvaRate)
+        const montantPaye = sumPaiements(existing.paiements)
+        const dateEcheance =
+            data.dateEcheance === undefined
+                ? existing.dateEcheance
+                : data.dateEcheance
+                    ? new Date(data.dateEcheance)
+                    : null
+        const statut = recomputeFactureStatut({
+            statutActuel: data.statut ?? existing.statut,
+            montantTTC,
+            montantPaye,
+            dateEcheance,
         })
 
-        return NextResponse.json(invoice)
-    } catch (error) {
-        console.error('Error updating invoice:', error)
-        return NextResponse.json(
-            { error: 'Failed to update invoice' },
-            { status: 500 }
-        )
+        // Si des lignes sont fournies, on les remplace intégralement (deleteMany + create)
+        // Sinon on garde celles existantes (PATCH partiel).
+        const updated = await prisma.$transaction(async (tx) => {
+            if (data.lignes !== undefined) {
+                await tx.factureLigne.deleteMany({ where: { factureId: id } })
+                if (data.lignes.length > 0) {
+                    await tx.factureLigne.createMany({
+                        data: data.lignes.map((l) => ({
+                            factureId: id,
+                            libelle: l.libelle,
+                            quantite: l.quantite,
+                            prixUnitaire: l.prixUnitaire,
+                            total: l.total ?? Math.round(l.quantite * l.prixUnitaire),
+                            audienceId: l.audienceId ?? null,
+                        })),
+                    })
+                }
+            }
+            const { lignes: _lignes, ...rest } = data
+            return tx.facture.update({
+                where: { id },
+                data: {
+                    ...rest,
+                    date: data.date ? new Date(data.date) : undefined,
+                    dateEcheance:
+                        data.dateEcheance === undefined ? undefined : dateEcheance,
+                    montantHT,
+                    tvaRate,
+                    montantTVA,
+                    montantTTC,
+                    statut,
+                },
+                include: { client: true, dossier: true, fournisseur: true, paiements: true, lignes: true },
+            })
+        })
+
+        // ⏩ Logique comptable : déclenchement selon la transition de statut
+        const ancienStatut = existing.statut
+        const nouveauStatut = updated.statut
+
+        // Brouillon → Emise : créance client naissante
+        if (ancienStatut === "BROUILLON" && nouveauStatut === "EMISE") {
+            try {
+                await AccountingService.generateInvoiceEntries(updated.id)
+            } catch (e) {
+                console.error("Erreur écriture facture (EMISE):", e)
+            }
+        }
+
+        // Annulation : contre-écriture (uniquement si la facture avait déjà une écriture)
+        if (nouveauStatut === "ANNULEE" && ancienStatut !== "BROUILLON" && ancienStatut !== "ANNULEE") {
+            try {
+                await AccountingService.reverseInvoiceEntries(updated.id)
+            } catch (e) {
+                console.error("Erreur contre-écriture annulation:", e)
+            }
+        }
+
+        return Response.json(updated)
+    } catch (e) {
+        return handleApiError(e)
     }
 }
 
+/**
+ * Suppression DÉFINITIVE de la facture (hard delete).
+ *
+ * Aucun garde-fou compta : la suppression est autorisée même si PAYEE ou avec paiements.
+ * Cascade Prisma : FactureLigne ET Paiement sont supprimés automatiquement
+ * (onDelete: Cascade dans le schéma).
+ * Pour annuler sans supprimer (conserver historique), utiliser PATCH { statut: "ANNULEE" }.
+ */
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: any }
+    _req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requirePermission("finance.write")
         const { id } = await params
-        await prisma.invoice.delete({
-            where: { id },
-        })
 
-        return NextResponse.json({ success: true })
-    } catch (error) {
-        console.error('Error deleting invoice:', error)
-        return NextResponse.json(
-            { error: 'Failed to delete invoice' },
-            { status: 500 }
-        )
+        const facture = await prisma.facture.findUnique({ where: { id } })
+        if (!facture) throw new HttpError(404, "Facture introuvable")
+
+        try {
+            await AccountingService.reverseInvoiceEntries(id)
+        } catch (accError) {
+            console.error("Erreur annulation écriture comptable facture:", accError)
+        }
+
+        await prisma.facture.delete({ where: { id } })
+        return Response.json({ ok: true, deleted: id })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

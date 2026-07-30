@@ -2,56 +2,56 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-    LayoutDashboard,
-    Users,
-    FolderOpen,
-    Calendar,
-    MoreHorizontal
-} from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useCurrentUser } from "@/lib/auth/current-user-context"
+import type { PermissionKey } from "@/lib/constants/team"
 
-const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Clients", href: "/clients", icon: Users },
-    { name: "Dossiers", href: "/dossiers", icon: FolderOpen },
-    { name: "Audiences", href: "/audiences", icon: Calendar },
-    { name: "Plus", href: "/more", icon: MoreHorizontal },
+interface MobileNavItem {
+    name: string
+    href: string
+    icon: string
+    perm: PermissionKey | null
+}
+
+const navigation: MobileNavItem[] = [
+    { name: "Tableau", href: "/", icon: "dashboard", perm: "dashboard.global" },
+    { name: "Clients", href: "/clients", icon: "group", perm: "clients.view" },
+    { name: "Dossiers", href: "/dossiers", icon: "folder_open", perm: "dossiers.view" },
+    { name: "Audiences", href: "/audiences", icon: "gavel", perm: "audiences.view" },
+    { name: "Tâches", href: "/taches", icon: "task_alt", perm: "taches.view" },
+    /* "Plus" reste toujours visible pour accéder aux Paramètres / Équipe */
+    { name: "Plus", href: "/parametres", icon: "more_horiz", perm: null },
 ]
 
 export function MobileNav() {
     const pathname = usePathname()
+    const { hasAccess } = useCurrentUser()
+
+    /* Filtre par permission, mais on garde au moins 4 items visibles pour
+       éviter une nav mobile vide. */
+    const visible = navigation.filter((item) => item.perm === null || hasAccess(item.perm))
 
     return (
-        <nav className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
-            <div className="glass rounded-2xl shadow-xl flex items-center justify-around h-20 px-4 bg-white/90 backdrop-blur-lg border border-white/20">
-                {navigation.map((item) => {
-                    const isActive = pathname === item.href
-                    const Icon = item.icon
-
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[--color-primary-container] border-t border-white/10">
+            <div className="flex items-center justify-around h-16 px-2">
+                {visible.map((item) => {
+                    const isActive =
+                        item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
                     return (
                         <Link
                             key={item.name}
                             href={item.href}
                             className={cn(
-                                "flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 relative",
+                                "flex flex-col items-center justify-center w-12 h-14 rounded-md transition-colors",
                                 isActive
-                                    ? "text-blue-600 bg-blue-50 shadow-inner"
-                                    : "text-slate-400 hover:text-slate-600"
+                                    ? "text-[--color-accent]"
+                                    : "text-[--color-accent-soft] opacity-70 hover:opacity-100"
                             )}
                         >
-                            <Icon
-                                className={cn(
-                                    "h-6 w-6 transition-all duration-300",
-                                    isActive && "scale-110 drop-shadow-md"
-                                )}
-                            />
-                            <span className={cn(
-                                "text-[10px] font-medium mt-1 transition-all duration-300",
-                                isActive ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 absolute"
-                            )}>
-                                {item.name}
+                            <span className="material-symbols-outlined text-[22px]">
+                                {item.icon}
                             </span>
+                            <span className="text-[10px] font-medium mt-0.5">{item.name}</span>
                         </Link>
                     )
                 })}

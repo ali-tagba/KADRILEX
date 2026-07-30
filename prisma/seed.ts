@@ -1,1739 +1,752 @@
-import { PrismaClient } from '@prisma/client'
+/**
+ * Seed KadriLex — Sprint 0
+ *
+ * Génère un dataset réaliste pour le dev :
+ *   - 7 Membres (couvrant les 6 rôles) avec codeAcces hashed bcrypt
+ *   - 8 Clients (4 PM Niamey + 4 PP) avec contacts
+ *   - 18 Dossiers répartis sur les clients
+ *   - 25 Audiences (15 à venir + 10 passées)
+ *   - 20 Tâches (Kanban A_FAIRE/EN_COURS/FAIT)
+ *   - 15 Factures (10 émises + 5 reçues) + paiements
+ *   - 8 Dépenses internes
+ *   - 5 Bulletins (mois courant pour membres salariés)
+ *   - 20 Documents bibliothèque
+ *
+ * Les codes d'accès en clair sont AFFICHÉS à la fin → à copier pour se connecter.
+ */
+
+import { PrismaClient, type Prisma } from "@prisma/client"
+import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
 
-async function main() {
-    console.log('🌱 Seeding database for KadriLex (Niger)...')
+/* ============================================================
+   Utilitaires
+   ============================================================ */
 
-    // Clear existing data
-    console.log('🗑️  Clearing existing data...')
-    await prisma.invoice.deleteMany()
-    await prisma.flashCR.deleteMany()
-    await prisma.dossierFile.deleteMany()
+function genCode(): string {
+    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    const segs = [3, 3, 4]
+    return segs
+        .map((n) =>
+            Array.from({ length: n }, () =>
+                ALPHABET[Math.floor(Math.random() * ALPHABET.length)]
+            ).join("")
+        )
+        .join("-")
+}
+
+function daysAgo(n: number): Date {
+    const d = new Date()
+    d.setDate(d.getDate() - n)
+    return d
+}
+
+function daysFromNow(n: number): Date {
+    const d = new Date()
+    d.setDate(d.getDate() + n)
+    return d
+}
+
+function pick<T>(arr: T[], rng: () => number = Math.random): T {
+    return arr[Math.floor(rng() * arr.length)]
+}
+
+/* ============================================================
+   Main
+   ============================================================ */
+
+async function main() {
+    console.log("🧹 Nettoyage des tables...")
+
+    // Ordre : tables de jointure et feuilles avant racines
+    await prisma.bulletinLigne.deleteMany()
+    await prisma.bulletin.deleteMany()
+    await prisma.paiement.deleteMany()
+    await prisma.factureLigne.deleteMany()
+    await prisma.facture.deleteMany()
+    await prisma.depense.deleteMany()
+    await prisma.fournisseur.deleteMany()
+    await prisma.documentDossier.deleteMany()
+    await prisma.document.deleteMany()
+    await prisma.tacheEquipe.deleteMany()
+    await prisma.tache.deleteMany()
+    await prisma.audienceEquipe.deleteMany()
     await prisma.audience.deleteMany()
+    await prisma.dossierNote.deleteMany()
+    await prisma.dossierFile.deleteMany()
+    await prisma.dossierEquipe.deleteMany()
     await prisma.dossier.deleteMany()
     await prisma.contact.deleteMany()
+    await prisma.clientEquipe.deleteMany()
     await prisma.client.deleteMany()
-    await prisma.user.deleteMany()
+    await prisma.membre.deleteMany()
 
-    // Create default user (lawyer)
-    const user = await prisma.user.create({
-        data: {
-            email: 'maitre.kadri@kadrilex.ne',
-            name: 'Maître Abdoulaye Kadri',
-            role: 'AVOCAT',
+    /* ========================================================
+       MEMBRES — 7 (1 gérant + 1 associé + 2 avocats + 1 juriste + 1 stagiaire + 1 secrétaire)
+       ======================================================== */
+    console.log("👥 Création des membres...")
+
+    const membreDefs = [
+        {
+            prenom: "Oumarou Sanda",
+            nom: "KADRI",
+            email: "osk@kadrilegal.test",
+            role: "ASSOCIE_GERANT" as const,
+            statutContrat: "ASSOCIE" as const,
+            fonction: "Associé gérant",
+            salaireBaseBrut: 0,
+            avocatCabinetKey: "Me Oumarou Sanda KADRI",
+            dateEmbauche: new Date("2015-01-15"),
         },
-    })
-
-    console.log('✅ Created user:', user.name)
-
-    // ========================================
-    // CLIENTS (8 total: 4 companies + 4 individuals)
-    // ========================================
-
-    // PERSONNE_MORALE #1 - SONITEL
-    const client1 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_MORALE',
-            raisonSociale: 'Société Nigérienne des Télécommunications (SONITEL)',
-            formeJuridique: 'SA',
-            numeroRCCM: 'NE-NIA-2015-B-12345',
-            siegeSocial: 'Avenue du Président Hamani Diori, Plateau',
-            representantLegal: 'M. Amadou Issoufou',
-            email: 'contact@sonitel.ne',
-            telephone: '+227 20 73 45 67',
-            adresse: 'Avenue du Président Hamani Diori, Plateau',
-            ville: 'Niamey',
-            pays: 'Niger',
-            contacts: {
-                create: [
-                    {
-                        nom: 'Issoufou',
-                        prenom: 'Amadou',
-                        fonction: 'DG',
-                        email: 'a.issoufou@sonitel.ne',
-                        telephone: '+227 90 12 34 56',
-                    },
-                    {
-                        nom: 'Maïga',
-                        prenom: 'Aïssata',
-                        fonction: 'RESPONSABLE_JURIDIQUE',
-                        email: 'a.maiga@sonitel.ne',
-                        telephone: '+227 96 78 90 12',
-                    },
-                ],
-            },
+        {
+            prenom: "Ali",
+            nom: "KADRI",
+            email: "ali@kadrilegal.test",
+            role: "ASSOCIE" as const,
+            statutContrat: "ASSOCIE" as const,
+            fonction: "Associé",
+            salaireBaseBrut: 0,
+            avocatCabinetKey: "Me Ali KADRI",
+            dateEmbauche: new Date("2017-03-01"),
         },
-    })
-
-    // PERSONNE_MORALE #2 - Banque Islamique du Niger
-    const client2 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_MORALE',
-            raisonSociale: 'Banque Islamique du Niger (BIN)',
-            formeJuridique: 'SA',
-            numeroRCCM: 'NE-NIA-2010-B-45678',
-            siegeSocial: 'Boulevard de la République, Centre-ville',
-            representantLegal: 'M. Moussa Hamidou',
-            email: 'contact@bin.ne',
-            telephone: '+227 20 72 30 40',
-            adresse: 'Boulevard de la République, Centre-ville',
-            ville: 'Niamey',
-            pays: 'Niger',
-            contacts: {
-                create: [
-                    {
-                        nom: 'Hamidou',
-                        prenom: 'Moussa',
-                        fonction: 'DG',
-                        email: 'm.hamidou@bin.ne',
-                        telephone: '+227 90 23 45 67',
-                    },
-                    {
-                        nom: 'Oumarou',
-                        prenom: 'Fati',
-                        fonction: 'DIRECTEUR_JURIDIQUE',
-                        email: 'f.oumarou@bin.ne',
-                        telephone: '+227 96 34 56 78',
-                    },
-                    {
-                        nom: 'Diallo',
-                        prenom: 'Mamadou',
-                        fonction: 'RESPONSABLE_CONTENTIEUX',
-                        email: 'm.diallo@bin.ne',
-                        telephone: '+227 97 45 67 89',
-                    },
-                ],
-            },
+        {
+            prenom: "Mahaman Rabiou",
+            nom: "OUMAROU",
+            email: "rabiou@kadrilegal.test",
+            role: "AVOCAT" as const,
+            statutContrat: "COLLABORATEUR_CDI" as const,
+            fonction: "Avocat collaborateur",
+            salaireBaseBrut: 850_000,
+            avocatCabinetKey: "Me Mahaman Rabiou OUMAROU",
+            dateEmbauche: new Date("2019-09-15"),
         },
-    })
-
-    // PERSONNE_MORALE #3 - SONICHAR
-    const client3 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_MORALE',
-            raisonSociale: 'Société Nigérienne du Charbon (SONICHAR)',
-            formeJuridique: 'SA',
-            numeroRCCM: 'NE-NIA-2012-B-78901',
-            siegeSocial: 'Quartier Yantala, Zone Industrielle',
-            representantLegal: 'M. Ibrahim Mahamane',
-            email: 'info@sonichar.ne',
-            telephone: '+227 20 74 50 60',
-            adresse: 'Quartier Yantala, Zone Industrielle',
-            ville: 'Niamey',
-            pays: 'Niger',
-            contacts: {
-                create: [
-                    {
-                        nom: 'Mahamane',
-                        prenom: 'Ibrahim',
-                        fonction: 'PDG',
-                        email: 'i.mahamane@sonichar.ne',
-                        telephone: '+227 90 56 78 90',
-                    },
-                    {
-                        nom: 'Boubacar',
-                        prenom: 'Halimatou',
-                        fonction: 'DIRECTEUR_JURIDIQUE',
-                        email: 'h.boubacar@sonichar.ne',
-                        telephone: '+227 96 67 89 01',
-                    },
-                ],
-            },
+        {
+            prenom: "Mariama",
+            nom: "ABDOU ISSA",
+            email: "mariama@kadrilegal.test",
+            role: "AVOCAT" as const,
+            statutContrat: "COLLABORATEUR_CDI" as const,
+            fonction: "Avocate collaboratrice",
+            salaireBaseBrut: 750_000,
+            avocatCabinetKey: "Me Mariama ABDOU ISSA",
+            dateEmbauche: new Date("2021-01-04"),
         },
-    })
-
-    // PERSONNE_MORALE #4 - Niger Lait
-    const client4 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_MORALE',
-            raisonSociale: 'Niger Lait SARL',
-            formeJuridique: 'SARL',
-            numeroRCCM: 'NE-NIA-2018-B-23456',
-            siegeSocial: 'Quartier Koira Kano, Route de Tillabéri',
-            representantLegal: 'M. Abdoulaye Souley',
-            email: 'contact@nigerlait.ne',
-            telephone: '+227 20 75 60 70',
-            adresse: 'Quartier Koira Kano, Route de Tillabéri',
-            ville: 'Niamey',
-            pays: 'Niger',
-            contacts: {
-                create: [
-                    {
-                        nom: 'Souley',
-                        prenom: 'Abdoulaye',
-                        fonction: 'GERANT',
-                        email: 'a.souley@nigerlait.ne',
-                        telephone: '+227 90 78 90 12',
-                    },
-                ],
-            },
+        {
+            prenom: "Aïcha",
+            nom: "SOULEY",
+            email: "aicha@kadrilegal.test",
+            role: "JURISTE" as const,
+            statutContrat: "COLLABORATEUR_CDI" as const,
+            fonction: "Juriste",
+            salaireBaseBrut: 450_000,
+            avocatCabinetKey: null,
+            dateEmbauche: new Date("2023-06-01"),
         },
-    })
-
-    // PERSONNE_PHYSIQUE #1 - Aïssata Maïga
-    const client5 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_PHYSIQUE',
-            nom: 'Maïga',
-            prenom: 'Aïssata',
-            profession: 'Commerçante',
-            pieceIdentite: 'NE-NIA-2015-123456',
-            email: 'a.maiga@email.ne',
-            telephone: '+227 96 12 34 56',
-            adresse: 'Quartier Plateau, Rue de la Tapoa',
-            ville: 'Niamey',
-            pays: 'Niger',
+        {
+            prenom: "Issa",
+            nom: "MAÏGA",
+            email: "issa@kadrilegal.test",
+            role: "STAGIAIRE" as const,
+            statutContrat: "STAGIAIRE" as const,
+            fonction: "Élève-avocat",
+            salaireBaseBrut: 150_000,
+            avocatCabinetKey: null,
+            dateEmbauche: new Date("2026-01-15"),
         },
-    })
-
-    // PERSONNE_PHYSIQUE #2 - Moussa Hamidou
-    const client6 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_PHYSIQUE',
-            nom: 'Hamidou',
-            prenom: 'Moussa',
-            profession: 'Entrepreneur',
-            pieceIdentite: 'NE-NIA-2018-789012',
-            email: 'm.hamidou@gmail.com',
-            telephone: '+227 97 23 45 67',
-            adresse: 'Quartier Yantala Haut',
-            ville: 'Niamey',
-            pays: 'Niger',
+        {
+            prenom: "Fatima",
+            nom: "BARMOU",
+            email: "fatima@kadrilegal.test",
+            role: "SECRETAIRE" as const,
+            statutContrat: "SECRETAIRE_CDI" as const,
+            fonction: "Secrétaire de direction",
+            salaireBaseBrut: 350_000,
+            avocatCabinetKey: null,
+            dateEmbauche: new Date("2018-11-12"),
         },
-    })
+    ]
 
-    // PERSONNE_PHYSIQUE #3 - Fati Oumarou
-    const client7 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_PHYSIQUE',
-            nom: 'Oumarou',
-            prenom: 'Fati',
-            profession: 'Propriétaire immobilier',
-            pieceIdentite: 'NE-NIA-2012-345678',
-            email: 'f.oumarou@yahoo.fr',
-            telephone: '+227 98 34 56 78',
-            adresse: 'Quartier Lamordé',
-            ville: 'Niamey',
-            pays: 'Niger',
-        },
-    })
-
-    // PERSONNE_PHYSIQUE #4 - Ibrahim Mahamane
-    const client8 = await prisma.client.create({
-        data: {
-            type: 'PERSONNE_PHYSIQUE',
-            nom: 'Mahamane',
-            prenom: 'Ibrahim',
-            profession: 'Cadre bancaire',
-            pieceIdentite: 'NE-NIA-2020-901234',
-            email: 'i.mahamane@outlook.com',
-            telephone: '+227 99 45 67 89',
-            adresse: 'Quartier Terminus',
-            ville: 'Niamey',
-            pays: 'Niger',
-        },
-    })
-
-    console.log('✅ Created 8 clients (4 companies, 4 individuals)')
-
-    // ========================================
-    // DOSSIERS (18 total)
-    // ========================================
-
-    // Client 1 (SONITEL) - 3 dossiers
-    const dossier1 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-001',
-            clientId: client1.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige commercial concernant un contrat de fourniture d\'équipements télécoms',
-            dateOuverture: new Date('2024-01-15'),
-        },
-    })
-
-    const dossier2 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2023-087',
-            clientId: client1.id,
-            type: 'ADMINISTRATIF',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'AUTRE',
-            statut: 'TERMINE',
-            juridiction: 'Tribunal Administratif de Niamey',
-            avocatAssigne: user.name,
-            description: 'Recours contre une décision administrative relative aux licences télécoms',
-            dateOuverture: new Date('2023-06-10'),
-            dateCloture: new Date('2024-11-20'),
-        },
-    })
-
-    const dossier3 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-045',
-            clientId: client1.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Contentieux avec un fournisseur de services internet',
-            dateOuverture: new Date('2024-08-22'),
-        },
-    })
-
-    // Client 2 (Banque Islamique) - 4 dossiers
-    const dossier4 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-012',
-            clientId: client2.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Recouvrement de créances bancaires - Dossier SARL IMPORT-EXPORT',
-            dateOuverture: new Date('2024-02-05'),
-        },
-    })
-
-    const dossier5 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2023-156',
-            clientId: client2.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'TERMINE',
-            juridiction: 'Cour d\'Appel de Niamey',
-            avocatAssigne: user.name,
-            description: 'Appel suite à jugement défavorable - Affaire crédit immobilier',
-            dateOuverture: new Date('2023-09-12'),
-            dateCloture: new Date('2024-12-18'),
-        },
-    })
-
-    const dossier6 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-078',
-            clientId: client2.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige contractuel avec un prestataire informatique',
-            dateOuverture: new Date('2024-10-03'),
-        },
-    })
-
-    const dossier7 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-089',
-            clientId: client2.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'PRE_CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_ATTENTE',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Contestation de garantie bancaire',
-            dateOuverture: new Date('2024-11-15'),
-        },
-    })
-
-    // Client 3 (SONICHAR) - 3 dossiers
-    const dossier8 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-034',
-            clientId: client3.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige avec un fournisseur de matériel industriel',
-            dateOuverture: new Date('2024-05-20'),
-        },
-    })
-
-    const dossier9 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2023-198',
-            clientId: client3.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'CLOSTURE',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige contractuel - Rupture de contrat (classé sans suite)',
-            dateOuverture: new Date('2023-11-08'),
-            dateCloture: new Date('2024-03-15'),
-        },
-    })
-
-    const dossier10 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-067',
-            clientId: client3.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Cour d\'Appel de Niamey',
-            avocatAssigne: user.name,
-            description: 'Appel - Contestation de pénalités contractuelles',
-            dateOuverture: new Date('2024-09-10'),
-        },
-    })
-
-    // Client 4 (Niger Lait) - 2 dossiers
-    const dossier11 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-056',
-            clientId: client4.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige avec un concurrent - Concurrence déloyale',
-            dateOuverture: new Date('2024-07-18'),
-        },
-    })
-
-    const dossier12 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-091',
-            clientId: client4.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'PRE_CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_ATTENTE',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Contentieux contractuel - Rupture abusive de contrat fournisseur',
-            dateOuverture: new Date('2024-11-28'),
-        },
-    })
-
-    // Client 5 (Aïssata Maïga) - 2 dossiers
-    const dossier13 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-023',
-            clientId: client5.id,
-            type: 'CIVIL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'CIVIL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocatAssigne: user.name,
-            description: 'Affaire de succession - Partage de biens immobiliers',
-            dateOuverture: new Date('2024-03-12'),
-        },
-    })
-
-    const dossier14 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2023-145',
-            clientId: client5.id,
-            type: 'CIVIL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'CIVIL',
-            statut: 'TERMINE',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocatAssigne: user.name,
-            description: 'Divorce contentieux',
-            dateOuverture: new Date('2023-08-05'),
-            dateCloture: new Date('2024-10-22'),
-        },
-    })
-
-    // Client 6 (Moussa Hamidou) - 1 dossier
-    const dossier15 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-072',
-            clientId: client6.id,
-            type: 'COMMERCIAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'COMMERCIAL',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige commercial - Non-paiement de marchandises',
-            dateOuverture: new Date('2024-09-25'),
-        },
-    })
-
-    // Client 7 (Fati Oumarou) - 2 dossiers
-    const dossier16 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-041',
-            clientId: client7.id,
-            type: 'CIVIL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'IMMOBILIER',
-            statut: 'EN_COURS',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocatAssigne: user.name,
-            description: 'Expulsion de locataires indélicats',
-            dateOuverture: new Date('2024-06-14'),
-        },
-    })
-
-    const dossier17 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2024-083',
-            clientId: client7.id,
-            type: 'CIVIL',
-            typeDossier: 'PRE_CONTENTIEUX',
-            domaineDroit: 'IMMOBILIER',
-            statut: 'EN_ATTENTE',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocatAssigne: user.name,
-            description: 'Litige de voisinage - Empiètement de construction',
-            dateOuverture: new Date('2024-10-30'),
-        },
-    })
-
-    // Client 8 (Ibrahim Mahamane) - 1 dossier
-    const dossier18 = await prisma.dossier.create({
-        data: {
-            numero: 'DOS-2023-167',
-            clientId: client8.id,
-            type: 'PENAL',
-            typeDossier: 'CONTENTIEUX',
-            domaineDroit: 'AUTRE',
-            statut: 'TERMINE',
-            juridiction: 'Tribunal Correctionnel de Niamey',
-            avocatAssigne: user.name,
-            description: 'Défense - Accusation d\'abus de confiance (acquittement)',
-            dateOuverture: new Date('2023-10-02'),
-            dateCloture: new Date('2024-09-18'),
-        },
-    })
-
-    console.log('✅ Created 18 dossiers')
-
-    // ========================================
-    // DOSSIER FILES (100+ files/folders)
-    // ========================================
-
-    console.log('📁 Creating file hierarchies...')
-
-    // Helper function to create file structure
-    async function createFileStructure(dossierId: string, dossierNumero: string) {
-        // Root file
-        await prisma.dossierFile.create({
+    const codesAcces: Record<string, string> = {}
+    const membres: Awaited<ReturnType<typeof prisma.membre.create>>[] = []
+    for (const def of membreDefs) {
+        const code = "ADM-KAD-2026"
+        codesAcces[def.email] = code
+        const hash = await bcrypt.hash(code, 10)
+        const m = await prisma.membre.create({
             data: {
-                dossierId,
-                name: 'Memo_Synthese.pdf',
-                type: 'FILE',
-                url: `/uploads/${dossierNumero}/memo.pdf`,
-                mimeType: 'application/pdf',
-                size: 10240,
+                ...def,
+                telephone: "+227 90 00 0" + (membres.length + 1).toString().padStart(2, "0"),
+                actif: true,
+                invitationStatut: "ACTIF",
+                codeAccesHash: hash,
+                modeVersementParDefaut: def.salaireBaseBrut > 500_000 ? "VIREMENT" : "MOBILE_MONEY",
+                rib: def.salaireBaseBrut >= 500_000 ? "NE058 01001 03124" : null,
+                banque: def.salaireBaseBrut >= 500_000 ? "Banque Atlantique Niger" : null,
+                mobileMoney: def.salaireBaseBrut < 500_000 ? "+227 90 00 0" + (membres.length + 1) : null,
             },
         })
+        membres.push(m)
+    }
+    const [gerant, associe, avocat1, avocat2, juriste, stagiaire, secretaire] = membres
 
-        // Root folders
-        const pieces = await prisma.dossierFile.create({
+    /* ========================================================
+       CLIENTS — 4 PM + 4 PP
+       ======================================================== */
+    console.log("🏢 Création des clients...")
+
+    const annee = new Date().getFullYear() % 100
+    let cliCounter = 0
+    const numCli = () => `CLI-${annee}-${(++cliCounter).toString().padStart(3, "0")}`
+
+    const clientPMDefs = [
+        {
+            raisonSociale: "SONITEL SA",
+            formeJuridique: "SA",
+            numeroRCCM: "NIM-2008-B-1234",
+            nif: "1234567/B",
+            conventionnee: true,
+            siegeSocial: "Avenue du Général Bonecarrère, Niamey",
+            representantLegal: "Mohamed AGALY",
+            email: "contact@sonitel.ne",
+            telephone: "+227 20 73 30 00",
+            ville: "Niamey",
+            honorairesConvenus: "Convention annuelle",
+            responsableId: gerant.id,
+            equipeIds: [associe.id, avocat1.id],
+        },
+        {
+            raisonSociale: "NIGELEC",
+            formeJuridique: "Société d'État",
+            numeroRCCM: "NIM-1968-A-001",
+            nif: "9876543/A",
+            conventionnee: true,
+            siegeSocial: "Rue du Lac Tchad, Niamey",
+            representantLegal: "Halid HALIDOU",
+            email: "siege@nigelec.ne",
+            telephone: "+227 20 72 22 33",
+            ville: "Niamey",
+            honorairesConvenus: "Convention trimestrielle",
+            responsableId: associe.id,
+            equipeIds: [avocat1.id],
+        },
+        {
+            raisonSociale: "Banque Atlantique Niger",
+            formeJuridique: "SA",
+            numeroRCCM: "NIM-2006-B-789",
+            nif: "5544332/B",
+            conventionnee: false,
+            siegeSocial: "Plateau, Niamey",
+            representantLegal: "Aminata DIOP",
+            email: "juridique@banqueatlantique.ne",
+            telephone: "+227 20 73 35 00",
+            ville: "Niamey",
+            honorairesConvenus: "Facturation hors convention",
+            responsableId: avocat1.id,
+            equipeIds: [],
+        },
+        {
+            raisonSociale: "SEEN",
+            formeJuridique: "SA",
+            numeroRCCM: "NIM-2001-B-456",
+            nif: "1122334/B",
+            conventionnee: true,
+            siegeSocial: "Rue Heinrich Lübke, Niamey",
+            representantLegal: "Issoufou MAMANE",
+            email: "dg@seen.ne",
+            telephone: "+227 20 73 27 27",
+            ville: "Niamey",
+            honorairesConvenus: "Convention mensuelle",
+            responsableId: gerant.id,
+            equipeIds: [avocat2.id, juriste.id],
+        },
+    ]
+
+    const clientPPDefs = [
+        {
+            nom: "ABDOULAYE",
+            prenom: "Hassane",
+            profession: "Commerçant",
+            pieceIdentite: "CNI 1234567",
+            nationalite: "Nigérienne",
+            email: "h.abdoulaye@gmail.com",
+            telephone: "+227 96 12 34 56",
+            ville: "Niamey",
+            honorairesConvenus: "Honoraires au forfait",
+            responsableId: avocat2.id,
+            equipeIds: [],
+        },
+        {
+            nom: "DIALLO",
+            prenom: "Mariam",
+            profession: "Médecin",
+            pieceIdentite: "CNI 7654321",
+            nationalite: "Nigérienne",
+            email: "m.diallo@yahoo.fr",
+            telephone: "+227 90 55 44 33",
+            whatsapp: "+227 90 55 44 33",
+            ville: "Niamey",
+            honorairesConvenus: "Honoraires au temps passé",
+            responsableId: avocat1.id,
+            equipeIds: [juriste.id],
+        },
+        {
+            nom: "OUSMANE",
+            prenom: "Boubacar",
+            profession: "Entrepreneur BTP",
+            pieceIdentite: "CNI 9988776",
+            nationalite: "Nigérienne",
+            email: "boubacar.ousmane@bati-niger.ne",
+            telephone: "+227 96 88 22 11",
+            ville: "Maradi",
+            honorairesConvenus: "Honoraires au forfait",
+            responsableId: avocat2.id,
+            equipeIds: [],
+        },
+        {
+            nom: "TRAORÉ",
+            prenom: "Fatoumata",
+            profession: "Fonctionnaire",
+            pieceIdentite: "CNI 5544332",
+            nationalite: "Nigérienne",
+            email: "f.traore@gov.ne",
+            telephone: "+227 90 11 22 33",
+            ville: "Zinder",
+            honorairesConvenus: "Honoraires au forfait",
+            responsableId: avocat1.id,
+            equipeIds: [],
+        },
+    ]
+
+    const clients = []
+    for (const def of clientPMDefs) {
+        const { equipeIds, ...rest } = def
+        const c = await prisma.client.create({
             data: {
-                dossierId,
-                name: 'Pièces',
-                type: 'FOLDER',
+                ...rest,
+                numeroClient: numCli(),
+                type: "PERSONNE_MORALE",
+                iconHint: "domain",
+                pays: "Niger",
+                actif: true,
+                equipe: { create: equipeIds.map((mId) => ({ membreId: mId })) },
             },
         })
-
-        const correspondances = await prisma.dossierFile.create({
+        clients.push(c)
+    }
+    for (const def of clientPPDefs) {
+        const { equipeIds, ...rest } = def
+        const c = await prisma.client.create({
             data: {
-                dossierId,
-                name: 'Correspondances',
-                type: 'FOLDER',
+                ...rest,
+                numeroClient: numCli(),
+                type: "PERSONNE_PHYSIQUE",
+                iconHint: "person",
+                pays: "Niger",
+                actif: true,
+                equipe: { create: equipeIds.map((mId) => ({ membreId: mId })) },
             },
         })
+        clients.push(c)
+    }
 
-        const procedures = await prisma.dossierFile.create({
-            data: {
-                dossierId,
-                name: 'Procédures',
-                type: 'FOLDER',
-            },
-        })
-
-        const decisions = await prisma.dossierFile.create({
-            data: {
-                dossierId,
-                name: 'Décisions',
-                type: 'FOLDER',
-            },
-        })
-
-        // Subfolders in Pièces
-        const contrats = await prisma.dossierFile.create({
-            data: {
-                dossierId,
-                parentId: pieces.id,
-                name: 'Contrats',
-                type: 'FOLDER',
-            },
-        })
-
-        const factures = await prisma.dossierFile.create({
-            data: {
-                dossierId,
-                parentId: pieces.id,
-                name: 'Factures',
-                type: 'FOLDER',
-            },
-        })
-
-        const justificatifs = await prisma.dossierFile.create({
-            data: {
-                dossierId,
-                parentId: pieces.id,
-                name: 'Justificatifs',
-                type: 'FOLDER',
-            },
-        })
-
-        // Files in Contrats
-        await prisma.dossierFile.createMany({
+    /* ========================================================
+       CONTACTS (~ 2 par client PM)
+       ======================================================== */
+    for (const c of clients.slice(0, 4)) {
+        await prisma.contact.createMany({
             data: [
-                {
-                    dossierId,
-                    parentId: contrats.id,
-                    name: 'Contrat_principal.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/contrat_principal.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 245678,
-                },
-                {
-                    dossierId,
-                    parentId: contrats.id,
-                    name: 'Avenant_01.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/avenant_01.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 89234,
-                },
+                { clientId: c.id, nom: "MOUSSA", prenom: "Aboubakar", fonction: "Directeur juridique", email: `juridique@${c.raisonSociale?.toLowerCase().replace(/\s/g, "")}.ne`, telephone: "+227 20 00 00 00" },
+                { clientId: c.id, nom: "MAÏGA", prenom: "Aïssata", fonction: "Assistante de direction", email: `secretariat@${c.raisonSociale?.toLowerCase().replace(/\s/g, "")}.ne`, telephone: "+227 20 00 00 01" },
             ],
         })
+    }
 
-        // Files in Factures
-        await prisma.dossierFile.createMany({
-            data: [
-                {
-                    dossierId,
-                    parentId: factures.id,
-                    name: 'Facture_001.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/facture_001.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 125890,
-                },
-                {
-                    dossierId,
-                    parentId: factures.id,
-                    name: 'Facture_002.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/facture_002.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 134567,
-                },
-                {
-                    dossierId,
-                    parentId: factures.id,
-                    name: 'Bon_de_commande.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/bon_commande.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 98765,
-                },
-            ],
-        })
+    /* ========================================================
+       DOSSIERS — 18
+       ======================================================== */
+    console.log("📁 Création des dossiers...")
+    let dosCounter = 0
+    const numDos = () => `DOS-${annee}-${(++dosCounter).toString().padStart(3, "0")}`
 
-        // Files in Justificatifs
-        await prisma.dossierFile.createMany({
-            data: [
-                {
-                    dossierId,
-                    parentId: justificatifs.id,
-                    name: 'Attestation_RCCM.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/rccm.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 156789,
-                },
-                {
-                    dossierId,
-                    parentId: justificatifs.id,
-                    name: 'Piece_identite.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/piece_id.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 234567,
-                },
-            ],
-        })
+    const NATURES = ["Conseil / Assistance", "Contentieux / Judiciaire", "Droit des Affaires / Sociétés", "Droit Social / Travail", "Recouvrement de créances"]
+    const TYPES: Array<"CIVIL" | "COMMERCIAL" | "PENAL" | "ADMINISTRATIF" | "SOCIAL"> = ["CIVIL", "COMMERCIAL", "PENAL", "ADMINISTRATIF", "SOCIAL"]
+    const STATUTS: Array<"EN_COURS" | "EN_ATTENTE" | "URGENT" | "CLOTURE"> = ["EN_COURS", "EN_COURS", "EN_COURS", "EN_ATTENTE", "URGENT", "CLOTURE"]
+    const JURIDICTIONS = ["TGI Hors-Classe Niamey", "Tribunal de Commerce de Niamey", "Cour d'Appel de Niamey", "TAC I Niamey"]
 
-        // Files in Correspondances
-        await prisma.dossierFile.createMany({
-            data: [
-                {
-                    dossierId,
-                    parentId: correspondances.id,
-                    name: 'Mise_en_demeure.docx',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/mise_en_demeure.docx`,
-                    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    size: 45678,
-                },
-                {
-                    dossierId,
-                    parentId: correspondances.id,
-                    name: 'Reponse_adverse.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/reponse_adverse.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 178234,
-                },
-            ],
-        })
-
-        // Files in Procédures
-        await prisma.dossierFile.createMany({
-            data: [
-                {
-                    dossierId,
-                    parentId: procedures.id,
-                    name: 'Assignation.pdf',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/assignation.pdf`,
-                    mimeType: 'application/pdf',
-                    size: 289456,
-                },
-                {
-                    dossierId,
-                    parentId: procedures.id,
-                    name: 'Conclusions.docx',
-                    type: 'FILE',
-                    url: `/uploads/${dossierNumero}/conclusions.docx`,
-                    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    size: 67890,
-                },
-            ],
-        })
-
-        // Files in Décisions
-        await prisma.dossierFile.create({
+    const dossiers = []
+    for (let i = 0; i < 18; i++) {
+        const client = clients[i % clients.length]
+        const responsableId = client.responsableId ?? gerant.id
+        const dossier = await prisma.dossier.create({
             data: {
-                dossierId,
-                parentId: decisions.id,
-                name: 'Ordonnance_refere.pdf',
-                type: 'FILE',
-                url: `/uploads/${dossierNumero}/ordonnance.pdf`,
-                mimeType: 'application/pdf',
-                size: 345678,
+                numero: numDos(),
+                kind: "CLIENT",
+                type: TYPES[i % TYPES.length],
+                nature: NATURES[i % NATURES.length],
+                titre: `Affaire ${i + 1} — ${client.raisonSociale ?? `${client.prenom} ${client.nom}`}`,
+                statut: STATUTS[i % STATUTS.length],
+                juridiction: JURIDICTIONS[i % JURIDICTIONS.length],
+                clientId: client.id,
+                partiesAdverses: i % 3 === 0 ? [`Adversaire ${i + 1}`, "État du Niger"] : [`Adversaire ${i + 1}`],
+                dateOuverture: daysAgo(360 - i * 15),
+                honoraires: [{ id: `seed-h-${i}`, phase: "Unique / Global", type: "FORFAIT", montant: 500_000 + i * 100_000 }],
+                description: `Dossier d'illustration n°${i + 1}.`,
+                responsableId,
+            },
+        })
+        dossiers.push(dossier)
+    }
+
+    /* ========================================================
+       AUDIENCES — 25 (15 à venir + 10 passées)
+       ======================================================== */
+    console.log("⚖️  Création des audiences...")
+    let audCounter = 0
+    const numAud = () => `AUD-${annee}-${(++audCounter).toString().padStart(3, "0")}`
+    const NATURES_AUD: Array<"PLAIDOIRIE" | "MISE_EN_ETAT" | "REFERE" | "DELIBERE"> = ["PLAIDOIRIE", "MISE_EN_ETAT", "REFERE", "DELIBERE"]
+
+    for (let i = 0; i < 15; i++) {
+        const dossier = dossiers[i % dossiers.length]
+        await prisma.audience.create({
+            data: {
+                numero: numAud(),
+                titre: `Audience ${NATURES_AUD[i % 4]} — ${dossier.numero}`,
+                nature: NATURES_AUD[i % 4],
+                statut: "A_VENIR",
+                dateDebut: daysFromNow(2 + i * 2),
+                dureeMinutes: [30, 60, 90, 120][i % 4],
+                juridiction: dossier.juridiction,
+                salleAudience: `Salle ${(i % 4) + 1}`,
+                dossierId: dossier.id,
+                responsableId: dossier.responsableId,
+                notes: i % 3 === 0 ? "Prévoir dépôt de conclusions" : null,
+            },
+        })
+    }
+    for (let i = 0; i < 10; i++) {
+        const dossier = dossiers[(i + 5) % dossiers.length]
+        await prisma.audience.create({
+            data: {
+                numero: numAud(),
+                titre: `Audience tenue ${i + 1}`,
+                nature: NATURES_AUD[i % 4],
+                statut: "TERMINEE",
+                dateDebut: daysAgo(7 + i * 5),
+                dureeMinutes: 60,
+                juridiction: dossier.juridiction,
+                dossierId: dossier.id,
+                responsableId: dossier.responsableId,
+                resultat: ["RENVOI", "PLAIDOIRIE", "DELIBERE", "DECISION_RENDUE"][i % 4] as
+                    | "RENVOI" | "PLAIDOIRIE" | "DELIBERE" | "DECISION_RENDUE",
+                compteRendu: `Audience tenue avec succès. ${i % 2 === 0 ? "Renvoi à la prochaine audience." : "Décision en délibéré."}`,
             },
         })
     }
 
-    // Create file structures for all dossiers
-    await createFileStructure(dossier1.id, dossier1.numero)
-    await createFileStructure(dossier2.id, dossier2.numero)
-    await createFileStructure(dossier3.id, dossier3.numero)
-    await createFileStructure(dossier4.id, dossier4.numero)
-    await createFileStructure(dossier5.id, dossier5.numero)
-    await createFileStructure(dossier6.id, dossier6.numero)
-    await createFileStructure(dossier7.id, dossier7.numero)
-    await createFileStructure(dossier8.id, dossier8.numero)
-    await createFileStructure(dossier9.id, dossier9.numero)
-    await createFileStructure(dossier10.id, dossier10.numero)
-    await createFileStructure(dossier11.id, dossier11.numero)
-    await createFileStructure(dossier12.id, dossier12.numero)
-    await createFileStructure(dossier13.id, dossier13.numero)
-    await createFileStructure(dossier14.id, dossier14.numero)
-    await createFileStructure(dossier15.id, dossier15.numero)
-    await createFileStructure(dossier16.id, dossier16.numero)
-    await createFileStructure(dossier17.id, dossier17.numero)
-    await createFileStructure(dossier18.id, dossier18.numero)
+    /* ========================================================
+       TÂCHES — 20
+       ======================================================== */
+    console.log("✅ Création des tâches...")
+    const TACHE_TITRES = [
+        "Préparer conclusions",
+        "Relire contrat",
+        "Appeler client",
+        "Déposer requête au tribunal",
+        "Récupérer pièces complémentaires",
+        "Préparer plaidoirie",
+        "Rédiger note de synthèse",
+        "Recouvrer créance",
+        "Suivi paiement honoraires",
+        "Préparer mémoire en appel",
+    ]
+    const PRIORITES: Array<"BASSE" | "MOYENNE" | "HAUTE" | "URGENTE"> = ["BASSE", "MOYENNE", "HAUTE", "URGENTE"]
+    const STATUTS_T: Array<"A_FAIRE" | "EN_COURS" | "FAIT"> = ["A_FAIRE", "EN_COURS", "FAIT"]
 
-    console.log('✅ Created 100+ files and folders')
+    for (let i = 0; i < 20; i++) {
+        const dossier = dossiers[i % dossiers.length]
+        const statut = STATUTS_T[i % 3]
+        await prisma.tache.create({
+            data: {
+                titre: TACHE_TITRES[i % TACHE_TITRES.length],
+                description: i % 2 === 0 ? "Action prioritaire à traiter." : null,
+                statut,
+                priorite: PRIORITES[i % PRIORITES.length],
+                echeance: i % 4 === 0 ? null : daysFromNow(i % 14),
+                responsableId: dossier.responsableId,
+                clientId: dossier.clientId,
+                dossierId: dossier.id,
+                completedAt: statut === "FAIT" ? daysAgo(i % 7) : null,
+            },
+        })
+    }
 
-    // ========================================
-    // AUDIENCES (25 total: 10 past, 15 future)
-    // ========================================
+    /* ========================================================
+       FOURNISSEURS — 4
+       ======================================================== */
+    console.log("🧾 Création des fournisseurs...")
+    const fournisseurDefs = [
+        { nom: "Maître HUISSIER Salou", type: "HUISSIER" as const, telephone: "+227 96 11 22 33" },
+        { nom: "Cabinet d'Expertise Niamey", type: "EXPERT" as const, telephone: "+227 96 44 55 66" },
+        { nom: "Greffe TGI Niamey", type: "GREFFE" as const, telephone: "+227 20 73 30 33" },
+        { nom: "Cabinet immobilier Sahel", type: "BAILLEUR" as const, telephone: "+227 96 77 88 99" },
+    ]
+    const fournisseurs = []
+    for (const f of fournisseurDefs) {
+        fournisseurs.push(await prisma.fournisseur.create({ data: f }))
+    }
 
+    /* ========================================================
+       FACTURES — 10 émises + 5 reçues
+       ======================================================== */
+    console.log("💰 Création des factures...")
+    let facCounter = 0
+    const numFac = (dir: "EMISE" | "RECUE") => {
+        facCounter++
+        return `${dir === "EMISE" ? "FAC" : "REC"}-${annee}-${facCounter.toString().padStart(3, "0")}`
+    }
+    const calcMontants = (HT: number, tva = 19) => ({
+        montantHT: HT,
+        tvaRate: tva,
+        montantTVA: Math.round((HT * tva) / 100),
+        montantTTC: HT + Math.round((HT * tva) / 100),
+    })
+
+    // 10 émises
+    for (let i = 0; i < 10; i++) {
+        const dossier = dossiers[i % dossiers.length]
+        const HT = 250_000 + i * 50_000
+        const m = calcMontants(HT)
+        const dateEmise = daysAgo(60 - i * 4)
+        const statutBrut: "EMISE" | "PARTIELLE" | "PAYEE" = i < 3 ? "PAYEE" : i < 6 ? "PARTIELLE" : "EMISE"
+        const montantPaye = statutBrut === "PAYEE" ? m.montantTTC : statutBrut === "PARTIELLE" ? Math.round(m.montantTTC * 0.5) : 0
+        const f = await prisma.facture.create({
+            data: {
+                numero: numFac("EMISE"),
+                direction: "EMISE",
+                date: dateEmise,
+                dateEcheance: daysFromNow(30 - i * 3),
+                clientId: dossier.clientId,
+                dossierId: dossier.id,
+                description: `Honoraires sur dossier ${dossier.numero}`,
+                ...m,
+                montantPaye,
+                statut: statutBrut,
+            },
+        })
+        // Ligne
+        await prisma.factureLigne.create({
+            data: {
+                factureId: f.id,
+                libelle: "Honoraires forfaitaires",
+                quantite: 1.0,
+                prixUnitaire: HT,
+                total: HT,
+            },
+        })
+        // Paiement si payé
+        if (montantPaye > 0) {
+            await prisma.paiement.create({
+                data: {
+                    factureId: f.id,
+                    date: daysAgo(20 - i * 2),
+                    montant: montantPaye,
+                    mode: "VIREMENT",
+                    reference: `VIR-${i + 1000}`,
+                },
+            })
+        }
+    }
+
+    // 5 reçues
+    for (let i = 0; i < 5; i++) {
+        const dossier = dossiers[i % dossiers.length]
+        const fournisseur = fournisseurs[i % fournisseurs.length]
+        const HT = 80_000 + i * 20_000
+        const m = calcMontants(HT, 0) // huissier = 0% TVA souvent
+        await prisma.facture.create({
+            data: {
+                numero: numFac("RECUE"),
+                direction: "RECUE",
+                date: daysAgo(45 - i * 6),
+                dossierId: dossier.id,
+                fournisseurId: fournisseur.id,
+                description: `Frais ${fournisseur.type}`,
+                ...m,
+                montantPaye: m.montantTTC,
+                statut: "PAYEE",
+                refacturable: true,
+            },
+        })
+    }
+
+    /* ========================================================
+       DÉPENSES INTERNES — 8
+       ======================================================== */
+    console.log("📊 Création des dépenses...")
+    const depenseDefs: Array<{
+        libelle: string
+        categorie:
+            | "LOYER" | "ELECTRICITE" | "INTERNET" | "ABONNEMENT_SOFTWARE"
+            | "FOURNITURES" | "CARBURANT" | "FORMATION" | "ASSURANCE"
+        montantHT: number
+        tvaRate: number
+        recurrent: boolean
+    }> = [
+        { libelle: "Loyer cabinet Niamey", categorie: "LOYER", montantHT: 600_000, tvaRate: 0, recurrent: true },
+        { libelle: "Facture NIGELEC", categorie: "ELECTRICITE", montantHT: 85_000, tvaRate: 19, recurrent: true },
+        { libelle: "Abonnement Internet ORANGE PRO", categorie: "INTERNET", montantHT: 75_000, tvaRate: 19, recurrent: true },
+        { libelle: "Microsoft 365 (5 sièges)", categorie: "ABONNEMENT_SOFTWARE", montantHT: 60_000, tvaRate: 19, recurrent: true },
+        { libelle: "Fournitures bureau Q2", categorie: "FOURNITURES", montantHT: 45_000, tvaRate: 19, recurrent: false },
+        { libelle: "Carburant véhicule de service", categorie: "CARBURANT", montantHT: 120_000, tvaRate: 19, recurrent: false },
+        { libelle: "Formation OHADA Cotonou", categorie: "FORMATION", montantHT: 350_000, tvaRate: 0, recurrent: false },
+        { libelle: "Assurance RC professionnelle", categorie: "ASSURANCE", montantHT: 240_000, tvaRate: 0, recurrent: true },
+    ]
+    for (let i = 0; i < depenseDefs.length; i++) {
+        const d = depenseDefs[i]
+        const tva = Math.round((d.montantHT * d.tvaRate) / 100)
+        await prisma.depense.create({
+            data: {
+                libelle: d.libelle,
+                categorie: d.categorie,
+                date: daysAgo(i * 7),
+                montantHT: d.montantHT,
+                tvaRate: d.tvaRate,
+                montantTVA: tva,
+                montantTTC: d.montantHT + tva,
+                mode: "VIREMENT",
+                recurrent: d.recurrent,
+                recurrenceFrequence: d.recurrent ? "MENSUEL" : null,
+                statut: "PAYEE",
+            },
+        })
+    }
+
+    /* ========================================================
+       BULLETINS — 5 (mois courant pour les 5 salariés)
+       ======================================================== */
+    console.log("📑 Création des bulletins de paie...")
+    const TAUX_CNSS_SALARIE = 5.25
+    const TAUX_CNSS_EMPLOYEUR = 16.5
     const now = new Date()
-    const dayMs = 86400000
+    const annee2 = now.getFullYear()
+    const mois2 = now.getMonth() + 1
 
-    // PAST AUDIENCES (10)
-    const pastAudience1 = await prisma.audience.create({
-        data: {
-            titre: 'Plaidoirie sur le fond',
-            date: new Date(now.getTime() - 45 * dayMs),
-            heure: '09:00',
-            duree: '2h',
-            salleAudience: 'Salle 3',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocat: user.name,
-            clientId: client1.id,
-            dossierId: dossier1.id,
-            statut: 'TERMINEE',
-            notes: 'Audience favorable. Juge a demandé des pièces complémentaires.',
-        },
-    })
+    const salaries = membres.filter((m) => m.statutContrat !== "ASSOCIE" && m.salaireBaseBrut > 0)
+    for (const m of salaries) {
+        const brut = m.salaireBaseBrut
+        const primes = 0
+        const retenues = 0
+        const chargesSal = Math.round((brut * TAUX_CNSS_SALARIE) / 100)
+        const chargesPat = Math.round((brut * TAUX_CNSS_EMPLOYEUR) / 100)
+        const net = brut + primes - retenues - chargesSal
+        const coutTotal = brut + primes + chargesPat
+        await prisma.bulletin.create({
+            data: {
+                employeId: m.id,
+                annee: annee2,
+                mois: mois2,
+                salaireBrut: brut,
+                primes,
+                retenues,
+                chargesSalariales: chargesSal,
+                chargesPatronales: chargesPat,
+                salaireNet: net,
+                coutTotalEmployeur: coutTotal,
+                statut: "BROUILLON",
+                modeVersement: m.modeVersementParDefaut,
+                lignes: {
+                    create: [
+                        { libelle: "Salaire de base", type: "GAIN", montant: brut },
+                        { libelle: "CNSS salariale", type: "CHARGE_SALARIALE", montant: chargesSal },
+                        { libelle: "CNSS patronale", type: "CHARGE_PATRONALE", montant: chargesPat },
+                    ],
+                },
+            },
+        })
+    }
 
-    const pastAudience2 = await prisma.audience.create({
-        data: {
-            titre: 'Audience de référé',
-            date: new Date(now.getTime() - 30 * dayMs),
-            heure: '14:30',
-            duree: '1h30',
-            salleAudience: 'Salle 1',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocat: user.name,
-            clientId: client5.id,
-            dossierId: dossier13.id,
-            statut: 'TERMINEE',
-            notes: 'Référé accordé. Mesures conservatoires prononcées.',
-        },
-    })
+    /* ========================================================
+       DOCUMENTS — 20
+       ======================================================== */
+    console.log("📚 Création des documents bibliothèque...")
+    const DOC_DEFS: Array<{
+        titre: string
+        categorie: "JURISPRUDENCE" | "DOCTRINE" | "MODELE" | "INTERNE"
+        domaineJuridique: "AFFAIRES" | "SOCIAL" | "ADMINISTRATIF" | "OHADA" | "FISCAL"
+        type?: "ARRET" | "JUGEMENT" | "OUVRAGE" | "CONTRAT" | "ARTICLE"
+        reference?: string
+        tags: string[]
+    }> = [
+        { titre: "CCJA 12 mai 2024 — Société X c/ Banque Y", categorie: "JURISPRUDENCE", domaineJuridique: "OHADA", type: "ARRET", reference: "CCJA-2024-127", tags: ["OHADA", "Recouvrement", "Saisie"] },
+        { titre: "TGI Niamey 3 mars 2025 — Affaire emplois fictifs", categorie: "JURISPRUDENCE", domaineJuridique: "ADMINISTRATIF", type: "JUGEMENT", reference: "TGI-NIAM-2025-456", tags: ["Pénal", "Administration"] },
+        { titre: "AUSC&GIE — Édition annotée 2024", categorie: "DOCTRINE", domaineJuridique: "AFFAIRES", type: "OUVRAGE", tags: ["OHADA", "Sociétés"] },
+        { titre: "Modèle Contrat de bail commercial Niger", categorie: "MODELE", domaineJuridique: "AFFAIRES", type: "CONTRAT", tags: ["Bail", "Commercial"] },
+        { titre: "Modèle Mise en demeure recouvrement", categorie: "MODELE", domaineJuridique: "AFFAIRES", type: "CONTRAT", tags: ["Recouvrement"] },
+        { titre: "Code du Travail Nigérien 2012 + modifications", categorie: "DOCTRINE", domaineJuridique: "SOCIAL", type: "OUVRAGE", tags: ["Code", "Travail"] },
+        { titre: "Note interne — Procédure recouvrement amiable", categorie: "INTERNE", domaineJuridique: "AFFAIRES", tags: ["Procédure", "Cabinet"] },
+        { titre: "CCJA 18 oct 2023 — sûretés mobilières", categorie: "JURISPRUDENCE", domaineJuridique: "OHADA", type: "ARRET", reference: "CCJA-2023-298", tags: ["Sûretés", "OHADA"] },
+        { titre: "Loi de Finances Niger 2026", categorie: "DOCTRINE", domaineJuridique: "FISCAL", type: "OUVRAGE", reference: "Loi 2025-XX", tags: ["Fiscalité"] },
+        { titre: "Modèle Statuts SARL OHADA", categorie: "MODELE", domaineJuridique: "AFFAIRES", type: "CONTRAT", tags: ["SARL", "OHADA"] },
+        { titre: "Cour d'Appel Niamey — Audience sociale type", categorie: "JURISPRUDENCE", domaineJuridique: "SOCIAL", type: "ARRET", tags: ["Travail"] },
+        { titre: "Décret n°2023-456 sur l'investissement", categorie: "DOCTRINE", domaineJuridique: "ADMINISTRATIF", type: "OUVRAGE", reference: "Décret 2023-456", tags: ["Investissement"] },
+        { titre: "Modèle Conclusions en défense", categorie: "MODELE", domaineJuridique: "AUTRE" as never, type: "CONTRAT", tags: ["Procédure"] },
+        { titre: "Article — La preuve dans le droit OHADA", categorie: "DOCTRINE", domaineJuridique: "OHADA", type: "ARTICLE", tags: ["Preuve"] },
+        { titre: "Note client — Risques fiscaux 2026", categorie: "INTERNE", domaineJuridique: "FISCAL", tags: ["Note"] },
+        { titre: "CCJA — Reconnaissance d'arbitrage international", categorie: "JURISPRUDENCE", domaineJuridique: "OHADA", type: "ARRET", reference: "CCJA-2024-301", tags: ["Arbitrage"] },
+        { titre: "Modèle Compromis de vente", categorie: "MODELE", domaineJuridique: "AFFAIRES", type: "CONTRAT", tags: ["Vente"] },
+        { titre: "Modèle Procès-verbal AGO", categorie: "MODELE", domaineJuridique: "AFFAIRES", type: "CONTRAT", tags: ["Sociétés", "AGO"] },
+        { titre: "Convention collective interprofessionnelle Niger", categorie: "DOCTRINE", domaineJuridique: "SOCIAL", type: "OUVRAGE", tags: ["Convention"] },
+        { titre: "Charte du cabinet — Confidentialité", categorie: "INTERNE", domaineJuridique: "AUTRE" as never, tags: ["Charte", "Cabinet"] },
+    ]
+    for (const d of DOC_DEFS) {
+        await prisma.document.create({
+            data: {
+                titre: d.titre,
+                categorie: d.categorie,
+                domaineJuridique: d.domaineJuridique === ("AUTRE" as never) ? "AUTRE" : d.domaineJuridique,
+                type: d.type ?? null,
+                reference: d.reference,
+                dateDocument: daysAgo(Math.floor(Math.random() * 365)),
+                tags: d.tags,
+                estFavori: Math.random() > 0.7,
+                statut: "ACTIF",
+            },
+        })
+    }
 
-    const pastAudience3 = await prisma.audience.create({
-        data: {
-            titre: 'Mise en état',
-            date: new Date(now.getTime() - 25 * dayMs),
-            heure: '10:30',
-            duree: '1h',
-            salleAudience: 'Salle 2',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocat: user.name,
-            clientId: client2.id,
-            dossierId: dossier4.id,
-            statut: 'TERMINEE',
-        },
-    })
+    /* ========================================================
+       Récap + codes d'accès en clair
+       ======================================================== */
+    const counts = {
+        membres: await prisma.membre.count(),
+        clients: await prisma.client.count(),
+        dossiers: await prisma.dossier.count(),
+        audiences: await prisma.audience.count(),
+        taches: await prisma.tache.count(),
+        factures: await prisma.facture.count(),
+        depenses: await prisma.depense.count(),
+        bulletins: await prisma.bulletin.count(),
+        documents: await prisma.document.count(),
+    }
 
-    const pastAudience4 = await prisma.audience.create({
-        data: {
-            titre: 'Plaidoirie finale',
-            date: new Date(now.getTime() - 20 * dayMs),
-            heure: '09:30',
-            duree: '3h',
-            salleAudience: 'Grande Salle',
-            juridiction: 'Cour d\'Appel de Niamey',
-            avocat: user.name,
-            clientId: client2.id,
-            dossierId: dossier5.id,
-            statut: 'TERMINEE',
-            notes: 'Plaidoirie effectuée. Mise en délibéré au 15 mars.',
-        },
-    })
+    console.log("\n🎉 Seed terminé avec succès !\n")
+    console.log("📊 Récapitulatif :")
+    Object.entries(counts).forEach(([k, v]) => console.log(`   ${k.padEnd(12)} : ${v}`))
 
-    const pastAudience5 = await prisma.audience.create({
-        data: {
-            titre: 'Audience de conciliation',
-            date: new Date(now.getTime() - 18 * dayMs),
-            heure: '15:00',
-            duree: '2h',
-            salleAudience: 'Salle 4',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocat: user.name,
-            clientId: client3.id,
-            dossierId: dossier8.id,
-            statut: 'REPORTEE',
-            notes: 'Partie adverse absente. Renvoi au 20 février.',
-        },
-    })
-
-    const pastAudience6 = await prisma.audience.create({
-        data: {
-            titre: 'Comparution volontaire',
-            date: new Date(now.getTime() - 12 * dayMs),
-            heure: '11:00',
-            duree: '1h',
-            salleAudience: 'Salle 1',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocat: user.name,
-            clientId: client7.id,
-            dossierId: dossier16.id,
-            statut: 'TERMINEE',
-        },
-    })
-
-    const pastAudience7 = await prisma.audience.create({
-        data: {
-            titre: 'Débats contradictoires',
-            date: new Date(now.getTime() - 10 * dayMs),
-            heure: '14:00',
-            duree: '2h30',
-            salleAudience: 'Salle 2',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocat: user.name,
-            clientId: client4.id,
-            dossierId: dossier11.id,
-            statut: 'TERMINEE',
-            notes: 'Débats conclus. Jugement attendu dans 2 mois.',
-        },
-    })
-
-    const pastAudience8 = await prisma.audience.create({
-        data: {
-            titre: 'Audience d\'instruction',
-            date: new Date(now.getTime() - 8 * dayMs),
-            heure: '09:00',
-            duree: '1h30',
-            salleAudience: 'Salle 3',
-            juridiction: 'Tribunal Correctionnel de Niamey',
-            avocat: user.name,
-            clientId: client8.id,
-            dossierId: dossier18.id,
-            statut: 'TERMINEE',
-        },
-    })
-
-    const pastAudience9 = await prisma.audience.create({
-        data: {
-            titre: 'Plaidoirie préliminaire',
-            date: new Date(now.getTime() - 5 * dayMs),
-            heure: '10:00',
-            duree: '2h',
-            salleAudience: 'Salle 1',
-            juridiction: 'Tribunal de Commerce de Niamey',
-            avocat: user.name,
-            clientId: client6.id,
-            dossierId: dossier15.id,
-            statut: 'TERMINEE',
-        },
-    })
-
-    const pastAudience10 = await prisma.audience.create({
-        data: {
-            titre: 'Audience de clôture',
-            date: new Date(now.getTime() - 3 * dayMs),
-            heure: '15:30',
-            duree: '1h',
-            salleAudience: 'Salle 2',
-            juridiction: 'Tribunal de Grande Instance de Niamey',
-            avocat: user.name,
-            clientId: client5.id,
-            dossierId: dossier14.id,
-            statut: 'TERMINEE',
-            notes: 'Dossier clos. Jugement rendu favorable.',
-        },
-    })
-
-    // FUTURE AUDIENCES (15)
-    await prisma.audience.createMany({
-        data: [
-            {
-                titre: 'Audience de mise en état',
-                date: new Date(now.getTime() + 2 * dayMs),
-                heure: '09:00',
-                duree: '1h',
-                salleAudience: 'Salle 1',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client1.id,
-                dossierId: dossier1.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Plaidoirie sur le fond',
-                date: new Date(now.getTime() + 5 * dayMs),
-                heure: '14:00',
-                duree: '2h30',
-                salleAudience: 'Salle 3',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client2.id,
-                dossierId: dossier6.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience de référé',
-                date: new Date(now.getTime() + 7 * dayMs),
-                heure: '10:30',
-                duree: '1h30',
-                salleAudience: 'Salle 2',
-                juridiction: 'Tribunal de Grande Instance de Niamey',
-                avocat: user.name,
-                clientId: client7.id,
-                dossierId: dossier17.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Comparution des parties',
-                date: new Date(now.getTime() + 10 * dayMs),
-                heure: '09:30',
-                duree: '2h',
-                salleAudience: 'Salle 1',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client3.id,
-                dossierId: dossier10.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience de conciliation',
-                date: new Date(now.getTime() + 12 * dayMs),
-                heure: '15:00',
-                duree: '1h',
-                salleAudience: 'Salle 4',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client4.id,
-                dossierId: dossier12.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Plaidoirie finale',
-                date: new Date(now.getTime() + 15 * dayMs),
-                heure: '09:00',
-                duree: '3h',
-                salleAudience: 'Grande Salle',
-                juridiction: 'Cour d\'Appel de Niamey',
-                avocat: user.name,
-                clientId: client2.id,
-                dossierId: dossier5.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Débats contradictoires',
-                date: new Date(now.getTime() + 18 * dayMs),
-                heure: '14:30',
-                duree: '2h',
-                salleAudience: 'Salle 2',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client1.id,
-                dossierId: dossier3.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience d\'instruction',
-                date: new Date(now.getTime() + 20 * dayMs),
-                heure: '10:00',
-                duree: '1h30',
-                salleAudience: 'Salle 3',
-                juridiction: 'Tribunal de Grande Instance de Niamey',
-                avocat: user.name,
-                clientId: client5.id,
-                dossierId: dossier13.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Mise en état',
-                date: new Date(now.getTime() + 22 * dayMs),
-                heure: '11:00',
-                duree: '1h',
-                salleAudience: 'Salle 1',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client6.id,
-                dossierId: dossier15.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Plaidoirie préliminaire',
-                date: new Date(now.getTime() + 25 * dayMs),
-                heure: '09:00',
-                duree: '2h',
-                salleAudience: 'Salle 2',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client3.id,
-                dossierId: dossier8.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience de jugement',
-                date: new Date(now.getTime() + 28 * dayMs),
-                heure: '14:00',
-                duree: '2h30',
-                salleAudience: 'Grande Salle',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client2.id,
-                dossierId: dossier4.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Comparution volontaire',
-                date: new Date(now.getTime() + 30 * dayMs),
-                heure: '10:30',
-                duree: '1h',
-                salleAudience: 'Salle 1',
-                juridiction: 'Tribunal de Grande Instance de Niamey',
-                avocat: user.name,
-                clientId: client7.id,
-                dossierId: dossier16.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience de référé',
-                date: new Date(now.getTime() + 35 * dayMs),
-                heure: '15:30',
-                duree: '1h30',
-                salleAudience: 'Salle 3',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client4.id,
-                dossierId: dossier11.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Plaidoirie sur le fond',
-                date: new Date(now.getTime() + 40 * dayMs),
-                heure: '09:30',
-                duree: '3h',
-                salleAudience: 'Salle 2',
-                juridiction: 'Cour d\'Appel de Niamey',
-                avocat: user.name,
-                clientId: client3.id,
-                dossierId: dossier10.id,
-                statut: 'A_VENIR',
-            },
-            {
-                titre: 'Audience de clôture',
-                date: new Date(now.getTime() + 45 * dayMs),
-                heure: '14:00',
-                duree: '2h',
-                salleAudience: 'Salle 1',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                avocat: user.name,
-                clientId: client1.id,
-                dossierId: dossier1.id,
-                statut: 'A_VENIR',
-            },
-        ],
-    })
-
-    console.log('✅ Created 25 audiences (10 past, 15 future)')
-
-    // ========================================
-    // FLASH CR (10 total)
-    // ========================================
-
-    await prisma.flashCR.createMany({
-        data: [
-            {
-                audienceId: pastAudience1.id,
-                clientId: client1.id,
-                dossierId: dossier1.id,
-                contenu: `Compte-rendu d'audience du ${pastAudience1.date.toLocaleDateString('fr-FR')}
-
-Affaire: ${dossier1.description}
-Juridiction: Tribunal de Commerce de Niamey
-
-Déroulement:
-- Plaidoirie sur le fond effectuée
-- Arguments présentés concernant la rupture de contrat
-- Partie adverse a contesté les montants réclamés
-- Le juge a demandé des pièces complémentaires (factures détaillées)
-
-Prochaines étapes:
-- Transmission des pièces complémentaires sous 15 jours
-- Nouvelle audience fixée pour suite de la procédure
-
-Observations:
-Audience favorable dans l'ensemble. Le juge semble réceptif à nos arguments.`,
-                destinataires: 'a.issoufou@sonitel.ne, a.maiga@sonitel.ne',
-                statut: 'ENVOYE',
-            },
-            {
-                audienceId: pastAudience2.id,
-                clientId: client5.id,
-                dossierId: dossier13.id,
-                contenu: `Compte-rendu d'audience du ${pastAudience2.date.toLocaleDateString('fr-FR')}
-
-Affaire: ${dossier13.description}
-Juridiction: Tribunal de Grande Instance de Niamey
-
-Déroulement:
-- Audience de référé tenue
-- Demande de mesures conservatoires présentée
-- Partie adverse absente (notification régulière)
-- Référé accordé par le juge
-
-Décision:
-Mesures conservatoires prononcées. Blocage temporaire des biens en attendant le jugement au fond.
-
-Prochaines étapes:
-- Notification de l'ordonnance à la partie adverse
-- Préparation de l'audience au fond
-
-Observations:
-Résultat très favorable. Les mesures demandées ont été accordées intégralement.`,
-                destinataires: 'a.maiga@email.ne',
-                statut: 'ENVOYE',
-            },
-            {
-                audienceId: pastAudience3.id,
-                clientId: client2.id,
-                dossierId: dossier4.id,
-                contenu: `Compte-rendu d'audience du ${pastAudience3.date.toLocaleDateString('fr-FR')}
-
-Affaire: ${dossier4.description}
-Juridiction: Tribunal de Commerce de Niamey
-
-Déroulement:
-- Mise en état du dossier
-- Échange des conclusions entre les parties
-- Calendrier de procédure établi
-- Prochaine audience fixée
-
-Prochaines étapes:
-- Dépôt des conclusions définitives dans 30 jours
-- Audience de plaidoirie prévue dans 2 mois
-
-Observations:
-Procédure se déroule normalement. Aucun incident particulier.`,
-                destinataires: 'm.hamidou@bin.ne, f.oumarou@bin.ne',
-                statut: 'ENVOYE',
-            },
-        ],
-    })
-
-    console.log('✅ Created 10 Flash CR')
-
-    // ========================================
-    // INVOICES (15 total)
-    // ========================================
-
-    await prisma.invoice.createMany({
-        data: [
-            {
-                numero: 'FACT-2024-001',
-                date: new Date('2024-01-20'),
-                dateEcheance: new Date('2024-02-20'),
-                clientId: client1.id,
-                dossierId: dossier1.id,
-                montantHT: 500000,
-                montantTVA: 95000,
-                montantTTC: 595000,
-                montantPaye: 595000,
-                statut: 'PAYEE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2024-02-15'),
-                notes: 'Honoraires consultation et plaidoirie',
-            },
-            {
-                numero: 'FACT-2024-002',
-                date: new Date('2024-02-10'),
-                dateEcheance: new Date('2024-03-10'),
-                clientId: client2.id,
-                dossierId: dossier4.id,
-                montantHT: 750000,
-                montantTVA: 142500,
-                montantTTC: 892500,
-                montantPaye: 892500,
-                statut: 'PAYEE',
-                methodePaiement: 'Chèque',
-                datePaiement: new Date('2024-03-05'),
-                notes: 'Honoraires contentieux bancaire',
-            },
-            {
-                numero: 'FACT-2024-003',
-                date: new Date('2024-03-15'),
-                dateEcheance: new Date('2024-04-15'),
-                clientId: client3.id,
-                dossierId: dossier8.id,
-                montantHT: 600000,
-                montantTVA: 114000,
-                montantTTC: 714000,
-                montantPaye: 400000,
-                statut: 'PARTIELLE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2024-04-10'),
-                notes: 'Honoraires litige commercial - Paiement partiel reçu',
-            },
-            {
-                numero: 'FACT-2024-004',
-                date: new Date('2024-04-20'),
-                dateEcheance: new Date('2024-05-20'),
-                clientId: client4.id,
-                dossierId: dossier11.id,
-                montantHT: 450000,
-                montantTVA: 85500,
-                montantTTC: 535500,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires concurrence déloyale',
-            },
-            {
-                numero: 'FACT-2024-005',
-                date: new Date('2024-05-25'),
-                dateEcheance: new Date('2024-06-25'),
-                clientId: client5.id,
-                dossierId: dossier13.id,
-                montantHT: 350000,
-                montantTVA: 66500,
-                montantTTC: 416500,
-                montantPaye: 416500,
-                statut: 'PAYEE',
-                methodePaiement: 'Espèces',
-                datePaiement: new Date('2024-06-20'),
-                notes: 'Honoraires affaire de succession',
-            },
-            {
-                numero: 'FACT-2024-006',
-                date: new Date('2024-06-30'),
-                dateEcheance: new Date('2024-07-30'),
-                clientId: client6.id,
-                dossierId: dossier15.id,
-                montantHT: 400000,
-                montantTVA: 76000,
-                montantTTC: 476000,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires litige commercial',
-            },
-            {
-                numero: 'FACT-2024-007',
-                date: new Date('2024-07-15'),
-                dateEcheance: new Date('2024-08-15'),
-                clientId: client7.id,
-                dossierId: dossier16.id,
-                montantHT: 300000,
-                montantTVA: 57000,
-                montantTTC: 357000,
-                montantPaye: 357000,
-                statut: 'PAYEE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2024-08-10'),
-                notes: 'Honoraires expulsion locataires',
-            },
-            {
-                numero: 'FACT-2024-008',
-                date: new Date('2024-08-20'),
-                dateEcheance: new Date('2024-09-20'),
-                clientId: client1.id,
-                dossierId: dossier3.id,
-                montantHT: 550000,
-                montantTVA: 104500,
-                montantTTC: 654500,
-                montantPaye: 300000,
-                statut: 'PARTIELLE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2024-09-15'),
-                notes: 'Honoraires contentieux fournisseur - Paiement partiel',
-            },
-            {
-                numero: 'FACT-2024-009',
-                date: new Date('2024-09-25'),
-                dateEcheance: new Date('2024-10-25'),
-                clientId: client2.id,
-                dossierId: dossier6.id,
-                montantHT: 650000,
-                montantTVA: 123500,
-                montantTTC: 773500,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires litige informatique',
-            },
-            {
-                numero: 'FACT-2024-010',
-                date: new Date('2024-10-30'),
-                dateEcheance: new Date('2024-11-30'),
-                clientId: client3.id,
-                dossierId: dossier10.id,
-                montantHT: 800000,
-                montantTVA: 152000,
-                montantTTC: 952000,
-                montantPaye: 952000,
-                statut: 'PAYEE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2024-11-25'),
-                notes: 'Honoraires appel - Cour d\'Appel',
-            },
-            {
-                numero: 'FACT-2024-011',
-                date: new Date('2024-11-15'),
-                dateEcheance: new Date('2024-12-15'),
-                clientId: client8.id,
-                dossierId: dossier18.id,
-                montantHT: 900000,
-                montantTVA: 171000,
-                montantTTC: 1071000,
-                montantPaye: 1071000,
-                statut: 'PAYEE',
-                methodePaiement: 'Chèque',
-                datePaiement: new Date('2024-12-10'),
-                notes: 'Honoraires défense pénale - Acquittement',
-            },
-            {
-                numero: 'FACT-2024-012',
-                date: new Date('2024-12-01'),
-                dateEcheance: new Date('2025-01-01'),
-                clientId: client2.id,
-                dossierId: dossier7.id,
-                montantHT: 400000,
-                montantTVA: 76000,
-                montantTTC: 476000,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires garantie bancaire',
-            },
-            {
-                numero: 'FACT-2025-001',
-                date: new Date('2025-01-10'),
-                dateEcheance: new Date('2025-02-10'),
-                clientId: client4.id,
-                dossierId: dossier12.id,
-                montantHT: 350000,
-                montantTVA: 66500,
-                montantTTC: 416500,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires rupture contrat fournisseur',
-            },
-            {
-                numero: 'FACT-2025-002',
-                date: new Date('2025-01-15'),
-                dateEcheance: new Date('2025-02-15'),
-                clientId: client7.id,
-                dossierId: dossier17.id,
-                montantHT: 250000,
-                montantTVA: 47500,
-                montantTTC: 297500,
-                montantPaye: 0,
-                statut: 'IMPAYEE',
-                notes: 'Honoraires litige voisinage',
-            },
-            {
-                numero: 'FACT-2025-003',
-                date: new Date('2025-01-18'),
-                dateEcheance: new Date('2025-02-18'),
-                clientId: client5.id,
-                dossierId: dossier14.id,
-                montantHT: 500000,
-                montantTVA: 95000,
-                montantTTC: 595000,
-                montantPaye: 595000,
-                statut: 'PAYEE',
-                methodePaiement: 'Virement bancaire',
-                datePaiement: new Date('2025-02-10'),
-                notes: 'Honoraires divorce contentieux',
-            },
-        ],
-    })
-
-    console.log('✅ Created 15 invoices')
-
-    // ========================================
-    // DOCUMENTS - BIBLIOTHÈQUE (20 total)
-    // ========================================
-
-    await prisma.document.createMany({
-        data: [
-            // Jurisprudence
-            {
-                titre: 'Arrêt Cour d\'Appel de Niamey - Droit Commercial',
-                categorie: 'JURISPRUDENCE',
-                type: 'ARRET',
-                juridiction: 'Cour d\'Appel de Niamey',
-                reference: 'Arrêt n°045/2023',
-                dateDocument: new Date('2023-06-15'),
-                description: 'Arrêt relatif à la rupture abusive de contrat commercial. La Cour confirme la décision de première instance et condamne la société défenderesse à des dommages et intérêts.',
-                tags: 'droit commercial, rupture contrat, dommages intérêts',
-                auteur: 'Cour d\'Appel de Niamey',
-                source: 'Recueil de jurisprudence 2023',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Arrêt Cour Suprême - Droit du Travail',
-                categorie: 'JURISPRUDENCE',
-                type: 'ARRET',
-                juridiction: 'Cour Suprême du Niger',
-                reference: 'Arrêt n°128/2024',
-                dateDocument: new Date('2024-03-20'),
-                description: 'Licenciement abusif - Indemnités de licenciement. La Cour précise les modalités de calcul des indemnités en cas de licenciement sans cause réelle et sérieuse.',
-                tags: 'droit travail, licenciement, indemnités',
-                auteur: 'Cour Suprême du Niger',
-                source: 'Bulletin de la Cour Suprême 2024',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Jugement TGI Niamey - Succession',
-                categorie: 'JURISPRUDENCE',
-                type: 'JUGEMENT',
-                juridiction: 'Tribunal de Grande Instance de Niamey',
-                reference: 'Jugement n°234/2023',
-                dateDocument: new Date('2023-11-10'),
-                description: 'Partage successoral - Application du droit coutumier. Le tribunal statue sur le partage des biens entre héritiers en tenant compte des règles coutumières locales.',
-                tags: 'succession, droit coutumier, partage',
-                auteur: 'TGI Niamey',
-                source: 'Archives TGI 2023',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Arrêt Cour d\'Appel - Droit Immobilier',
-                categorie: 'JURISPRUDENCE',
-                type: 'ARRET',
-                juridiction: 'Cour d\'Appel de Niamey',
-                reference: 'Arrêt n°089/2024',
-                dateDocument: new Date('2024-05-15'),
-                description: 'Litige de voisinage - Empiètement. La Cour ordonne la démolition des constructions empiétant sur la propriété voisine.',
-                tags: 'immobilier, voisinage, empiètement',
-                auteur: 'Cour d\'Appel de Niamey',
-                source: 'Recueil 2024',
-                statut: 'ACTIF',
-            },
-
-            // Décisions de Justice
-            {
-                titre: 'Ordonnance de Référé - Mesures Conservatoires',
-                categorie: 'DECISION_JUSTICE',
-                type: 'ORDONNANCE',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                reference: 'Ord. Réf. n°012/2024',
-                dateDocument: new Date('2024-01-25'),
-                description: 'Ordonnance accordant des mesures conservatoires sur les comptes bancaires du débiteur en attente du jugement au fond.',
-                tags: 'référé, mesures conservatoires, saisie',
-                auteur: 'Président du Tribunal de Commerce',
-                source: 'Greffe TC Niamey',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Jugement Tribunal de Commerce - Recouvrement',
-                categorie: 'DECISION_JUSTICE',
-                type: 'JUGEMENT',
-                juridiction: 'Tribunal de Commerce de Niamey',
-                reference: 'Jugement n°156/2023',
-                dateDocument: new Date('2023-09-30'),
-                description: 'Condamnation au paiement de créances commerciales avec intérêts de retard. Le tribunal fait droit à la demande du créancier.',
-                tags: 'recouvrement, créances, intérêts',
-                auteur: 'Tribunal de Commerce de Niamey',
-                source: 'Archives TC 2023',
-                statut: 'ACTIF',
-            },
-
-            // Doctrine
-            {
-                titre: 'Le Droit Commercial au Niger - Analyse Pratique',
-                categorie: 'DOCTRINE',
-                type: 'ARTICLE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2023-12-01'),
-                description: 'Article de doctrine analysant les évolutions récentes du droit commercial nigérien, notamment en matière de contrats commerciaux et de sociétés.',
-                tags: 'droit commercial, doctrine, analyse',
-                auteur: 'Dr. Moussa Hamani',
-                source: 'Revue Nigérienne de Droit, Vol. 15',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'La Protection du Consommateur au Niger',
-                categorie: 'DOCTRINE',
-                type: 'ARTICLE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-02-15'),
-                description: 'Étude approfondie sur les mécanismes de protection du consommateur dans le droit nigérien, avec comparaisons régionales.',
-                tags: 'consommateur, protection, étude',
-                auteur: 'Prof. Aïssata Maïga',
-                source: 'Revue de Droit Africain',
-                statut: 'ACTIF',
-            },
-
-            // Modèles
-            {
-                titre: 'Modèle de Contrat de Prestation de Services',
-                categorie: 'MODELE',
-                type: 'CONTRAT',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-01-10'),
-                description: 'Modèle type de contrat de prestation de services adapté au droit nigérien, avec clauses standards et clauses optionnelles.',
-                tags: 'modèle, contrat, prestation services',
-                auteur: 'Cabinet KadriLex',
-                source: 'Bibliothèque interne',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Modèle de Statuts de SARL',
-                categorie: 'MODELE',
-                type: 'CONTRAT',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-01-15'),
-                description: 'Modèle complet de statuts pour la création d\'une SARL au Niger, conforme à la législation OHADA.',
-                tags: 'modèle, statuts, SARL, OHADA',
-                auteur: 'Cabinet KadriLex',
-                source: 'Bibliothèque interne',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Modèle de Mise en Demeure',
-                categorie: 'MODELE',
-                type: 'PROCEDURE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-02-01'),
-                description: 'Modèle de lettre de mise en demeure pour recouvrement de créances, avec variantes selon les situations.',
-                tags: 'modèle, mise en demeure, recouvrement',
-                auteur: 'Cabinet KadriLex',
-                source: 'Bibliothèque interne',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Modèle d\'Assignation en Justice',
-                categorie: 'MODELE',
-                type: 'PROCEDURE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-02-10'),
-                description: 'Modèle type d\'assignation devant le Tribunal de Commerce de Niamey, avec mentions obligatoires.',
-                tags: 'modèle, assignation, procédure',
-                auteur: 'Cabinet KadriLex',
-                source: 'Bibliothèque interne',
-                statut: 'ACTIF',
-            },
-
-            // Documents Internes
-            {
-                titre: 'Guide Procédure Interne - Gestion des Dossiers',
-                categorie: 'INTERNE',
-                type: 'NOTE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-01-05'),
-                description: 'Guide interne détaillant les procédures de gestion des dossiers clients, de l\'ouverture à la clôture.',
-                tags: 'procédure interne, gestion dossiers',
-                auteur: 'Maître Abdoulaye Kadri',
-                source: 'Cabinet KadriLex',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Barème Honoraires 2024',
-                categorie: 'INTERNE',
-                type: 'NOTE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2024-01-01'),
-                description: 'Barème des honoraires du cabinet pour l\'année 2024, par type de prestation et niveau de complexité.',
-                tags: 'honoraires, tarifs, barème',
-                auteur: 'Cabinet KadriLex',
-                source: 'Direction',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Charte Qualité du Cabinet',
-                categorie: 'INTERNE',
-                type: 'NOTE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2023-12-15'),
-                description: 'Charte qualité définissant les engagements du cabinet envers ses clients et les standards de service.',
-                tags: 'qualité, charte, engagements',
-                auteur: 'Cabinet KadriLex',
-                source: 'Direction',
-                statut: 'ACTIF',
-            },
-
-            // Autres
-            {
-                titre: 'Code OHADA - Acte Uniforme Droit Commercial',
-                categorie: 'AUTRE',
-                type: 'ARTICLE',
-                juridiction: null,
-                reference: 'OHADA',
-                dateDocument: new Date('2010-12-15'),
-                description: 'Acte uniforme relatif au droit commercial général de l\'OHADA, applicable au Niger.',
-                tags: 'OHADA, droit commercial, code',
-                auteur: 'OHADA',
-                source: 'Journal Officiel OHADA',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Loi sur les Sociétés Commerciales au Niger',
-                categorie: 'AUTRE',
-                type: 'ARTICLE',
-                juridiction: null,
-                reference: 'Loi n°2018-045',
-                dateDocument: new Date('2018-07-20'),
-                description: 'Loi régissant la création, le fonctionnement et la dissolution des sociétés commerciales au Niger.',
-                tags: 'loi, sociétés commerciales, Niger',
-                auteur: 'Assemblée Nationale du Niger',
-                source: 'Journal Officiel du Niger',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Code du Travail Nigérien - Version Consolidée',
-                categorie: 'AUTRE',
-                type: 'ARTICLE',
-                juridiction: null,
-                reference: 'Loi n°2012-045',
-                dateDocument: new Date('2012-11-01'),
-                description: 'Version consolidée du Code du Travail du Niger avec toutes les modifications jusqu\'en 2024.',
-                tags: 'code travail, Niger, législation',
-                auteur: 'République du Niger',
-                source: 'Journal Officiel',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Guide Pratique - Création d\'Entreprise au Niger',
-                categorie: 'AUTRE',
-                type: 'NOTE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2023-10-01'),
-                description: 'Guide pratique détaillant toutes les étapes de création d\'une entreprise au Niger, avec formalités et délais.',
-                tags: 'création entreprise, guide, formalités',
-                auteur: 'Chambre de Commerce de Niamey',
-                source: 'Chambre de Commerce',
-                statut: 'ACTIF',
-            },
-            {
-                titre: 'Procédures Devant les Juridictions Nigériennes',
-                categorie: 'AUTRE',
-                type: 'MEMOIRE',
-                juridiction: null,
-                reference: null,
-                dateDocument: new Date('2023-05-15'),
-                description: 'Mémoire détaillant les procédures civiles et commerciales devant les différentes juridictions du Niger.',
-                tags: 'procédure, juridictions, Niger',
-                auteur: 'Ordre des Avocats du Niger',
-                source: 'Ordre des Avocats',
-                statut: 'ACTIF',
-            },
-        ],
-    })
-
-    console.log('✅ Created 20 documents for bibliotheque')
-
-    console.log('🎉 Database seeding completed successfully for KadriLex!')
-    console.log('📊 Summary:')
-    console.log('   - 1 user (lawyer)')
-    console.log('   - 8 clients (4 companies, 4 individuals)')
-    console.log('   - 18 dossiers')
-    console.log('   - 100+ files and folders')
-    console.log('   - 25 audiences (10 past, 15 future)')
-    console.log('   - 10 Flash CR')
-    console.log('   - 15 invoices')
-    console.log('   - 20 documents (bibliothèque)')
+    console.log("\n🔑 Codes d'accès en clair (à copier dans un gestionnaire de mots de passe) :")
+    console.log("   ⚠️  Ces codes ne seront PLUS jamais affichés. Si tu les perds, régénérer via /api/membres/[id]/regenerate-code (Sprint 3).\n")
+    for (const [email, code] of Object.entries(codesAcces)) {
+        console.log(`   ${email.padEnd(35)} → ${code}`)
+    }
+    console.log("\n   Tester la connexion : POST /api/auth/login { email, codeAcces }\n")
 }
 
 main()
-    .then(async () => {
-        await prisma.$disconnect()
-    })
-    .catch(async (e) => {
+    .catch((e) => {
         console.error(e)
-        await prisma.$disconnect()
         process.exit(1)
+    })
+    .finally(async () => {
+        await prisma.$disconnect()
     })

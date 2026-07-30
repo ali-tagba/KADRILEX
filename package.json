@@ -7,7 +7,14 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:tunnel": "ssh -N -L 5433:localhost:5433 root@82.25.116.169",
+    "db:studio": "start https://supabase.82.25.116.169.sslip.io",
+    "db:ssh": "ssh root@82.25.116.169 -t 'cd /opt/kadrilex-supabase/docker && bash'",
+    "db:logs": "ssh root@82.25.116.169 'cd /opt/kadrilex-supabase/docker && docker compose logs --tail=100 -f'",
+    "db:status": "ssh root@82.25.116.169 'cd /opt/kadrilex-supabase/docker && docker compose ps'",
+    "db:restart": "ssh root@82.25.116.169 'cd /opt/kadrilex-supabase/docker && docker compose restart'",
+    "db:clean:vps": "ssh root@82.25.116.169 \"docker exec supabase-db psql -U postgres -d postgres -c 'TRUNCATE TABLE \\\"BulletinLigne\\\", \\\"Bulletin\\\", \\\"Paiement\\\", \\\"FactureLigne\\\", \\\"Facture\\\", \\\"Depense\\\", \\\"Fournisseur\\\", \\\"DocumentDossier\\\", \\\"Document\\\", \\\"TacheEquipe\\\", \\\"Tache\\\", \\\"AudienceEquipe\\\", \\\"Audience\\\", \\\"DossierNote\\\", \\\"DossierFile\\\", \\\"DossierEquipe\\\", \\\"Dossier\\\", \\\"Contact\\\", \\\"ClientEquipe\\\", \\\"Client\\\" CASCADE;'\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -20,20 +27,28 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@supabase/supabase-js": "^2.105.4",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
+    "jose": "^6.2.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.0",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -42,6 +57,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "prisma": "^5.22.0",
+    "supabase": "^2.98.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

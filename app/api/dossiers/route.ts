@@ -1,69 +1,121 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    getScope,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+    getQuery,
+    HttpError,
+} from "@/lib/server/api-helpers"
+import { nextDossierNumber } from "@/lib/server/numbering"
+import { DossierCreateSchema } from "@/lib/server/schemas"
+import type { Prisma } from "@prisma/client"
 
-export async function GET() {
+function shapeDossier(d: Prisma.DossierGetPayload<{
+    include: { equipe: true; client: true }
+}>) {
+    const { equipe, ...rest } = d
+    return { ...rest, equipeIds: equipe.map((e) => e.membreId) }
+}
+
+export async function GET(req: NextRequest) {
     try {
-        const dossiers = await prisma.dossier.findMany({
-            include: {
-                client: true,
-                audiences: true,
-                _count: {
-                    select: {
-                        audiences: true,
-                        invoices: true,
-                        files: true,
-                    },
-                },
-            },
-            orderBy: {
-                dateOuverture: 'desc',
-            },
-        })
+        const membre = await requirePermission("dossiers.view")
+        const q = getQuery(req.url)
 
-        return NextResponse.json(dossiers)
-    } catch (error) {
-        console.error('Error fetching dossiers:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch dossiers' },
-            { status: 500 }
-        )
+        const where: Prisma.DossierWhereInput = {}
+        if (q.search) {
+            where.OR = [
+                { titre: { contains: q.search, mode: "insensitive" } },
+                { numero: { contains: q.search, mode: "insensitive" } },
+                { nature: { contains: q.search, mode: "insensitive" } },
+            ]
+        }
+        if (q.statut) where.statut = q.statut as Prisma.DossierWhereInput["statut"]
+        if (q.type) where.type = q.type as Prisma.DossierWhereInput["type"]
+        if (q.kind) where.kind = q.kind as Prisma.DossierWhereInput["kind"]
+        if (q.clientId) where.clientId = q.clientId
+        if (q.juridiction) where.juridiction = { contains: q.juridiction, mode: "insensitive" }
+
+        if (getScope(membre, "dossiers.view") === "OWN") {
+            where.OR = [
+                ...((where.OR as Prisma.DossierWhereInput[]) ?? []),
+                { responsableId: membre.id },
+                { equipe: { some: { membreId: membre.id } } },
+            ]
+        }
+
+        const dossiers = await prisma.dossier.findMany({
+            where,
+            // Registre chronologique, puis alphabétique à date égale.
+            orderBy: [
+                { dateOuverture: "asc" },
+                { titre: "asc" },
+                { numero: "asc" },
+            ],
+            include: { equipe: true, client: true },
+        })
+        return Response.json(dossiers.map(shapeDossier))
+    } catch (e) {
+        return handleApiError(e)
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
     try {
-        const body = await request.json()
+        const membre = await requirePermission("dossiers.write")
+        const data = await parseJson(req, DossierCreateSchema)
+        const { equipeIds, ...rest } = data
 
-        console.log('Creating dossier with data:', body)
+        // Héritage équipe depuis le client parent (si CLIENT)
+        let inheritedTeam: string[] = []
+        let inheritedResponsable: string | null = null
+        if (rest.kind === "CLIENT" && rest.clientId) {
+            const client = await prisma.client.findUnique({
+                where: { id: rest.clientId },
+                include: { equipe: true },
+            })
+            if (!client) throw new HttpError(404, "Client lié introuvable")
+            inheritedTeam = client.equipe.map((e) => e.membreId)
+            inheritedResponsable = client.responsableId
+        }
 
-        const dossier = await prisma.dossier.create({
-            data: {
-                numero: body.numero || `DOS-${Date.now()}`,
-                clientId: body.clientId,
-                type: body.type,
-                statut: body.statut || 'EN_COURS',
-                juridiction: body.juridiction || null,
-                description: body.description || null,
-            },
-            include: {
-                client: true,
-                audiences: true,
-                _count: {
-                    select: {
-                        audiences: true,
-                        files: true,
+        const responsableId = rest.responsableId ?? inheritedResponsable ?? membre.id
+        const equipeSet = new Set<string>([...equipeIds, ...inheritedTeam, membre.id])
+        equipeSet.delete(responsableId)
+
+        const created = await prisma.$transaction(async (tx) => {
+            const numero = await nextDossierNumber(tx, rest.kind)
+            return tx.dossier.create({
+                data: {
+                    numero,
+                    kind: rest.kind,
+                    type: rest.type,
+                    nature: rest.nature,
+                    titre: rest.titre,
+                    statut: rest.statut,
+                    etatProcedure: rest.etatProcedure,
+                    juridiction: rest.juridiction,
+                    clientId: rest.kind === "ADMIN" ? null : rest.clientId,
+                    partiesAdverses: rest.partiesAdverses,
+                    dateOuverture: rest.dateOuverture ? new Date(rest.dateOuverture) : new Date(),
+                    description: rest.description,
+                    honoraires: rest.honoraires ? (rest.honoraires as any) : undefined,
+                    provisionsVersees: rest.provisionsVersees ? (rest.provisionsVersees as any) : undefined,
+                    retrocession: rest.retrocession ? (rest.retrocession as any) : undefined,
+                    responsableId,
+                    equipe: {
+                        create: Array.from(equipeSet).map((mId) => ({ membreId: mId })),
                     },
                 },
-            },
+                include: { equipe: true, client: true },
+            })
         })
-
-        console.log('Dossier created successfully:', dossier.id)
-        return NextResponse.json(dossier, { status: 201 })
-    } catch (error) {
-        console.error('Error creating dossier:', error)
-        return NextResponse.json(
-            { error: 'Failed to create dossier', details: error instanceof Error ? error.message : 'Unknown error' },
-            { status: 500 }
-        )
+        return Response.json(shapeDossier(created), { status: 201 })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

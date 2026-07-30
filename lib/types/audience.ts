@@ -1,10 +1,28 @@
 
 export type AudienceStatus = "UPCOMING" | "COMPLETED" | "CANCELLED" | "POSTPONED"
 
+/**
+ * Type d'aperçu utilisé par les routes API legacy.
+ * Le modèle riche est `MockAudience` dans `lib/mock/audiences.ts`.
+ */
+export interface AudienceClientPreview {
+    id: string
+    numeroClient?: string
+    raisonSociale?: string | null
+    nom?: string | null
+    prenom?: string | null
+}
+
+export interface AudienceDossierPreview {
+    id: string
+    numero: string
+    titre: string
+}
+
 export interface Audience {
     id: string
-    titre: string | null // Changed from title to match schema
-    date: string // ISO Date string
+    titre: string | null
+    date: string
     heure?: string | null
     juridiction: string | null
     avocat: string | null
@@ -12,18 +30,6 @@ export interface Audience {
     dossierId: string
     statut: string // "A_VENIR" | "TERMINEE" | "REPORTEE" | "ANNULEE"
     notes?: string | null
-    client?: any
-    dossier?: any
-    flashCR?: any
-}
-
-export interface FlashCR {
-    id: string
-    audienceId: string
-    clientId: string
-    dossierId: string
-    contenu: string
-    dateCreation: string
-    destinataires: string[] // emails
-    statutEnvoi: "SENT" | "DRAFT"
+    client?: AudienceClientPreview
+    dossier?: AudienceDossierPreview
 }

@@ -1,61 +1,124 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    getScope,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+    getQuery,
+    HttpError,
+} from "@/lib/server/api-helpers"
+import { nextAudienceNumber } from "@/lib/server/numbering"
+import { AudienceCreateSchema } from "@/lib/server/schemas"
+import type { Prisma } from "@prisma/client"
 
-export async function GET() {
-    try {
-        const audiences = await prisma.audience.findMany({
-            include: {
-                client: true,
-                dossier: true,
-                flashCR: true,
-            },
-            orderBy: {
-                date: 'asc',
-            },
-        })
-
-        return NextResponse.json(audiences)
-    } catch (error) {
-        console.error('Error fetching audiences:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch audiences' },
-            { status: 500 }
-        )
+function shape(a: Prisma.AudienceGetPayload<{
+    include: { equipe: true; client: true; dossier: { include: { client: true } } }
+}>) {
+    const { equipe, ...rest } = a
+    // Client effectif : direct (audience sèche) ou hérité du dossier rattaché.
+    const effectiveClient = a.client ?? a.dossier?.client ?? null
+    return {
+        ...rest,
+        client: effectiveClient,
+        equipeIds: equipe.map((e) => e.membreId),
+        /* Alias legacy pour compat composants frontend mock */
+        resultatAudience: a.resultat,
+        avocatPlaidant: null,
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        const body = await request.json()
+        const membre = await requirePermission("audiences.view")
+        const q = getQuery(req.url)
 
-        console.log('Creating audience with data:', body)
+        const where: Prisma.AudienceWhereInput = {}
+        if (q.search) where.titre = { contains: q.search, mode: "insensitive" }
+        if (q.statut) where.statut = q.statut as Prisma.AudienceWhereInput["statut"]
+        if (q.nature) where.nature = q.nature as Prisma.AudienceWhereInput["nature"]
+        if (q.dossierId) where.dossierId = q.dossierId
+        if (q.from || q.to) {
+            where.dateDebut = {}
+            if (q.from) (where.dateDebut as Prisma.DateTimeFilter).gte = new Date(q.from)
+            if (q.to) (where.dateDebut as Prisma.DateTimeFilter).lte = new Date(q.to)
+        }
+        if (q.juridiction) where.juridiction = { contains: q.juridiction, mode: "insensitive" }
 
-        const audience = await prisma.audience.create({
-            data: {
-                clientId: body.clientId,
-                dossierId: body.dossierId,
-                date: new Date(body.date),
-                heure: body.heure || null,
-                juridiction: body.juridiction || null,
-                titre: body.titre || null,
-                avocat: body.avocat || null,
-                statut: body.statut || 'A_VENIR',
-                notes: body.notes || null,
-            },
-            include: {
-                client: true,
-                dossier: true,
-                flashCR: true,
-            },
+        if (getScope(membre, "audiences.view") === "OWN") {
+            where.OR = [
+                { responsableId: membre.id },
+                { equipe: { some: { membreId: membre.id } } },
+            ]
+        }
+
+        const audiences = await prisma.audience.findMany({
+            where,
+            orderBy: { dateDebut: "asc" },
+            include: { equipe: true, client: true, dossier: { include: { client: true } } },
         })
+        return Response.json(audiences.map(shape))
+    } catch (e) {
+        return handleApiError(e)
+    }
+}
 
-        console.log('Audience created successfully:', audience.id)
-        return NextResponse.json(audience, { status: 201 })
-    } catch (error) {
-        console.error('Error creating audience:', error)
-        return NextResponse.json(
-            { error: 'Failed to create audience', details: error instanceof Error ? error.message : 'Unknown error' },
-            { status: 500 }
-        )
+export async function POST(req: NextRequest) {
+    try {
+        const membre = await requirePermission("audiences.write")
+        const data = await parseJson(req, AudienceCreateSchema)
+        const { equipeIds, ...rest } = data
+
+        // Héritage équipe + juridiction + client DEPUIS le dossier (si rattaché).
+        // Une audience peut être « sèche » : ni dossier ni client.
+        let inheritedTeam: string[] = []
+        let inheritedResponsable: string | null = null
+        let inheritedJuridiction: string | null = null
+        let inheritedClientId: string | null = rest.clientId ?? null
+
+        if (rest.dossierId) {
+            const dossier = await prisma.dossier.findUnique({
+                where: { id: rest.dossierId },
+                include: { equipe: true },
+            })
+            if (!dossier) throw new HttpError(404, "Dossier lié introuvable")
+            inheritedTeam = dossier.equipe.map((e) => e.membreId)
+            inheritedResponsable = dossier.responsableId
+            inheritedJuridiction = dossier.juridiction
+            inheritedClientId = inheritedClientId ?? dossier.clientId
+        }
+
+        const responsableId = rest.responsableId ?? inheritedResponsable ?? membre.id
+        const equipeSet = new Set<string>([...equipeIds, ...inheritedTeam, membre.id])
+        equipeSet.delete(responsableId)
+
+        const created = await prisma.$transaction(async (tx) => {
+            const numero = await nextAudienceNumber(tx)
+            return tx.audience.create({
+                data: {
+                    numero,
+                    titre: rest.titre,
+                    nature: rest.nature,
+                    statut: rest.statut,
+                    dateDebut: new Date(rest.dateDebut),
+                    dureeMinutes: rest.dureeMinutes,
+                    juridiction: rest.juridiction ?? inheritedJuridiction,
+                    salleAudience: rest.salleAudience,
+                    notes: rest.notes,
+                    dossierId: rest.dossierId ?? null,
+                    clientId: inheritedClientId,
+                    responsableId,
+                    equipe: {
+                        create: Array.from(equipeSet).map((mId) => ({ membreId: mId })),
+                    },
+                },
+                include: { equipe: true, client: true, dossier: { include: { client: true } } },
+            })
+        })
+        return Response.json(shape(created), { status: 201 })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

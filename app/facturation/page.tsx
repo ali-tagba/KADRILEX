@@ -1,240 +1,354 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { InvoiceFormDialog } from "@/components/facturation/invoice-form-dialog"
-import { format } from "date-fns"
-import { fr } from "date-fns/locale"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import {
-    Plus, Download, MoreVertical, Search,
-    Paperclip, ListFilter
-} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { PageGate } from "@/components/auth/require-permission"
+import { patchEntity, postEntity, deleteEntity, showApiError } from "@/lib/api/patch"
+import type { MockFacture } from "@/lib/mock/invoices"
+import type { MockDepense } from "@/lib/mock/depenses"
+import type { MockBulletin } from "@/lib/mock/bulletins"
+import type { MockEmploye } from "@/lib/mock/employes"
+import { FinanceTabs, type FinanceTabKey } from "@/components/facturation/finance-tabs"
+import { FinanceDashboard } from "@/components/facturation/finance-dashboard"
+import { VueEnsembleTab } from "@/components/facturation/vue-ensemble-tab"
+import { FacturationTab } from "@/components/facturation/facturation-tab"
+import { FraisExternesTab } from "@/components/facturation/frais-externes-tab"
+import { DepensesTab } from "@/components/facturation/depenses-tab"
+import { PaieTab } from "@/components/facturation/paie-tab"
 
-export default function FacturationPage() {
-    const [invoices, setInvoices] = useState<any[]>([])
+const VALID_TABS: FinanceTabKey[] = [
+    "dashboard",
+    "vue-ensemble",
+    "facturation",
+    "frais-externes",
+    "depenses",
+    "paie",
+]
+
+export default function FinancePage() {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    const tabParam = searchParams.get("tab") as FinanceTabKey | null
+    const initialTab: FinanceTabKey = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dashboard"
+    const [activeTab, setActiveTab] = useState<FinanceTabKey>(initialTab)
+
+    const presetClientId = searchParams.get("clientId")
+    const presetDossierId = searchParams.get("dossierId")
+
+    const handleTabChange = (tab: FinanceTabKey) => {
+        setActiveTab(tab)
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("tab", tab)
+        router.replace(`/facturation?${params.toString()}`, { scroll: false })
+    }
+
+    const [factures, setFactures] = useState<MockFacture[]>([])
+    const [depenses, setDepenses] = useState<MockDepense[]>([])
+    const [bulletins, setBulletins] = useState<MockBulletin[]>([])
+    const [employes, setEmployes] = useState<MockEmploye[]>([])
     const [loading, setLoading] = useState(true)
-    const [searchTerm, setSearchTerm] = useState("")
-    const [statusFilter, setStatusFilter] = useState<string>("ALL")
-    const [dialogOpen, setDialogOpen] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-    const fetchInvoices = async () => {
-        try {
-            setLoading(true)
-            const response = await fetch('/api/invoices')
-            if (!response.ok) throw new Error('Failed to fetch invoices')
-            const data = await response.json()
-            setInvoices(data)
-        } catch (error) {
-            console.error('Error fetching invoices:', error)
-        } finally {
-            setLoading(false)
+    /**
+     * Wrapper qui détecte les diffs et appelle l'API correspondante.
+     * Important : après POST réussi, on remplace l'item local par le vrai item DB (avec cuid),
+     * sinon les éditions suivantes PATCH un id qui n'existe pas en base → "introuvable".
+     */
+    const syncCollection = async <T extends { id: string }>(
+        prev: T[],
+        next: T[],
+        endpoint: string,
+        toPostBody: (item: T) => Record<string, unknown>,
+        toPatchBody: (item: T) => Record<string, unknown>,
+        setter: React.Dispatch<React.SetStateAction<T[]>>,
+        isLocalId: (id: string) => boolean
+    ) => {
+        const prevById = new Map(prev.map((x) => [x.id, x]))
+        const nextById = new Map(next.map((x) => [x.id, x]))
+
+        // 1) POST : items dont l'id est local OU absents du prev (et pas dans prev)
+        for (const item of next) {
+            if (isLocalId(item.id) || !prevById.has(item.id)) {
+                try {
+                    const created = await postEntity<T>(endpoint, toPostBody(item))
+                    // Remplace l'item local par le vrai item (avec cuid)
+                    setter((cur) => cur.map((x) => (x.id === item.id ? created : x)))
+                } catch (e) {
+                    showApiError("Création")(e)
+                }
+            }
+        }
+
+        // 2) PATCH : items dont l'id existe en DB ET les CHAMPS PATCHABLES ont changé
+        //    (skip locaux : gérés par POST. Compare uniquement la subset utile pour
+        //    éviter des PATCH inutiles déclenchés par des champs internes comme
+        //    generatedPdfUrl/At qui sont mis à jour par d'autres endpoints.)
+        for (const item of next) {
+            if (isLocalId(item.id)) continue
+            const prevItem = prevById.get(item.id)
+            if (!prevItem) continue
+            const prevBody = JSON.stringify(toPatchBody(prevItem))
+            const nextBody = JSON.stringify(toPatchBody(item))
+            if (prevBody !== nextBody) {
+                patchEntity(`${endpoint}/${item.id}`, toPatchBody(item)).catch(
+                    showApiError("Modification")
+                )
+            }
+        }
+
+        // 3) DELETE : items présents dans prev mais plus dans next
+        for (const item of prev) {
+            if (!nextById.has(item.id)) {
+                deleteEntity(`${endpoint}/${item.id}`).catch(showApiError("Suppression"))
+            }
         }
     }
 
-    useEffect(() => {
-        fetchInvoices()
-    }, [])
-
-    // Summary Metrics
-    const totalTTC = invoices.reduce((acc, inv) => acc + (inv.montantTTC || 0), 0)
-    const totalPaid = invoices.reduce((acc, inv) => acc + (inv.montantPaye || 0), 0)
-    const totalPending = totalTTC - totalPaid
-
-    const filteredInvoices = invoices.filter(inv => {
-        const matchesStatus = statusFilter === "ALL" || inv.statut === statusFilter
-        const matchesSearch =
-            inv.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inv.client?.raisonSociale?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inv.client?.nom?.toLowerCase().includes(searchTerm.toLowerCase())
-
-        return matchesStatus && matchesSearch
-    })
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(amount)
-    }
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-200 border-t-blue-600"></div>
-            </div>
+    const syncBulletins = (next: MockBulletin[]) => {
+        setBulletins(next)
+        void syncCollection(
+            bulletins,
+            next,
+            "/api/bulletins",
+            (b) => ({
+                employeId: b.employeId,
+                annee: b.annee,
+                mois: b.mois,
+                salaireBrut: b.salaireBrut,
+                primes: b.primes,
+                retenues: b.retenues,
+                statut: b.statut,
+                notes: b.notes,
+            }),
+            (b) => ({
+                salaireBrut: b.salaireBrut,
+                primes: b.primes,
+                retenues: b.retenues,
+                statut: b.statut,
+                dateVersement: b.dateVersement,
+                modeVersement: b.modeVersement,
+                reference: b.reference,
+                notes: b.notes,
+            }),
+            setBulletins,
+            (id) => id.startsWith("bul-local-")
         )
     }
 
+    const syncFactures = (next: MockFacture[]) => {
+        setFactures(next)
+        void syncCollection(
+            factures,
+            next,
+            "/api/invoices",
+            (f) => ({
+                direction: f.direction,
+                date: f.date,
+                dateEcheance: f.dateEcheance,
+                clientId: f.clientId,
+                dossierId: f.dossierId,
+                fournisseurId: f.fournisseurId,
+                fournisseurNomLibre: f.fournisseurNomLibre,
+                montantHT: f.montantHT,
+                tvaRate: f.tvaRate,
+                statut: f.statut,
+                description: f.description,
+                notes: f.notes,
+                refacturable: f.refacturable,
+                attachmentUrl: f.attachmentUrl,
+                // CRITIQUE : les lignes doivent être envoyées pour être persistées
+                lignes: (f.lignes ?? []).map((l) => ({
+                    libelle: l.libelle,
+                    quantite: l.quantite,
+                    prixUnitaire: l.prixUnitaire,
+                    total: l.total,
+                    audienceId: l.audienceId ?? null,
+                })),
+            }),
+            (f) => ({
+                date: f.date,
+                dateEcheance: f.dateEcheance,
+                montantHT: f.montantHT,
+                tvaRate: f.tvaRate,
+                statut: f.statut,
+                description: f.description,
+                notes: f.notes,
+                refacturable: f.refacturable,
+                attachmentUrl: f.attachmentUrl,
+                // Lignes incluses au PATCH : l'endpoint les remplace si présent
+                lignes: (f.lignes ?? []).map((l) => ({
+                    libelle: l.libelle,
+                    quantite: l.quantite,
+                    prixUnitaire: l.prixUnitaire,
+                    total: l.total,
+                    audienceId: l.audienceId ?? null,
+                })),
+            }),
+            setFactures,
+            (id) => id.startsWith("fac-local-")
+        )
+    }
+
+    const syncDepenses = (next: MockDepense[]) => {
+        setDepenses(next)
+        void syncCollection(
+            depenses,
+            next,
+            "/api/depenses",
+            (d) => ({
+                libelle: d.libelle,
+                categorie: d.categorie,
+                date: d.date,
+                montantHT: d.montantHT,
+                tvaRate: d.tvaRate,
+                mode: d.mode,
+                reference: d.reference,
+                recurrent: d.recurrent,
+                recurrenceFrequence: d.recurrenceFrequence,
+                fournisseurId: d.fournisseurId,
+                fournisseurNomLibre: d.fournisseurNomLibre,
+                notes: d.notes,
+                statut: d.statut,
+                attachmentUrl: d.attachmentUrl,
+            }),
+            (d) => ({
+                libelle: d.libelle,
+                categorie: d.categorie,
+                date: d.date,
+                montantHT: d.montantHT,
+                tvaRate: d.tvaRate,
+                mode: d.mode,
+                reference: d.reference,
+                recurrent: d.recurrent,
+                recurrenceFrequence: d.recurrenceFrequence,
+                notes: d.notes,
+                statut: d.statut,
+                attachmentUrl: d.attachmentUrl,
+            }),
+            setDepenses,
+            (id) => id.startsWith("dep-local-")
+        )
+    }
+
+    useEffect(() => {
+        let alive = true
+        Promise.all([
+            fetch("/api/invoices").then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : [])).catch(() => []),
+            fetch("/api/depenses").then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : [])).catch(() => []),
+            fetch("/api/bulletins").then((r) => (r.ok ? (r.json() as Promise<MockBulletin[]>) : [])).catch(() => []),
+            fetch("/api/employes").then((r) => (r.ok ? (r.json() as Promise<MockEmploye[]>) : [])).catch(() => []),
+        ])
+            .then(([fac, dep, bul, emp]) => {
+                if (!alive) return
+                setFactures(fac)
+                setDepenses(dep)
+                setBulletins(bul)
+                setEmployes(emp)
+            })
+            .catch((e) => {
+                if (alive) setError(e instanceof Error ? e.message : "Erreur inconnue")
+            })
+            .finally(() => {
+                if (alive) setLoading(false)
+            })
+        return () => {
+            alive = false
+        }
+    }, [])
+
+    /* Compteurs onglets (badges) */
+    const tabCounters = useMemo(() => {
+        const facturesEnRetard = factures.filter(
+            (f) => f.direction === "EMISE" && f.statut === "EN_RETARD"
+        ).length
+        const fraisAEnAttente = factures.filter(
+            (f) => f.direction === "RECUE" && f.refacturable && !f.refactureeViaFactureId
+        ).length
+        const bulletinsBrouillons = bulletins.filter((b) => b.statut === "BROUILLON").length
+        return {
+            dashboard: undefined,
+            "vue-ensemble": undefined,
+            facturation: facturesEnRetard > 0 ? facturesEnRetard : undefined,
+            "frais-externes": fraisAEnAttente > 0 ? fraisAEnAttente : undefined,
+            depenses: undefined,
+            paie: bulletinsBrouillons > 0 ? bulletinsBrouillons : undefined,
+        }
+    }, [factures, bulletins])
+
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] gap-4 pb-0">
-            {/* Header / Actions Bar */}
-            <div className="flex-none bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="relative w-full md:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                            placeholder="Rechercher facture, client, dossier..."
-                            className="pl-9 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+        <PageGate perm="finance.view" moduleName="Finance">
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Header compact : titre + onglets sur la même ligne sticky */}
+            <div className="flex-none px-container-margin pt-container-margin flex items-center gap-density-loose flex-wrap">
+                <div className="flex items-baseline gap-2 min-w-0 flex-shrink-0">
+                    <h1 className="font-h2 text-h2 text-primary-container leading-none">Finance</h1>
+                    <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider hidden sm:inline">
+                        Comptabilité
+                    </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <FinanceTabs active={activeTab} onChange={handleTabChange} counters={tabCounters} />
+                </div>
+            </div>
+
+            {/* Contenu — scroll vertical pour Dashboard, full-height pour autres tabs */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                {loading ? (
+                    <div className="flex-1 flex items-center justify-center font-body-sm text-on-surface-variant">
+                        Chargement…
+                    </div>
+                ) : error ? (
+                    <div className="m-container-margin bg-error-container border border-outline-variant rounded-lg p-6 text-center">
+                        <p className="font-body-sm text-on-error-container">
+                            Impossible de charger le module Finance ({error})
+                        </p>
+                    </div>
+                ) : activeTab === "dashboard" ? (
+                    <div className="flex-1 overflow-y-auto scrollbar-thin px-container-margin py-density-medium">
+                        <FinanceDashboard factures={factures} depenses={depenses} bulletins={bulletins} />
+                    </div>
+                ) : activeTab === "vue-ensemble" ? (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <VueEnsembleTab
+                            factures={factures}
+                            depenses={depenses}
+                            bulletins={bulletins}
                         />
                     </div>
-                    {/* Filter Status */}
-                    <div className="flex items-center border border-slate-200 rounded-md bg-white overflow-hidden shadow-sm">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="text-sm font-medium text-slate-700 bg-transparent py-2 pl-3 pr-8 focus:outline-none cursor-pointer hover:bg-slate-50 border-r border-slate-200 last:border-0"
-                        >
-                            <option value="ALL">Tout statut</option>
-                            <option value="PAYEE">Payées</option>
-                            <option value="IMPAYEE">Impayées</option>
-                            <option value="PARTIELLE">Partielles</option>
-                        </select>
+                ) : activeTab === "facturation" ? (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <FacturationTab
+                            factures={factures}
+                            onChangeFactures={syncFactures}
+                            presetClientId={presetClientId}
+                            presetDossierId={presetDossierId}
+                        />
                     </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                    <div className="hidden md:block text-right mr-4">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Reste à percevoir</p>
-                        <p className="text-sm font-bold text-red-600">{formatCurrency(totalPending)}</p>
+                ) : activeTab === "frais-externes" ? (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <FraisExternesTab
+                            factures={factures}
+                            onChangeFactures={syncFactures}
+                            onSelect={(f) => {
+                                /* On bascule vers la tab Facturation avec la facture sélectionnée */
+                                handleTabChange("facturation")
+                                /* La sélection sera gérée via URL — pour l'instant on bascule juste */
+                            }}
+                        />
                     </div>
-                    <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50">
-                        <Download className="w-4 h-4 mr-2" />
-                        Exporter
-                    </Button>
-                    <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                        onClick={() => setDialogOpen(true)}
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Saisir Facture
-                    </Button>
-                </div>
+                ) : activeTab === "depenses" ? (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <DepensesTab depenses={depenses} onChangeDepenses={syncDepenses} />
+                    </div>
+                ) : (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <PaieTab employes={employes} bulletins={bulletins} onChangeBulletins={syncBulletins} />
+                    </div>
+                )}
             </div>
-
-            {/* ERP Table */}
-            <div className="flex-1 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
-                <div className="overflow-auto flex-1 custom-scrollbar">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50 sticky top-0 z-20 shadow-sm">
-                            <tr>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-32">N° Facture</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Date</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 min-w-[200px]">Client / Dossier / Aud.</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-right">Montant HT</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-right">Montant TTC</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-right">Encaissé</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-right">Reste</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-center">Statut</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-center">Pièce</th>
-                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {filteredInvoices.map((inv) => {
-                                const remaining = inv.montantTTC - inv.montantPaye
-                                const isLate = inv.dateEcheance ? (new Date(inv.dateEcheance) < new Date() && inv.statut !== "PAYEE") : false
-
-                                return (
-                                    <tr key={inv.id} className="hover:bg-blue-50/50 transition-colors group text-sm">
-                                        <td className="px-4 py-3 font-medium text-slate-700 border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            {inv.numero}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-600 border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            <div className="flex flex-col">
-                                                <span>{format(new Date(inv.date), "dd/MM/yyyy")}</span>
-                                                {isLate && <span className="text-[10px] text-red-600 font-bold">Retard</span>}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 border-r border-transparent group-hover:border-slate-100">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="font-semibold text-slate-800 truncate">
-                                                    {inv.client ? (inv.client.type === 'ENTREPRISE' ? inv.client.raisonSociale : `${inv.client.prenom} ${inv.client.nom}`) : 'Client inconnu'}
-                                                </span>
-                                                <div className="flex gap-2 text-xs text-slate-500">
-                                                    {inv.dossierId && (
-                                                        <span className="bg-slate-100 px-1.5 py-0.5 rounded truncate max-w-[120px]">
-                                                            {inv.dossier?.numero || inv.dossierId}
-                                                        </span>
-                                                    )}
-                                                    {inv.audienceId && (
-                                                        <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded truncate max-w-[120px]">
-                                                            Audit. {inv.audienceId}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono text-slate-500 border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            {formatCurrency(inv.montantHT)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono font-medium text-slate-900 border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            {formatCurrency(inv.montantTTC)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono text-emerald-600 border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            {formatCurrency(inv.montantPaye)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono font-bold border-r border-transparent group-hover:border-slate-100 whitespace-nowrap">
-                                            <span className={remaining > 0 ? "text-red-600" : "text-slate-300"}>
-                                                {formatCurrency(remaining)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center border-r border-transparent group-hover:border-slate-100">
-                                            <StatusBadge status={inv.statut} />
-                                        </td>
-                                        <td className="px-4 py-3 text-center border-r border-transparent group-hover:border-slate-100">
-                                            {inv.attachmentUrl ? (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                                                    <Paperclip className="w-4 h-4" />
-                                                </Button>
-                                            ) : (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-600">
-                                                    <Plus className="w-4 h-4" />
-                                                </Button>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600">
-                                                <MoreVertical className="w-4 h-4" />
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-                            {filteredInvoices.length === 0 && (
-                                <tr>
-                                    <td colSpan={10} className="py-12 text-center text-slate-400">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <ListFilter className="w-12 h-12 mb-3 opacity-20" />
-                                            <p>Aucune facture ne correspond aux critères.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Invoice Form Dialog */}
-            <InvoiceFormDialog
-                open={dialogOpen}
-                onOpenChange={setDialogOpen}
-                onSuccess={fetchInvoices}
-            />
         </div>
+        </PageGate>
     )
 }
 
-function StatusBadge({ status }: { status: string }) {
-    switch (status) {
-        case "PAYEE":
-            return <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Payée</span>
-        case "IMPAYEE":
-            return <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10">Impayée</span>
-        case "PARTIELLE":
-            return <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20">Partielle</span>
-        default:
-            return null
-    }
-}

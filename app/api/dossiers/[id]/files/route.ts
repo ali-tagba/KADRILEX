@@ -1,56 +1,68 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    can,
+    HttpError,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+} from "@/lib/server/api-helpers"
+import { DossierFileCreateSchema } from "@/lib/server/schemas"
+
+async function loadDossierForFileAccess(dossierId: string) {
+    const dossier = await prisma.dossier.findUnique({
+        where: { id: dossierId },
+        include: { equipe: true },
+    })
+    if (!dossier) throw new HttpError(404, "Dossier introuvable")
+    return dossier
+}
 
 export async function GET(
-    request: NextRequest,
-    { params }: { params: any }
+    _req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const membre = await requirePermission("dossiers.view")
         const { id } = await params
+        const dossier = await loadDossierForFileAccess(id)
+        const resource = {
+            responsableId: dossier.responsableId,
+            equipeIds: dossier.equipe.map((e) => e.membreId),
+        }
+        if (!can(membre, "dossiers.view", resource)) {
+            throw new HttpError(403, "Accès refusé")
+        }
         const files = await prisma.dossierFile.findMany({
             where: { dossierId: id },
-            orderBy: [
-                { type: 'desc' }, // Folders first
-                { name: 'asc' },
-            ],
+            orderBy: [{ type: "desc" }, { name: "asc" }],
         })
-
-        return NextResponse.json(files)
-    } catch (error) {
-        console.error('Error fetching dossier files:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch files' },
-            { status: 500 }
-        )
+        return Response.json(files)
+    } catch (e) {
+        return handleApiError(e)
     }
 }
 
 export async function POST(
-    request: NextRequest,
-    { params }: { params: any }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const body = await request.json()
         const { id } = await params
-
+        const dossier = await loadDossierForFileAccess(id)
+        const resource = {
+            responsableId: dossier.responsableId,
+            equipeIds: dossier.equipe.map((e) => e.membreId),
+        }
+        await requirePermission("dossiers.write", resource)
+        const data = await parseJson(req, DossierFileCreateSchema)
         const file = await prisma.dossierFile.create({
-            data: {
-                dossierId: id,
-                parentId: body.parentId || null,
-                name: body.name,
-                type: body.type, // "FOLDER" or "FILE"
-                url: body.url,
-                mimeType: body.mimeType,
-                size: body.size,
-            },
+            data: { dossierId: id, ...data },
         })
-
-        return NextResponse.json(file, { status: 201 })
-    } catch (error) {
-        console.error('Error creating dossier file:', error)
-        return NextResponse.json(
-            { error: 'Failed to create file' },
-            { status: 500 }
-        )
+        return Response.json(file, { status: 201 })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

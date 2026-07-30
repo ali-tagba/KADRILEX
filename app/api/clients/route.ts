@@ -1,81 +1,138 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
+import {
+    getScope,
+    requirePermission,
+} from "@/lib/auth/server-permissions"
+import {
+    handleApiError,
+    parseJson,
+    getQuery,
+} from "@/lib/server/api-helpers"
+import { nextClientNumber } from "@/lib/server/numbering"
+import { ClientCreateSchema } from "@/lib/server/schemas"
+import type { Prisma } from "@prisma/client"
 
-export async function GET() {
-    try {
-        const clients = await prisma.client.findMany({
-            include: {
-                // contacts: true, // Optimized: Removed for list view performance
-                _count: {
-                    select: {
-                        dossiers: true,
-                        invoices: true,
-                    },
-                },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        })
-
-        return NextResponse.json(clients)
-    } catch (error) {
-        console.error('Error fetching clients:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch clients' },
-            { status: 500 }
-        )
+/* ============================================================
+   Shape de réponse (ajoute equipeIds calculé depuis la relation equipe)
+   ============================================================ */
+function shapeClient(c: Prisma.ClientGetPayload<{
+    include: {
+        equipe: true
+        contacts: true
+        factures: true
+        _count: { select: { dossiers: true } }
+    }
+}>) {
+    const { equipe, _count, factures, ...rest } = c
+    const aRetard = factures.some(
+        (f) => f.direction === "EMISE" && f.statut === "EN_RETARD"
+    )
+    return {
+        ...rest,
+        equipeIds: equipe.map((e) => e.membreId),
+        activeDossiers: _count.dossiers,
+        etatFacturation: aRetard ? "IMPAYE" : "A_JOUR",
+        activity: [],
+        partiesAdverses: [],
+        dossiers: [],
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        const body = await request.json()
+        const membre = await requirePermission("clients.view")
+        const q = getQuery(req.url)
 
-        console.log('Creating client with data:', body)
+        const where: Prisma.ClientWhereInput = {}
+        if (q.search) {
+            where.OR = [
+                { raisonSociale: { contains: q.search, mode: "insensitive" } },
+                { nom: { contains: q.search, mode: "insensitive" } },
+                { prenom: { contains: q.search, mode: "insensitive" } },
+                { email: { contains: q.search, mode: "insensitive" } },
+                { numeroClient: { contains: q.search, mode: "insensitive" } },
+            ]
+        }
+        if (q.type === "PERSONNE_MORALE" || q.type === "PERSONNE_PHYSIQUE") {
+            where.type = q.type
+        }
+        if (q.ville) where.ville = q.ville
+        // Par défaut on retourne tous les clients (actifs + désactivés).
+        // Le filtre se fait côté UI via l'onglet "Actif / Inactif".
+        if (q.actif === "true") where.actif = true
+        if (q.actif === "false") where.actif = false
 
-        // Build data object based on client type
-        const clientData: any = {
-            type: body.type,
-            email: body.email,
-            telephone: body.telephone,
-            adresse: body.adresse || null,
-            ville: body.ville || null,
-            pays: body.pays || 'Côte d\'Ivoire',
+        // Scope OWN : seulement clients dont membre est responsable ou dans équipe
+        if (getScope(membre, "clients.view") === "OWN") {
+            where.OR = [
+                ...((where.OR as Prisma.ClientWhereInput[]) ?? []),
+                { responsableId: membre.id },
+                { equipe: { some: { membreId: membre.id } } },
+            ]
         }
 
-        // Add type-specific fields
-        if (body.type === 'PERSONNE_PHYSIQUE') {
-            clientData.nom = body.nom
-            clientData.prenom = body.prenom
-            clientData.profession = body.profession || null
-        } else if (body.type === 'PERSONNE_MORALE') {
-            clientData.raisonSociale = body.raisonSociale
-            clientData.formeJuridique = body.formeJuridique || null
-            clientData.numeroRCCM = body.numeroRCCM || null
-            clientData.representantLegal = body.representantLegal || null
-        }
-
-        const client = await prisma.client.create({
-            data: clientData,
+        const clients = await prisma.client.findMany({
+            where,
+            // Registre : les clients les plus anciens apparaissent d'abord,
+            // puis sont classés par raison sociale / nom à date égale.
+            orderBy: [
+                { createdAt: "asc" },
+                { raisonSociale: "asc" },
+                { nom: "asc" },
+                { prenom: "asc" },
+            ],
             include: {
+                equipe: true,
                 contacts: true,
-                _count: {
-                    select: {
-                        dossiers: true,
-                        invoices: true,
-                    },
-                },
+                factures: true,
+                _count: { select: { dossiers: true } },
             },
         })
 
-        console.log('Client created successfully:', client.id)
-        return NextResponse.json(client, { status: 201 })
-    } catch (error) {
-        console.error('Error creating client:', error)
-        return NextResponse.json(
-            { error: 'Failed to create client', details: error instanceof Error ? error.message : 'Unknown error' },
-            { status: 500 }
-        )
+        return Response.json(clients.map(shapeClient))
+    } catch (e) {
+        return handleApiError(e)
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const membre = await requirePermission("clients.write")
+        const data = await parseJson(req, ClientCreateSchema)
+        const { equipeIds, ...rest } = data
+
+        const created = await prisma.$transaction(async (tx) => {
+            const numero = await nextClientNumber(tx)
+            // Héritage : si pas de responsableId fourni, on prend le membre courant
+            const responsableId = rest.responsableId ?? membre.id
+            // Équipe : injecter le membre courant + les ids fournis (dédupliqués)
+            const equipeSet = new Set<string>(equipeIds)
+            equipeSet.add(membre.id)
+            equipeSet.delete(responsableId) // pas besoin de doubler responsable + équipe
+
+            return tx.client.create({
+                data: {
+                    numeroClient: numero,
+                    ...rest,
+                    dateNaissance: rest.dateNaissance ? new Date(rest.dateNaissance) : null,
+                    responsableId,
+                    iconHint: rest.iconHint ?? (rest.type === "PERSONNE_MORALE" ? "domain" : "person"),
+                    equipe: {
+                        create: Array.from(equipeSet).map((mId) => ({ membreId: mId })),
+                    },
+                },
+                include: {
+                    equipe: true,
+                    contacts: true,
+                    factures: true,
+                    _count: { select: { dossiers: true } },
+                },
+            })
+        })
+
+        return Response.json(shapeClient(created), { status: 201 })
+    } catch (e) {
+        return handleApiError(e)
     }
 }

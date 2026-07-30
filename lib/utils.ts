@@ -32,3 +32,24 @@ export function formatDateTime(date: Date | string): string {
         minute: '2-digit',
     }).format(d)
 }
+
+/**
+ * Date relative en français — gère passé et futur correctement.
+ * Exemples : "à l'instant", "il y a 2h", "hier", "il y a 3j", "demain", "dans 5j", "12 mai".
+ */
+export function formatRelativeFr(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date
+    const diff = Date.now() - d.getTime()
+    const isFuture = diff < 0
+    const absDiff = Math.abs(diff)
+    const minutes = Math.floor(absDiff / 60_000)
+    const hours = Math.floor(absDiff / 3_600_000)
+    const days = Math.floor(absDiff / 86_400_000)
+
+    if (minutes < 1) return "à l'instant"
+    if (hours < 1) return isFuture ? `dans ${minutes} min` : `il y a ${minutes} min`
+    if (days < 1) return isFuture ? `dans ${hours} h` : `il y a ${hours} h`
+    if (days === 1) return isFuture ? "demain" : "hier"
+    if (days < 7) return isFuture ? `dans ${days} j` : `il y a ${days} j`
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+}
