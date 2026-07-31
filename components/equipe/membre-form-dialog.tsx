@@ -13,7 +13,7 @@ import {
     type ModePaiementKey,
     MODES_PAIEMENT,
 } from "@/lib/constants/finance"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 export interface MembreFormDraft {
     prenom: string
@@ -50,7 +50,7 @@ const EMPTY: MembreFormDraft = {
 }
 
 interface MembreFormDialogProps {
-    initial?: MockMembre | null
+    initial?: Membre | null
     onSave: (draft: MembreFormDraft) => void
     onClose: () => void
 }
@@ -67,7 +67,7 @@ export function MembreFormDialog({ initial, onSave, onClose }: MembreFormDialogP
                 fonction: initial.fonction ?? "",
                 statutContrat: initial.statutContrat,
                 salaireBaseBrut: initial.salaireBaseBrut,
-                dateEmbauche: initial.dateEmbauche.slice(0, 10),
+                dateEmbauche: initial.dateEmbauche ? new Date(initial.dateEmbauche).toISOString().slice(0, 10) : "",
                 rib: initial.rib ?? "",
                 banque: initial.banque ?? "",
                 mobileMoney: initial.mobileMoney ?? "",

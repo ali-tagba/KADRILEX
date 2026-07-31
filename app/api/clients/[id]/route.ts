@@ -104,7 +104,7 @@ export async function PATCH(
         await requirePermission("clients.write", resource)
 
         const data = await parseJson(req, ClientUpdateSchema)
-        const { equipeIds, ...rest } = data
+        const { equipeIds, createdAt, ...rest } = data
 
         const updated = await prisma.$transaction(async (tx) => {
             // Mise à jour de l'équipe si fournie : delete + recreate (idempotent)
@@ -128,6 +128,10 @@ export async function PATCH(
                             : rest.dateNaissance
                                 ? new Date(rest.dateNaissance)
                                 : null,
+                    // Correction de date d'entrée (import historique)
+                    ...(createdAt !== undefined && createdAt !== null
+                        ? { createdAt: new Date(createdAt) }
+                        : {}),
                 },
                 include: {
                     equipe: true,

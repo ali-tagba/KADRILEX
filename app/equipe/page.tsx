@@ -10,8 +10,7 @@ import {
     type RoleKey,
 } from "@/lib/constants/team"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
-import { type MockMembre } from "@/lib/mock/employes"
-import { sortMembres } from "@/lib/mock/membre-stats"
+import type { Membre } from "@prisma/client"
 import { MembreTableView } from "@/components/equipe/membre-table-view"
 import { MembreGalleryView } from "@/components/equipe/membre-gallery-view"
 import {
@@ -22,10 +21,28 @@ import {
 type ViewMode = "table" | "gallery"
 type ActifFilter = "ALL" | "ACTIFS" | "ARCHIVES"
 
+function sortMembres(membres: Membre[]): Membre[] {
+    const ROLE_RANG: Record<string, number> = {
+        ASSOCIE_GERANT: 1,
+        ASSOCIE: 2,
+        AVOCAT: 3,
+        JURISTE: 4,
+        STAGIAIRE: 5,
+        SECRETAIRE: 6,
+    }
+    return [...membres].sort((a, b) => {
+        if (a.actif !== b.actif) return a.actif ? -1 : 1
+        const ra = ROLE_RANG[a.role] ?? 99
+        const rb = ROLE_RANG[b.role] ?? 99
+        if (ra !== rb) return ra - rb
+        return a.nom.localeCompare(b.nom, "fr")
+    })
+}
+
 export default function EquipePage() {
     const { can } = useCurrentUser()
     const canWrite = can("equipe.write")
-    const [membres, setMembres] = useState<MockMembre[]>([])
+    const [membres, setMembres] = useState<Membre[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [roleFilter, setRoleFilter] = useState<RoleKey | "ALL">("ALL")
@@ -33,7 +50,7 @@ export default function EquipePage() {
     const [viewMode, setViewMode] = useState<ViewMode>("table")
 
     const [formOpen, setFormOpen] = useState(false)
-    const [editing, setEditing] = useState<MockMembre | null>(null)
+    const [editing, setEditing] = useState<Membre | null>(null)
 
     useEffect(() => {
         fetch("/api/membres")
@@ -113,7 +130,7 @@ export default function EquipePage() {
                     const e = await r.json().catch(() => ({}))
                     throw new Error(e.error ?? `HTTP ${r.status}`)
                 }
-                const updated: MockMembre = await r.json()
+                const updated: Membre = await r.json()
                 setMembres((list) => sortMembres(list.map((m) => (m.id === editing.id ? updated : m))))
             } else {
                 const r = await fetch("/api/membres", {
@@ -126,7 +143,7 @@ export default function EquipePage() {
                     const e = await r.json().catch(() => ({}))
                     throw new Error(e.error ?? `HTTP ${r.status}`)
                 }
-                const result: { membre: MockMembre; codeAccesClair: string } = await r.json()
+                const result: { membre: Membre; codeAccesClair: string } = await r.json()
                 setMembres((list) => sortMembres([result.membre, ...list]))
                 alert(
                     `✅ Membre créé : ${result.membre.prenom} ${result.membre.nom}\n\nCode d'accès (à transmettre 1 fois) :\n${result.codeAccesClair}\n\nCe code ne sera plus jamais affiché.`
@@ -139,12 +156,12 @@ export default function EquipePage() {
         }
     }
 
-    const handleEdit = (m: MockMembre) => {
+    const handleEdit = (m: Membre) => {
         setEditing(m)
         setFormOpen(true)
     }
-    const handleInvite = (m: MockMembre) => {
-        const updated: MockMembre = {
+    const handleInvite = (m: Membre) => {
+        const updated: Membre = {
             ...m,
             invitationStatut: "INVITE",
             updatedAt: new Date().toISOString(),
@@ -152,7 +169,7 @@ export default function EquipePage() {
         setMembres((list) => list.map((x) => (x.id === m.id ? updated : x)))
         toast.info(`Invitation envoyée à ${m.email}`)
     }
-    const handleDeactivate = async (m: MockMembre) => {
+    const handleDeactivate = async (m: Membre) => {
         // Désactivation = transfert atomique des entités vers un autre membre.
         const others = membres.filter((x) => x.actif && x.id !== m.id)
         if (others.length === 0) {
@@ -181,7 +198,7 @@ export default function EquipePage() {
                 throw new Error(body.error ?? `HTTP ${r.status}`)
             }
             const result = await r.json()
-            const updated: MockMembre = {
+            const updated: Membre = {
                 ...m,
                 actif: false,
                 invitationStatut: "DESACTIVE",
@@ -197,7 +214,7 @@ export default function EquipePage() {
             toast.error("Échec désactivation : " + (e instanceof Error ? e.message : "Erreur"))
         }
     }
-    const handleReactivate = async (m: MockMembre) => {
+    const handleReactivate = async (m: Membre) => {
         try {
             const r = await fetch(`/api/membres/${m.id}`, {
                 method: "PATCH",
@@ -211,7 +228,7 @@ export default function EquipePage() {
                 }),
             })
             if (!r.ok) throw new Error(`HTTP ${r.status}`)
-            const updated: MockMembre = {
+            const updated: Membre = {
                 ...m,
                 actif: true,
                 invitationStatut: "ACTIF",
@@ -224,7 +241,7 @@ export default function EquipePage() {
             toast.error("Échec réactivation : " + (e instanceof Error ? e.message : "Erreur"))
         }
     }
-    const handleDelete = async (m: MockMembre) => {
+    const handleDelete = async (m: Membre) => {
         if (m.actif) {
             toast.error("Désactive d'abord le membre (transfert entités) avant suppression.")
             return

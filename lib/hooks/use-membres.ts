@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
+import { mockMembres } from "@/lib/mock/employes"
 
 /**
  * Hook simple pour récupérer la liste des membres.
@@ -15,10 +16,10 @@ import { mockMembres, type MockMembre } from "@/lib/mock/employes"
  * "fetch a échoué" (ex: session expirée).
  */
 
-let cache: MockMembre[] | null = null
-let inflight: Promise<{ data: MockMembre[]; error: string | null }> | null = null
+let cache: Membre[] | null = null
+let inflight: Promise<{ data: Membre[]; error: string | null }> | null = null
 
-async function fetchMembres(): Promise<{ data: MockMembre[]; error: string | null }> {
+async function fetchMembres(): Promise<{ data: Membre[]; error: string | null }> {
     if (cache) return { data: cache, error: null }
     if (inflight) return inflight
     inflight = (async () => {
@@ -27,14 +28,14 @@ async function fetchMembres(): Promise<{ data: MockMembre[]; error: string | nul
             if (!r.ok) {
                 inflight = null
                 return {
-                    data: [] as MockMembre[],
+                    data: [] as Membre[],
                     error:
                         r.status === 401
                             ? "Session expirée — reconnecte-toi"
                             : `Erreur ${r.status}`,
                 }
             }
-            const data = (await r.json()) as MockMembre[]
+            const data = (await r.json()) as Membre[]
             const arr = Array.isArray(data) ? data : []
             cache = arr
             inflight = null
@@ -42,7 +43,7 @@ async function fetchMembres(): Promise<{ data: MockMembre[]; error: string | nul
         } catch (e) {
             inflight = null
             return {
-                data: [] as MockMembre[],
+                data: [] as Membre[],
                 error: e instanceof Error ? e.message : "Erreur réseau",
             }
         }
@@ -51,18 +52,18 @@ async function fetchMembres(): Promise<{ data: MockMembre[]; error: string | nul
 }
 
 export interface UseMembresResult {
-    membres: MockMembre[]
+    membres: Membre[]
     loading: boolean
     error: string | null
 }
 
-export function useMembres(): MockMembre[] {
+export function useMembres(): Membre[] {
     /* Compat API existante — usage prosaïque : `const membres = useMembres()` */
     return useMembresWithState().membres
 }
 
 export function useMembresWithState(): UseMembresResult {
-    const [membres, setMembres] = useState<MockMembre[]>(() => {
+    const [membres, setMembres] = useState<Membre[]>(() => {
         if (cache && cache.length > 0) return cache
         if (mockMembres.length > 0) return mockMembres
         return []

@@ -11,7 +11,8 @@
 import { mockClients, type MockClient } from "@/lib/mock/clients"
 import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
 import { mockAudiences, mockTaches, type MockAudience, type MockTache } from "@/lib/mock/audiences"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
+import { mockMembres } from "@/lib/mock/employes"
 import { membreIdFromAvocatKey, membreIdFromText } from "@/lib/mock/membre-bridge"
 
 export interface MembreStats {
@@ -82,7 +83,7 @@ function isMembreOnTache(t: MockTache, membreId: string): boolean {
     return false
 }
 
-export function computeMembreStats(membre: MockMembre, ref = new Date()): MembreStats {
+export function computeMembreStats(membre: Membre, ref = new Date()): MembreStats {
     if (!membre.actif) return EMPTY
 
     /* Clients */
@@ -136,7 +137,7 @@ export function computeMembreStats(membre: MockMembre, ref = new Date()): Membre
 }
 
 /** Récupère le détail (objets, pas juste compteurs) — pour la fiche membre. */
-export function getMembreActivity(membre: MockMembre, ref = new Date()) {
+export function getMembreActivity(membre: Membre, ref = new Date()) {
     const clients = mockClients.filter((c) => isMembreOnClient(c, membre.id, membre.avocatCabinetKey))
     const dossiers = mockDossiers.filter((d) => {
         const parent = d.clientId ? mockClients.find((c) => c.id === d.clientId) ?? null : null
@@ -156,7 +157,7 @@ export function getMembreActivity(membre: MockMembre, ref = new Date()) {
 }
 
 /** Liste des membres triés par rang de rôle puis nom. */
-export function sortMembres(membres: MockMembre[]): MockMembre[] {
+export function sortMembres(membres: Membre[]): Membre[] {
     const ROLE_RANG: Record<string, number> = {
         ASSOCIE_GERANT: 1,
         ASSOCIE: 2,
@@ -176,4 +177,4 @@ export function sortMembres(membres: MockMembre[]): MockMembre[] {
 
 /** Re-export pour confort : `import { mockMembres } from "@/lib/mock/membre-stats"` */
 export { mockMembres }
-export type { MockMembre }
+export type { Membre }

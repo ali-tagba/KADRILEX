@@ -106,6 +106,7 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                 employeId: draft.employeId ?? null,
                 notes: draft.notes ?? null,
                 attachmentUrl: draft.attachment?.url ?? null,
+                statut: draft.statut,
             }
 
             if (editingDepense) {
@@ -137,7 +138,11 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
             // Rafraîchit les données depuis la BDD (SSR)
             router.refresh()
         } catch (err: any) {
-            setSaveError(err.message ?? "Une erreur est survenue")
+            if (err.message === "Failed to fetch") {
+                setSaveError("Erreur réseau (Failed to fetch). Si vous utilisez un bloqueur de publicités (Adblock), veuillez le désactiver sur ce site car il peut bloquer les requêtes liées aux 'dépenses'.")
+            } else {
+                setSaveError(err.message ?? "Une erreur est survenue")
+            }
         } finally {
             setSaving(false)
         }
@@ -189,6 +194,22 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
         )
     }
 
+    const handleChangeStatut = (id: string, statut: "A_PAYER" | "PAYEE") => {
+        // Also fire API update in a real app, but here we just update state, handleSave does the creation.
+        // Wait, for inline edits in this mockup, we only update state. The API will need a PATCH.
+        onChangeDepenses(
+            depenses.map((d) =>
+                d.id === id ? { ...d, statut, updatedAt: new Date().toISOString() } : d
+            )
+        )
+        // Optimistic fetch for the inline edit
+        fetch(`/api/depenses/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ statut })
+        }).catch(console.error)
+    }
+
     /* Mutations inline rapides */
     const handleChangeDate = (id: string, iso: string | null) => {
         if (!iso) return
@@ -210,6 +231,11 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
     const modesOptions: InlineOption<ModePaiementKey>[] = (
         Object.entries(MODES_PAIEMENT) as [ModePaiementKey, { label: string; icon: string }][]
     ).map(([k, m]) => ({ value: k, label: m.label, icon: m.icon }))
+
+    const statutOptions: InlineOption<"A_PAYER" | "PAYEE">[] = [
+        { value: "A_PAYER", label: "À Payer", icon: "pending" },
+        { value: "PAYEE", label: "Payée", icon: "check_circle" },
+    ]
 
     return (
         <>
@@ -299,6 +325,7 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                         <Th width="100px">Date</Th>
                                         <Th>Libellé</Th>
                                         <Th width="200px">Catégorie</Th>
+                                        <Th width="120px">Statut</Th>
                                         <Th width="140px" align="right">Montant TTC</Th>
                                         <Th width="160px">Mode</Th>
                                         <Th width="100px" align="center">Récur.</Th>
@@ -352,6 +379,25 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                         onSelect={(v) => handleChangeCategorie(d.id, v)}
                                                         title="Changer la catégorie"
                                                         menuHeader="Catégorie"
+                                                    />
+                                                </td>
+                                                <td className="py-2 px-3">
+                                                    <InlineSelectCell<"A_PAYER" | "PAYEE">
+                                                        trigger={
+                                                            <span className={cn(
+                                                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-label-caps text-[10px]",
+                                                                d.statut === "PAYEE" ? "bg-accent/10 text-accent" : "bg-error/10 text-error"
+                                                            )}>
+                                                                <span className="material-symbols-outlined text-[12px]">{d.statut === "PAYEE" ? "check_circle" : "pending"}</span>
+                                                                {d.statut === "PAYEE" ? "Payée" : "À Payer"}
+                                                                <span className="material-symbols-outlined text-[10px] opacity-60">expand_more</span>
+                                                            </span>
+                                                        }
+                                                        options={statutOptions}
+                                                        selected={d.statut}
+                                                        onSelect={(v) => handleChangeStatut(d.id, v)}
+                                                        title="Changer le statut"
+                                                        menuHeader="Statut de paiement"
                                                     />
                                                 </td>
                                                 <td className="py-2 px-3 font-mono-num text-mono-num text-right tabular-nums">

@@ -55,6 +55,8 @@ const ClientBaseShape = z.object({
     actif: z.boolean().default(true),
     responsableId: z.string().optional().nullable(),
     equipeIds: z.array(z.string()).default([]),
+    /** Permet de corriger la date d'entrée du client (ex : correction après import) */
+    createdAt: z.string().datetime().optional().nullable(),
 })
 
 export const ClientCreateSchema = ClientBaseShape.refine(
@@ -386,8 +388,8 @@ export const FactureCreateSchema = z.object({
     audienceId: z.string().optional().nullable(),
     fournisseurId: z.string().optional().nullable(),
     fournisseurNomLibre: z.string().max(200).optional().nullable(),
-    montantHT: z.number().int().nonnegative(),
-    tvaRate: z.number().int().nonnegative().default(19),
+    montantHT: z.number().nonnegative(),
+    tvaRate: z.number().nonnegative().default(19),
     description: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
     statut: FactureStatutEnum.default("EMISE"),
@@ -435,8 +437,8 @@ export const DepenseCreateSchema = z.object({
     libelle: z.string().min(1).max(300),
     categorie: CategorieDepenseEnum,
     date: z.string().datetime(),
-    montantHT: z.number().int().nonnegative(),
-    tvaRate: z.number().int().nonnegative().default(0),
+    montantHT: z.number().nonnegative(),
+    tvaRate: z.number().nonnegative().default(0),
     mode: z.enum(["VIREMENT", "MOBILE_MONEY", "ESPECES", "CHEQUE", "CARTE", "PRELEVEMENT", "AUTRE"]),
     reference: z.string().max(100).optional().nullable(),
     recurrent: z.boolean().default(false),

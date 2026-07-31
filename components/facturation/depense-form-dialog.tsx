@@ -29,6 +29,7 @@ export interface DepenseFormDraft {
     employeId: string | null
     notes: string | null
     attachment: AttachmentInfo | null
+    statut: "A_PAYER" | "PAYEE"
 }
 
 interface DepenseFormDialogProps {
@@ -65,6 +66,7 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
         employeId: initial?.employeId ?? null,
         notes: initial?.notes ?? null,
         attachment: null,
+        statut: initial?.statut ?? "PAYEE",
     }))
 
     /* Quand on change la catégorie, on suggère la TVA et la récurrence */
@@ -186,6 +188,16 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
+                        <Field label="Statut" required>
+                            <select
+                                value={draft.statut}
+                                onChange={(e) => setDraft({ ...draft, statut: e.target.value as "A_PAYER" | "PAYEE" })}
+                                className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            >
+                                <option value="A_PAYER">À Payer</option>
+                                <option value="PAYEE">Payée (Immédiat)</option>
+                            </select>
+                        </Field>
                         <Field label="Mode de paiement" required>
                             <select
                                 value={draft.mode}

@@ -19,9 +19,17 @@ export default async function FacturesPage() {
     }
   });
 
+  const clients = await prisma.client.findMany({
+    orderBy: { nom: 'asc' },
+  });
+  
+  const dossiers = await prisma.dossier.findMany({
+    orderBy: { numero: 'desc' },
+  });
+
   return (
     <PageGate perm="finance.view" moduleName="Factures Clients">
-      <FacturesClient initialFactures={factures} />
+      <FacturesClient initialFactures={factures} initialClients={clients} initialDossiers={dossiers} />
     </PageGate>
   );
 }

@@ -1,7 +1,7 @@
 /**
  * RBAC server-side — port de lib/auth/permissions.ts mais typé sur le modèle Prisma Membre.
  *
- * Le frontend conserve `lib/auth/permissions.ts` (typé sur MockMembre) pour les checks UI.
+ * Le frontend conserve `lib/auth/permissions.ts` (typé sur Membre) pour les checks UI.
  * Côté serveur on rejoue la même logique sur le vrai membre chargé depuis la DB.
  */
 

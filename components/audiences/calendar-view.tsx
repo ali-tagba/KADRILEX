@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { AUDIENCE_NATURES, AUDIENCE_STATUTS } from "@/lib/constants/legal"
-import { audienceClientLabel, type MockAudience } from "@/lib/mock/audiences"
+import { type MockAudience, type MockTache } from "@/lib/mock/audiences"
+import { clientDisplayName, type MockClient } from "@/lib/mock/clients"
 
 interface CalendarViewProps {
     audiences: MockAudience[]
-    onAudienceClick?: (a: MockAudience) => void
+    taches?: MockTache[]
+    onAudienceClick?: (audience: MockAudience) => void
 }
 
 const WEEKDAYS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]
@@ -65,7 +67,7 @@ function buildCalendarMatrix(year: number, month: number): CalendarCell[] {
    Composant principal
    ============================================================ */
 
-export function CalendarView({ audiences, onAudienceClick }: CalendarViewProps) {
+export function CalendarView({ audiences, taches = [], onAudienceClick }: CalendarViewProps) {
     const [cursor, setCursor] = useState<{ year: number; month: number }>(() => {
         const d = new Date()
         return { year: d.getFullYear(), month: d.getMonth() }
@@ -275,7 +277,7 @@ function CalendarAudiencePill({
     return (
         <button
             onClick={onClick}
-            title={`${formatHM(new Date(audience.dateDebut))} · ${audience.titre}\n${audienceClientLabel(audience)}`}
+            title={`${formatHM(new Date(audience.dateDebut))} · ${audience.titre}\n${audience.client ? clientDisplayName(audience.client) : "Sans client"}`}
             className={cn(
                 "text-left text-[10px] leading-tight px-1.5 py-1 rounded-sm border-l-[3px] transition-colors hover:bg-surface-container flex items-center gap-1.5 min-w-0 overflow-hidden",
                 cancelled && "line-through",
@@ -395,7 +397,7 @@ function DayPopover({ date, audiences, onClose, onAudienceClick }: DayPopoverPro
                                             {a.titre}
                                         </div>
                                         <div className="font-body-sm text-[11px] text-outline truncate mt-0.5">
-                                            {audienceClientLabel(a)}
+                                            {a.client ? clientDisplayName(a.client) : "Sans client"}
                                         </div>
                                     </div>
                                     <span className="material-symbols-outlined text-[14px] text-outline flex-shrink-0 mt-1">

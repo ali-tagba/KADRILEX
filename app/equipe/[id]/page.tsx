@@ -3,6 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { clientDisplayName } from "@/lib/mock/clients"
 import { cn } from "@/lib/utils"
 import {
     INVITATION_STATUTS,
@@ -14,16 +15,14 @@ import {
     type PermissionKey,
 } from "@/lib/constants/team"
 import { STATUTS_CONTRAT, formatFCFA, MODES_PAIEMENT } from "@/lib/constants/finance"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
-import { computeMembreStats, getMembreActivity } from "@/lib/mock/membre-stats"
-import { clientDisplayName } from "@/lib/mock/clients"
 import { TACHE_STATUTS, AUDIENCE_STATUTS } from "@/lib/constants/legal"
 import { MembreAvatar } from "@/components/equipe/membre-avatar"
 import { AccesCodeSection } from "@/components/equipe/acces-code-section"
 import { PermissionsMatrix } from "@/components/equipe/permissions-matrix"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { PageGate } from "@/components/auth/require-permission"
-import { useDataSynced } from "@/components/data-sync-provider"
+import type { Membre } from "@prisma/client"
+import type { RoleKey, InvitationStatutKey } from "@/lib/constants/team"
 
 interface PageProps {
     params: Promise<{ id: string }>
@@ -31,29 +30,40 @@ interface PageProps {
 
 export default function MembreFichePage({ params }: PageProps) {
     const { id } = use(params)
-    // Fallback initial via mockMembres (hydraté par DataSyncProvider), sinon null.
-    // Le vrai fetch API ci-dessous remplit / corrige la donnée et gère les 404 proprement.
-    const initial = mockMembres.find((m) => m.id === id) ?? null
-    const [membre, setMembre] = useState<MockMembre | null>(initial)
-    const [loading, setLoading] = useState(!initial)
+    const [membre, setMembre] = useState<Membre | null>(null)
+    const [stats, setStats] = useState<any | null>(null)
+    const [activity, setActivity] = useState<any | null>(null)
+    const [loading, setLoading] = useState(true)
     const [notFoundFlag, setNotFoundFlag] = useState(false)
 
     useEffect(() => {
         let alive = true
-        fetch(`/api/membres/${id}`, { credentials: "include" })
-            .then(async (r) => {
-                if (r.status === 404) {
-                    if (alive) setNotFoundFlag(true)
-                    return null
-                }
+        Promise.all([
+            fetch(`/api/membres/${id}`, { credentials: "include" }).then(async (r) => {
+                if (r.status === 404) return null
                 if (!r.ok) throw new Error(`HTTP ${r.status}`)
-                return (await r.json()) as MockMembre
+                return (await r.json()) as Membre
+            }),
+            fetch(`/api/membres/${id}/activity`, { credentials: "include" }).then(async (r) => {
+                if (r.status === 404) return null
+                if (!r.ok) throw new Error(`HTTP ${r.status}`)
+                return (await r.json())
             })
-            .then((data) => {
-                if (alive && data) setMembre(data)
+        ])
+            .then(([membreData, activityData]) => {
+                if (!alive) return
+                if (!membreData) {
+                    setNotFoundFlag(true)
+                } else {
+                    setMembre(membreData)
+                    if (activityData) {
+                        setStats(activityData.stats)
+                        setActivity(activityData.activity)
+                    }
+                }
             })
             .catch(() => {
-                if (alive && !initial) setNotFoundFlag(true)
+                if (alive) setNotFoundFlag(true)
             })
             .finally(() => {
                 if (alive) setLoading(false)
@@ -63,29 +73,10 @@ export default function MembreFichePage({ params }: PageProps) {
         }
     }, [id])
 
-    /**
-     * IMPORTANT : tous les hooks DOIVENT être appelés inconditionnellement, dans
-     * le même ordre à chaque render, AVANT tout return conditionnel.
-     * (Rules of Hooks — sinon React error #310.)
-     */
     const { membre: currentUser, can } = useCurrentUser()
-    /* useDataSynced flag — quand DataSyncProvider finit d'hydrater mockClients/
-       mockDossiers/etc., il flippe à true et nos useMemo re-tournent avec les
-       données réelles. Sinon le compteur reste à 0 jusqu'au reload. */
-    const dataSynced = useDataSynced()
-    const stats = useMemo(
-        () => (membre ? computeMembreStats(membre) : null),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [membre, dataSynced]
-    )
-    const activity = useMemo(
-        () => (membre ? getMembreActivity(membre) : null),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [membre, dataSynced]
-    )
 
     const handleRegenerateCode = (newCode: string, generatedAt: string) => {
-        setMembre((m) =>
+        setMembre((m: any) =>
             m
                 ? {
                       ...m,
@@ -97,7 +88,6 @@ export default function MembreFichePage({ params }: PageProps) {
         )
     }
 
-    // Early returns APRÈS les hooks — OK
     if (notFoundFlag) notFound()
     if (loading || !membre || !stats || !activity) {
         return (
@@ -115,9 +105,9 @@ export default function MembreFichePage({ params }: PageProps) {
     const canSeeAccessCode = can("equipe.write") || isSelf
     const canSeeFinancialInfo = can("equipe.write") || isSelf
 
-    const role = ROLES[membre.role]
-    const invit = INVITATION_STATUTS[membre.invitationStatut]
-    const permissions = ROLE_PERMISSIONS[membre.role]
+    const role = ROLES[membre.role as RoleKey]
+    const invit = INVITATION_STATUTS[membre.invitationStatut as InvitationStatutKey]
+    const permissions = ROLE_PERMISSIONS[membre.role as RoleKey]
     const annees = ancienneteAnnees(membre.dateEmbauche)
 
     return (
@@ -364,7 +354,7 @@ export default function MembreFichePage({ params }: PageProps) {
                             <Empty text="Aucun client rattaché" />
                         ) : (
                             <ul className="divide-y divide-outline-variant/50">
-                                {activity.clients.map((c) => (
+                                {activity.clients.map((c: any) => (
                                     <li key={c.id} className="py-1.5">
                                         <Link
                                             href={`/clients/${c.id}`}
@@ -391,7 +381,7 @@ export default function MembreFichePage({ params }: PageProps) {
                             <Empty text="Aucun dossier rattaché" />
                         ) : (
                             <ul className="divide-y divide-outline-variant/50">
-                                {activity.dossiers.slice(0, 10).map((d) => (
+                                {activity.dossiers.slice(0, 10).map((d: any) => (
                                     <li key={d.id} className="py-1.5">
                                         <Link
                                             href={`/dossiers/${d.id}`}
@@ -435,8 +425,8 @@ export default function MembreFichePage({ params }: PageProps) {
                             <Empty text="Aucune audience rattachée" />
                         ) : (
                             <ul className="divide-y divide-outline-variant/50">
-                                {activity.audiences.slice(0, 8).map((a) => {
-                                    const stat = AUDIENCE_STATUTS[a.statut]
+                                {activity.audiences.slice(0, 8).map((a: any) => {
+                                    const stat = AUDIENCE_STATUTS[a.statut as keyof typeof AUDIENCE_STATUTS]
                                     const isFuture =
                                         new Date(a.dateDebut).getTime() >= activity.ref.getTime()
                                     return (
@@ -481,8 +471,8 @@ export default function MembreFichePage({ params }: PageProps) {
                             <Empty text="Aucune tâche assignée" />
                         ) : (
                             <ul className="divide-y divide-outline-variant/50">
-                                {activity.taches.slice(0, 12).map((t) => {
-                                    const stat = TACHE_STATUTS[t.statut]
+                                {activity.taches.slice(0, 12).map((t: any) => {
+                                    const stat = TACHE_STATUTS[t.statut as keyof typeof TACHE_STATUTS]
                                     const isLate =
                                         t.echeance &&
                                         t.statut !== "FAIT" &&

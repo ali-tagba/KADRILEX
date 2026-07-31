@@ -44,6 +44,7 @@ export interface ClientFormDraft {
     actif: boolean
     avocatEnCharge: AvocatCabinet | ""
     honorairesConvenus: HonorairesType | ""
+    createdAt?: string
 }
 
 interface ClientFormDialogProps {
@@ -117,6 +118,9 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
     const [honorairesConvenus, setHonorairesConvenus] = useState<HonorairesType | "">(
         initial?.honorairesConvenus ?? ""
     )
+    const [createdAt, setCreatedAt] = useState(
+        initial?.createdAt ? new Date(initial.createdAt).toISOString().slice(0, 10) : ""
+    )
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -179,6 +183,7 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
             actif,
             avocatEnCharge,
             honorairesConvenus,
+            createdAt: createdAt ? new Date(createdAt).toISOString() : undefined,
         })
     }
 
@@ -509,6 +514,14 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
                                         Inactif
                                     </button>
                                 </div>
+                            </Field>
+                            <Field label="Date d'entrée (Optionnel)">
+                                <input
+                                    type="date"
+                                    value={createdAt}
+                                    onChange={(e) => setCreatedAt(e.target.value)}
+                                    className={inputCls}
+                                />
                             </Field>
                         </div>
                     </Section>

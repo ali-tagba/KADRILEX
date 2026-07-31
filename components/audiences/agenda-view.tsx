@@ -5,9 +5,8 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { AUDIENCE_NATURES, AUDIENCE_STATUTS } from "@/lib/constants/legal"
 import {
-    audienceClientLabel,
-    getAudienceTaches,
     type MockAudience,
+    type MockTache,
 } from "@/lib/mock/audiences"
 import { AudienceActionsMenu } from "./audience-actions-menu"
 
@@ -55,10 +54,11 @@ function hourToTopPx(hour: number, minute: number): number {
 
 interface AgendaViewProps {
     audiences: MockAudience[]
+    taches?: MockTache[]
     onAudienceClick?: (audience: MockAudience) => void
 }
 
-export function AgendaView({ audiences, onAudienceClick }: AgendaViewProps) {
+export function AgendaView({ audiences, taches = [], onAudienceClick }: AgendaViewProps) {
     const [currentDay, setCurrentDay] = useState<Date>(() => {
         const d = new Date()
         d.setHours(0, 0, 0, 0)
@@ -243,8 +243,8 @@ export function AgendaView({ audiences, onAudienceClick }: AgendaViewProps) {
                             const top = hourToTopPx(start.getHours(), start.getMinutes())
                             const height = Math.max(40, (audience.dureeMinutes / 60) * HOUR_HEIGHT)
                             const nature = AUDIENCE_NATURES[audience.nature]
-                            const taches = getAudienceTaches(audience.id)
-                            const tachesRestantes = taches.filter((t) => t.statut !== "FAIT" && t.statut !== "ANNULE").length
+                            const audTaches = taches.filter((t) => t.audienceId === audience.id)
+                            const tachesRestantes = audTaches.filter((t) => t.statut !== "FAIT" && t.statut !== "ANNULE").length
                             /* Largeur = 1/N de l'espace disponible, avec 4px d'inset à droite et 2px de gouttière entre colonnes */
                             const colW = 100 / totalColumns
                             const widthPct = `calc(${colW}% - ${totalColumns > 1 ? "6px" : "8px"})`

@@ -8,10 +8,11 @@
 
 import type { AvocatCabinet } from "@/lib/constants/legal"
 import { fullName } from "@/lib/constants/team"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
+import { mockMembres } from "@/lib/mock/employes"
 
 /** Résout un AvocatCabinet (clé contrôlée) vers un membre. */
-export function membreFromAvocatKey(key: AvocatCabinet | null | undefined): MockMembre | null {
+export function membreFromAvocatKey(key: AvocatCabinet | null | undefined): Membre | null {
     if (!key) return null
     return mockMembres.find((m) => m.avocatCabinetKey === key) ?? null
 }
@@ -25,7 +26,7 @@ export function membreIdFromAvocatKey(key: AvocatCabinet | null | undefined): st
  * Match approximatif d'une string libre (legacy `assigneA` des tâches) vers un
  * membre. Accepte les variantes courantes : "Me Prénom NOM", "Prénom NOM", "NOM".
  */
-export function membreFromText(text: string | null | undefined): MockMembre | null {
+export function membreFromText(text: string | null | undefined): Membre | null {
     if (!text) return null
     const normalized = text.trim().toLowerCase()
     if (!normalized) return null
@@ -49,12 +50,12 @@ export function membreIdFromText(text: string | null | undefined): string | null
 }
 
 /** Lookup direct par ID — petit alias pratique pour les composants. */
-export function getMembre(id: string | null | undefined): MockMembre | null {
+export function getMembre(id: string | null | undefined): Membre | null {
     if (!id) return null
     return mockMembres.find((m) => m.id === id) ?? null
 }
 
-export function getMembres(ids: string[] | null | undefined): MockMembre[] {
+export function getMembres(ids: string[] | null | undefined): Membre[] {
     if (!ids || ids.length === 0) return []
     const set = new Set(ids)
     return mockMembres.filter((m) => set.has(m.id))

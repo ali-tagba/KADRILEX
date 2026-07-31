@@ -2,27 +2,27 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { maskAccessCode } from "@/lib/constants/team"
 import { postEntity, showApiError } from "@/lib/api/patch"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 interface AccesCodeSectionProps {
-    membre: MockMembre
+    membre: Membre
     onRegenerate: (newCode: string, generatedAt: string) => void
 }
 
 export function AccesCodeSection({ membre, onRegenerate }: AccesCodeSectionProps) {
-    const [revealed, setRevealed] = useState(false)
     const [confirming, setConfirming] = useState(false)
+    const [plainCode, setPlainCode] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
 
     const handleCopy = async () => {
+        if (!plainCode) return
         try {
-            await navigator.clipboard.writeText(membre.codeAcces)
+            await navigator.clipboard.writeText(plainCode)
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1800)
         } catch {
-            /* fallback : sélection manuelle si clipboard refusé */
+            /* fallback */
         }
     }
 
@@ -34,15 +34,11 @@ export function AccesCodeSection({ membre, onRegenerate }: AccesCodeSectionProps
             )
             onRegenerate(result.codeAccesClair, new Date().toISOString())
             setConfirming(false)
-            setRevealed(true)
-            // Hack : afficher le code en clair temporairement via alert pour que le user puisse le noter
-            alert(`Nouveau code généré (à transmettre au membre) :\n\n${result.codeAccesClair}\n\nL'ancien code est désormais invalide.`)
+            setPlainCode(result.codeAccesClair)
         } catch (e) {
             showApiError("Échec régénération")(e)
         }
     }
-
-    const display = revealed ? membre.codeAcces : maskAccessCode(membre.codeAcces)
 
     return (
         <section className="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-[0px_1px_3px_rgba(31,26,20,0.08)] flex-shrink-0">
@@ -61,72 +57,46 @@ export function AccesCodeSection({ membre, onRegenerate }: AccesCodeSectionProps
                 </span>
             </header>
 
-            <div className="p-density-medium space-y-2">
-                <p className="font-body-xs text-[11px] text-outline italic">
-                    Identifiant unique pour la connexion à l&apos;application. Régénérer ce code
-                    invalide immédiatement l&apos;ancien.
-                </p>
+            <div className="p-density-medium flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 px-3 py-2 bg-surface-container-highest rounded border border-outline-variant font-mono text-center tracking-widest text-[20px] font-bold text-on-surface">
+                        {plainCode || "••••••"}
+                    </div>
 
-                {/* Affichage du code + actions */}
-                <div className="flex items-center gap-2">
-                    <code
-                        className={cn(
-                            "font-mono-num font-semibold text-on-surface tabular-nums tracking-wider px-3 py-2 bg-surface-container-highest border border-outline-variant rounded flex-1 text-center select-all",
-                            "text-base"
-                        )}
-                    >
-                        {display}
-                    </code>
-                    <button
-                        type="button"
-                        onClick={() => setRevealed((v) => !v)}
-                        className="p-2 rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors"
-                        title={revealed ? "Masquer" : "Révéler"}
-                    >
-                        <span className="material-symbols-outlined text-[18px]">
-                            {revealed ? "visibility_off" : "visibility"}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleCopy}
-                        className={cn(
-                            "p-2 rounded border transition-colors",
-                            copied
-                                ? "border-[#166534]/30 bg-[#166534]/10 text-[#166534]"
-                                : "border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
-                        )}
-                        title={copied ? "Copié !" : "Copier"}
-                    >
-                        <span className="material-symbols-outlined text-[18px]">
-                            {copied ? "check" : "content_copy"}
-                        </span>
-                    </button>
-                </div>
-
-                {/* Régénération */}
-                {confirming ? (
-                    <div className="bg-error-container/40 border border-error/30 rounded p-2.5 flex flex-col gap-2">
-                        <p className="font-body-sm text-body-sm text-on-error-container leading-snug">
-                            <span className="material-symbols-outlined text-[14px] align-middle mr-1">
-                                warning
+                    {plainCode && (
+                        <button
+                            onClick={handleCopy}
+                            title="Copier"
+                            className="p-2 rounded-md hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">
+                                {copied ? "check" : "content_copy"}
                             </span>
-                            Régénérer le code d&apos;accès. L&apos;ancien code{" "}
-                            <span className="font-mono-num font-semibold">{maskAccessCode(membre.codeAcces)}</span>{" "}
-                            ne fonctionnera plus.
+                        </button>
+                    )}
+                </div>
+                
+                {plainCode && (
+                    <div className="text-[12px] text-primary bg-primary-container/30 px-2 py-1 rounded text-center">
+                        Ce code ne sera plus affiché. Veuillez le transmettre au membre.
+                    </div>
+                )}
+
+                {confirming ? (
+                    <div className="bg-error-container text-on-error-container p-3 rounded-lg flex flex-col gap-2 animate-in slide-in-from-top-1">
+                        <p className="font-body-sm text-body-sm font-medium">
+                            Générer un nouveau code ? L&apos;actuel sera désactivé.
                         </p>
                         <div className="flex gap-2">
                             <button
-                                type="button"
                                 onClick={handleRegenerate}
-                                className="flex-1 px-2 py-1 rounded bg-error text-white font-body-sm text-body-sm hover:bg-opacity-90"
+                                className="flex-1 bg-error hover:bg-error/90 text-on-error py-1.5 rounded text-sm font-medium transition-colors"
                             >
-                                Régénérer maintenant
+                                Confirmer
                             </button>
                             <button
-                                type="button"
                                 onClick={() => setConfirming(false)}
-                                className="flex-1 px-2 py-1 rounded border border-outline-variant text-on-surface font-body-sm text-body-sm hover:bg-surface-container-low"
+                                className="flex-1 border border-error/20 hover:bg-error/10 text-error py-1.5 rounded text-sm font-medium transition-colors"
                             >
                                 Annuler
                             </button>
@@ -134,12 +104,11 @@ export function AccesCodeSection({ membre, onRegenerate }: AccesCodeSectionProps
                     </div>
                 ) : (
                     <button
-                        type="button"
                         onClick={() => setConfirming(true)}
-                        className="w-full px-3 py-1.5 rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-center gap-1.5"
+                        className="flex items-center justify-center gap-2 w-full py-1.5 hover:bg-surface-container rounded transition-colors text-primary font-medium text-sm"
                     >
                         <span className="material-symbols-outlined text-[16px]">refresh</span>
-                        Régénérer le code
+                        Générer un nouveau code
                     </button>
                 )}
             </div>

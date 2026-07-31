@@ -26,6 +26,8 @@ interface FacturationTabProps {
     /** Pré-filtres depuis URL */
     presetClientId: string | null
     presetDossierId: string | null
+    clients?: any[]
+    dossiers?: any[]
 }
 
 export function FacturationTab({
@@ -33,6 +35,8 @@ export function FacturationTab({
     onChangeFactures,
     presetClientId,
     presetDossierId,
+    clients,
+    dossiers,
 }: FacturationTabProps) {
     const [filters, setFilters] = useState<FactureFiltersState>(() => {
         const init = { ...INITIAL_FACTURE_FILTERS }
@@ -54,24 +58,26 @@ export function FacturationTab({
     const availableClients = useMemo(() => {
         const ids = new Set<string>()
         for (const f of factures) if (f.clientId) ids.add(f.clientId)
+        const source = clients ?? mockClients
         return Array.from(ids)
             .map((id) => {
-                const c = mockClients.find((x) => x.id === id)
+                const c = source.find((x: any) => x.id === id)
                 return c ? { id: c.id, name: clientDisplayName(c) } : null
             })
             .filter(Boolean) as { id: string; name: string }[]
-    }, [factures])
+    }, [factures, clients])
 
     const availableDossiers = useMemo(() => {
         const ids = new Set<string>()
         for (const f of factures) if (f.dossierId) ids.add(f.dossierId)
+        const source = dossiers ?? mockDossiers
         return Array.from(ids)
             .map((id) => {
-                const d = mockDossiers.find((x) => x.id === id)
+                const d = source.find((x: any) => x.id === id)
                 return d ? { id: d.id, numero: d.numero } : null
             })
             .filter(Boolean) as { id: string; numero: string }[]
-    }, [factures])
+    }, [factures, dossiers])
 
     const availableFournisseurs = useMemo(() => {
         const ids = new Set<string>()
@@ -474,6 +480,8 @@ export function FacturationTab({
                     initial={editingFacture}
                     presetClientId={presetClientId}
                     presetDossierId={presetDossierId}
+                    clients={clients}
+                    dossiers={dossiers}
                     onSave={handleSaveFacture}
                     onGenerated={(data) => {
                         // Met à jour la facture en cours d'édition + propage au parent

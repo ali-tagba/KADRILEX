@@ -8,20 +8,20 @@ import {
     ancienneteAnnees,
     fullName,
 } from "@/lib/constants/team"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 import { computeMembreStats } from "@/lib/mock/membre-stats"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { MembreAvatar } from "./membre-avatar"
 import { MembreActionsMenu } from "./membre-actions-menu"
 
 interface MembreTableViewProps {
-    membres: MockMembre[]
+    membres: Membre[]
     canWrite: boolean
-    onEdit: (m: MockMembre) => void
-    onInvite: (m: MockMembre) => void
-    onDeactivate: (m: MockMembre) => void
-    onReactivate: (m: MockMembre) => void
-    onDelete: (m: MockMembre) => void
+    onEdit: (m: Membre) => void
+    onInvite: (m: Membre) => void
+    onDeactivate: (m: Membre) => void
+    onReactivate: (m: Membre) => void
+    onDelete: (m: Membre) => void
 }
 
 export function MembreTableView({
@@ -89,7 +89,7 @@ function MembreRow({
     onReactivate,
     onDelete,
 }: {
-    membre: MockMembre
+    membre: Membre
     canWrite: boolean
     onEdit: () => void
     onInvite: () => void

@@ -331,19 +331,63 @@ export class AccountingService {
       fournisseurId: depense.fournisseurId ?? undefined,
     })
 
-    return prisma.ecriture.create({
+    // 1. Écriture d'engagement (La charge et la dette envers le fournisseur)
+    await prisma.ecriture.create({
       data: {
         exerciceId: exercice.id,
         journalId: journalOD.id,
         numeroPiece: pieceRef,
         dateEcriture: depense.date,
-        libelle: `${mappedCategorie.libelle} — ${depense.libelle}`,
+        libelle: `Dépense : ${depense.libelle}`,
         validee: true,
         annule: false,
         dossierId: depense.dossierId,
         lignes: { createMany: { data: lignes } },
       },
     })
+
+    // 2. Écriture de paiement si la dépense est payée
+    const piecePayRef = `PAY-NDF-${depenseId.substring(0, 8).toUpperCase()}`
+    const existingPay = await prisma.ecriture.findFirst({ where: { numeroPiece: piecePayRef, annule: false } })
+    if (existingPay) {
+      await prisma.ecriture.delete({ where: { id: existingPay.id } })
+    }
+
+    if (depense.statut === "PAYEE") {
+      const journalCode = depense.mode === "ESPECES" ? "CA" : "BQ"
+      const journalTr = await prisma.journalComptable.findUnique({ where: { code: journalCode } })
+      
+      if (journalTr) {
+        const compteTresoNum = depense.mode === "ESPECES" ? "571000" : "521000"
+        const compteTreso = await requireCompte(compteTresoNum).catch(async () => null)
+        const compteFourn = await requireCompte("401000").catch(async () => null)
+
+        if (compteTreso && compteFourn) {
+          await prisma.ecriture.create({
+            data: {
+              exerciceId: exercice.id,
+              journalId: journalTr.id,
+              numeroPiece: piecePayRef,
+              dateEcriture: depense.date,
+              libelle: `Paiement dépense : ${depense.libelle}`,
+              validee: true,
+              annule: false,
+              dossierId: depense.dossierId,
+              lignes: {
+                createMany: {
+                  data: [
+                    // Débit Fournisseur (solde la dette)
+                    { compteId: compteFourn.id, debit: depense.montantTTC, credit: 0, libelle: `Règlement dep. ${depense.libelle}`, fournisseurId: depense.fournisseurId },
+                    // Crédit Trésorerie
+                    { compteId: compteTreso.id, debit: 0, credit: depense.montantTTC, libelle: `Décaissement dep. ${depense.libelle}` },
+                  ]
+                }
+              },
+            },
+          })
+        }
+      }
+    }
   }
 
   /**
@@ -366,26 +410,61 @@ export class AccountingService {
     const journalOD = await prisma.journalComptable.findUnique({ where: { code: "OD" } })
     if (!journalOD) throw new Error("Journal OD introuvable")
 
-    return prisma.ecriture.create({
-      data: {
-        exerciceId: exercice.id,
-        journalId: journalOD.id,
-        numeroPiece: `ANN-${pieceRef}`,
-        dateEcriture: new Date(),
-        libelle: `Annulation dépense ${depense.libelle}`,
-        validee: true,
-        annule: false,
-        dossierId: depense.dossierId,
-        lignes: {
-          create: original.lignes.map(l => ({
-            compteId: l.compteId,
-            debit: l.credit,
-            credit: l.debit,
-            libelle: l.libelle ? `[Annulation] ${l.libelle}` : "[Annulation]",
-            fournisseurId: l.fournisseurId,
-          })),
+    return prisma.$transaction(async (tx) => {
+      // 1. Annulation de l'engagement (OD)
+      const annulationOD = await tx.ecriture.create({
+        data: {
+          exerciceId: exercice.id,
+          journalId: journalOD.id,
+          numeroPiece: `ANN-${pieceRef}`,
+          dateEcriture: new Date(),
+          libelle: `Annulation dépense ${depense.libelle}`,
+          validee: true,
+          annule: false,
+          dossierId: depense.dossierId,
+          lignes: {
+            create: original.lignes.map(l => ({
+              compteId: l.compteId,
+              debit: l.credit,
+              credit: l.debit,
+              libelle: l.libelle ? `[Annulation] ${l.libelle}` : "[Annulation]",
+              fournisseurId: l.fournisseurId,
+            })),
+          },
         },
-      },
+      })
+
+      // 2. Annulation du paiement s'il existe
+      const piecePayRef = `PAY-NDF-${depenseId.substring(0, 8).toUpperCase()}`
+      const originalPay = await tx.ecriture.findFirst({
+        where: { numeroPiece: piecePayRef, annule: false },
+        include: { lignes: true },
+      })
+      if (originalPay) {
+        await tx.ecriture.update({ where: { id: originalPay.id }, data: { annule: true } })
+        await tx.ecriture.create({
+          data: {
+            exerciceId: exercice.id,
+            journalId: originalPay.journalId,
+            numeroPiece: `ANN-${piecePayRef}`,
+            dateEcriture: new Date(),
+            libelle: `Annulation paiement dépense ${depense.libelle}`,
+            validee: true,
+            annule: false,
+            dossierId: depense.dossierId,
+            lignes: {
+              create: originalPay.lignes.map(l => ({
+                compteId: l.compteId,
+                debit: l.credit,
+                credit: l.debit,
+                libelle: l.libelle ? `[Annulation] ${l.libelle}` : "[Annulation]",
+                fournisseurId: l.fournisseurId,
+              })),
+            },
+          },
+        })
+      }
+      return annulationOD;
     })
   }
 }

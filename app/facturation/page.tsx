@@ -7,7 +7,7 @@ import { patchEntity, postEntity, deleteEntity, showApiError } from "@/lib/api/p
 import type { MockFacture } from "@/lib/mock/invoices"
 import type { MockDepense } from "@/lib/mock/depenses"
 import type { MockBulletin } from "@/lib/mock/bulletins"
-import type { MockEmploye } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 import { FinanceTabs, type FinanceTabKey } from "@/components/facturation/finance-tabs"
 import { FinanceDashboard } from "@/components/facturation/finance-dashboard"
 import { VueEnsembleTab } from "@/components/facturation/vue-ensemble-tab"
@@ -46,7 +46,9 @@ export default function FinancePage() {
     const [factures, setFactures] = useState<MockFacture[]>([])
     const [depenses, setDepenses] = useState<MockDepense[]>([])
     const [bulletins, setBulletins] = useState<MockBulletin[]>([])
-    const [employes, setEmployes] = useState<MockEmploye[]>([])
+    const [employes, setEmployes] = useState<Membre[]>([])
+    const [clients, setClients] = useState<any[]>([])
+    const [dossiers, setDossiers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -237,14 +239,18 @@ export default function FinancePage() {
             fetch("/api/invoices").then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : [])).catch(() => []),
             fetch("/api/depenses").then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : [])).catch(() => []),
             fetch("/api/bulletins").then((r) => (r.ok ? (r.json() as Promise<MockBulletin[]>) : [])).catch(() => []),
-            fetch("/api/employes").then((r) => (r.ok ? (r.json() as Promise<MockEmploye[]>) : [])).catch(() => []),
+            fetch("/api/employes").then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : [])).catch(() => []),
+            fetch("/api/clients").then((r) => (r.ok ? (r.json() as Promise<any[]>) : [])).catch(() => []),
+            fetch("/api/dossiers").then((r) => (r.ok ? (r.json() as Promise<any[]>) : [])).catch(() => []),
         ])
-            .then(([fac, dep, bul, emp]) => {
+            .then(([fac, dep, bul, emp, cli, dos]) => {
                 if (!alive) return
                 setFactures(fac)
                 setDepenses(dep)
                 setBulletins(bul)
                 setEmployes(emp)
+                setClients(cli)
+                setDossiers(dos)
             })
             .catch((e) => {
                 if (alive) setError(e instanceof Error ? e.message : "Erreur inconnue")
@@ -323,6 +329,8 @@ export default function FinancePage() {
                             onChangeFactures={syncFactures}
                             presetClientId={presetClientId}
                             presetDossierId={presetDossierId}
+                            clients={clients}
+                            dossiers={dossiers}
                         />
                     </div>
                 ) : activeTab === "frais-externes" ? (

@@ -5,8 +5,18 @@ import { FactureDetailPanel } from "@/components/facturation/facture-detail-pane
 import { FactureFormDialog } from "@/components/facturation/facture-form-dialog"
 import { PaiementDialog } from "@/components/facturation/paiement-dialog"
 import { type MockFacture } from "@/lib/mock/invoices"
+import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
 
-export function FacturesClient({ initialFactures }: { initialFactures: any[] }) {
+export function FacturesClient({ 
+    initialFactures, 
+    initialClients, 
+    initialDossiers 
+}: { 
+    initialFactures: any[]
+    initialClients?: any[]
+    initialDossiers?: any[]
+}) {
     // Transform Prisma Facture to MockFacture to satisfy components
     const formatFacture = (f: any): MockFacture => ({
         id: f.id,
@@ -48,8 +58,35 @@ export function FacturesClient({ initialFactures }: { initialFactures: any[] }) 
     const [formOpen, setFormOpen] = useState(false)
     const [editingFacture, setEditingFacture] = useState<MockFacture | null>(null)
     const [paiementFacture, setPaiementFacture] = useState<MockFacture | null>(null)
+    const router = useRouter()
 
     const selectedFacture = selectedId ? factures.find(f => f.id === selectedId) || null : null
+
+    const handleSaveFacture = async (draft: any) => {
+        try {
+            const isEdit = !!editingFacture
+            const payload = {
+                ...draft,
+                statut: draft.saveAs === "BROUILLON" ? "BROUILLON" : "EMISE",
+            }
+            const res = await fetch(isEdit ? `/api/invoices/${editingFacture.id}` : "/api/invoices", {
+                method: isEdit ? "PATCH" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            })
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error(err.error || "Erreur lors de la sauvegarde")
+            }
+            setFormOpen(false)
+            setEditingFacture(null)
+            router.refresh()
+            toast({ title: "Succès", description: "Facture enregistrée." })
+        } catch (e: any) {
+            console.error(e)
+            toast({ title: "Erreur", description: e.message || "Erreur réseau", variant: "destructive" })
+        }
+    }
 
     // Handlers (Simplified for accounting view)
     const handleSelect = (f: MockFacture) => {
@@ -121,7 +158,9 @@ export function FacturesClient({ initialFactures }: { initialFactures: any[] }) 
                     initial={editingFacture}
                     presetClientId={null}
                     presetDossierId={null}
-                    onSave={() => { setFormOpen(false); window.location.reload() }}
+                    clients={initialClients}
+                    dossiers={initialDossiers}
+                    onSave={handleSaveFacture}
                     onGenerated={() => {}}
                     onClose={() => { setFormOpen(false); setEditingFacture(null) }}
                 />

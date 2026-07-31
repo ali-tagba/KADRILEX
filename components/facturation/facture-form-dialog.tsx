@@ -45,6 +45,8 @@ interface FactureFormDialogProps {
     /** Pré-remplissage depuis l'URL ou la fiche dossier */
     presetClientId?: string | null
     presetDossierId?: string | null
+    clients?: any[]
+    dossiers?: any[]
     onSave: (draft: FactureFormDraft) => void
     /** Callback déclenché après une (re)génération réussie — pour propager au parent */
     onGenerated?: (updated: { generatedPdfUrl: string; generatedPdfAt: string }) => void
@@ -71,6 +73,8 @@ export function FactureFormDialog({
     initial,
     presetClientId = null,
     presetDossierId = null,
+    clients,
+    dossiers,
     onSave,
     onGenerated,
     onClose,
@@ -183,11 +187,12 @@ export function FactureFormDialog({
     }
 
     /* Listes pour pickers */
-    const clientsActifs = useMemo<MockClient[]>(() => mockClients, [])
-    const dossiersFiltrés = useMemo<MockDossier[]>(() => {
-        if (!draft.clientId) return mockDossiers.filter((d) => d.kind === "CLIENT")
-        return mockDossiers.filter((d) => d.clientId === draft.clientId)
-    }, [draft.clientId])
+    const clientsActifs = useMemo(() => clients ?? mockClients, [clients])
+    const dossiersFiltrés = useMemo(() => {
+        const source = dossiers ?? mockDossiers
+        if (!draft.clientId) return source.filter((d: any) => d.kind === "CLIENT")
+        return source.filter((d: any) => d.clientId === draft.clientId)
+    }, [draft.clientId, dossiers])
 
     /* Calculs auto */
     const totalHT = useMemo(() => draft.lignes.reduce((s, l) => s + l.total, 0), [draft.lignes])
@@ -318,7 +323,7 @@ export function FactureFormDialog({
                                     className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
                                 >
                                     <option value="">— Choisir un client —</option>
-                                    {clientsActifs.map((c) => (
+                                    {clientsActifs.map((c: any) => (
                                         <option key={c.id} value={c.id}>
                                             {clientDisplayName(c)} ({c.numeroClient})
                                         </option>
@@ -335,7 +340,7 @@ export function FactureFormDialog({
                                     <option value="">
                                         {draft.clientId ? "— Aucun dossier (facture client globale) —" : "Choisir un client d'abord"}
                                     </option>
-                                    {dossiersFiltrés.map((d) => (
+                                    {dossiersFiltrés.map((d: any) => (
                                         <option key={d.id} value={d.id}>
                                             {d.numero} · {d.titre.slice(0, 40)}
                                             {d.titre.length > 40 ? "…" : ""}
@@ -390,9 +395,9 @@ export function FactureFormDialog({
                                     className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
                                 >
                                     <option value="">— Aucun (frais cabinet) —</option>
-                                    {mockDossiers
-                                        .filter((d) => d.kind === "CLIENT")
-                                        .map((d) => (
+                                    {(dossiers ?? mockDossiers)
+                                        .filter((d: any) => d.kind === "CLIENT")
+                                        .map((d: any) => (
                                             <option key={d.id} value={d.id}>
                                                 {d.numero} · {d.titre.slice(0, 40)}
                                             </option>

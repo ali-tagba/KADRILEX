@@ -9,7 +9,7 @@ import {
     type PermissionKey,
     type PermissionScope,
 } from "@/lib/constants/team"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 /**
  * Matrice éditable des permissions d'un membre.
@@ -23,10 +23,10 @@ import type { MockMembre } from "@/lib/mock/employes"
  */
 
 interface Props {
-    membre: MockMembre
+    membre: Membre
     /** True si l'utilisateur courant peut éditer (ASSOCIE_GERANT) */
     canEdit: boolean
-    onChange?: (updated: MockMembre) => void
+    onChange?: (updated: Membre) => void
 }
 
 const PERMISSION_GROUPS: Array<{
@@ -145,7 +145,7 @@ export function PermissionsMatrix({ membre, canEdit, onChange }: Props) {
             const payload = {
                 permissionsOverrides: Object.keys(overrides).length > 0 ? overrides : null,
             }
-            const updated = await patchEntity<MockMembre>(`/api/membres/${membre.id}`, payload)
+            const updated = await patchEntity<Membre>(`/api/membres/${membre.id}`, payload)
             onChange?.(updated)
             toast.success("Permissions enregistrées")
         } catch (e) {

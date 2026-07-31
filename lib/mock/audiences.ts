@@ -62,8 +62,10 @@ export interface MockAudience {
     salleAudience: string | null
     /** Optionnel : audience « sèche » sans dossier */
     dossierId: string | null
+    dossier?: MockDossier | null
     /** Optionnel : client rattaché directement (sans dossier) */
     clientId: string | null
+    client?: MockClient | null
     /** @deprecated Avocat plaidant — string libre. À retirer sprint D au profit de responsableId. */
     avocatPlaidant: AvocatCabinet | null
     /** Membre plaidant (owner). Hérité de avocatPlaidant. */

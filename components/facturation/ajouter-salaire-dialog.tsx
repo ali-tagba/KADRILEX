@@ -12,7 +12,7 @@ import {
     type StatutBulletinKey,
 } from "@/lib/constants/finance"
 import { fullName } from "@/lib/constants/team"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 export interface AjouterSalaireDraft {
     employeId: string
@@ -32,9 +32,9 @@ export interface AjouterSalaireDraft {
 
 interface AjouterSalaireDialogProps {
     /** Membres parmi lesquels choisir — typiquement les actifs sans bulletin du mois courant */
-    membresDispo: MockMembre[]
+    membresDispo: Membre[]
     /** Tous les membres actifs (fallback si déjà payés ce mois) */
-    membresActifs: MockMembre[]
+    membresActifs: Membre[]
     annee: number
     mois: number
     onSave: (draft: AjouterSalaireDraft) => void

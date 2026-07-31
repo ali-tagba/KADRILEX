@@ -260,12 +260,12 @@ export function initials(m: { prenom: string; nom: string }): string {
     return `${m.prenom.charAt(0)}${m.nom.charAt(0)}`.toUpperCase()
 }
 
-export function ancienneteAnnees(dateEmbauche: string, ref = new Date()): number {
+export function ancienneteAnnees(dateEmbauche: string | Date, ref = new Date()): number {
     const e = new Date(dateEmbauche)
     return Math.max(0, Math.floor((ref.getTime() - e.getTime()) / (365.25 * 24 * 3600 * 1000)))
 }
 
-export function ancienneteLabel(dateEmbauche: string, ref = new Date()): string {
+export function ancienneteLabel(dateEmbauche: string | Date, ref = new Date()): string {
     const annees = ancienneteAnnees(dateEmbauche, ref)
     if (annees === 0) {
         return `Depuis ${new Date(dateEmbauche).toLocaleDateString("fr-FR", {

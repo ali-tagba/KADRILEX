@@ -13,22 +13,22 @@ import { useTheme, type Theme } from "@/components/theme-provider"
 import { ROLES, fullName } from "@/lib/constants/team"
 import { MODES_PAIEMENT, type ModePaiementKey } from "@/lib/constants/finance"
 import { CABINET_INFO } from "@/lib/constants/cabinet"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 export default function ParametresPage() {
     const router = useRouter()
     const { membre } = useCurrentUser()
-    const [current, setCurrent] = useState<MockMembre>(membre as MockMembre)
+    const [current, setCurrent] = useState<Membre>(membre as Membre)
     const [saving, setSaving] = useState(false)
 
     /* ============================================================
        Édition champs Membre — patch optimiste + rollback
        ============================================================ */
-    const patchMe = async (patch: Partial<MockMembre>) => {
+    const patchMe = async (patch: Partial<Membre>) => {
         const prev = current
         setCurrent((p) => ({ ...p, ...patch }))
         try {
-            const updated = await patchEntity<MockMembre>(`/api/membres/${current.id}`, patch as Record<string, unknown>)
+            const updated = await patchEntity<Membre>(`/api/membres/${current.id}`, patch as Record<string, unknown>)
             setCurrent(updated)
         } catch (e) {
             setCurrent(prev)
@@ -196,7 +196,7 @@ export default function ParametresPage() {
                         onRegenerate={(newCode, generatedAt) => {
                             setCurrent((m) => ({
                                 ...m,
-                                codeAcces: newCode,
+                                codeAccesHash: newCode,
                                 codeAccesGeneAt: generatedAt,
                             }))
                         }}

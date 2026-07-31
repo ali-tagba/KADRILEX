@@ -22,7 +22,8 @@ import {
     type ReactNode,
 } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { mockMembres, type MockMembre } from "@/lib/mock/employes"
+import { mockMembres } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 import {
     can as canFn,
     hasAccess as hasAccessFn,
@@ -36,9 +37,9 @@ const STORAGE_KEY = "kadrilex.currentMembreId"
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE !== "0"
 
 interface CurrentUserContextValue {
-    membre: MockMembre
+    membre: Membre
     /* Liste des membres connus (pour le UserSwitcher) */
-    membres: MockMembre[]
+    membres: Membre[]
     /* Bascule (dev) */
     setMembreId: (id: string) => void
 
@@ -58,7 +59,7 @@ const CurrentUserContext = createContext<CurrentUserContextValue | null>(null)
    À retirer au Sprint 5 (auth obligatoire + redirect /login si non auth).
    ============================================================ */
 
-const FALLBACK_MEMBRE: MockMembre = {
+const FALLBACK_MEMBRE: Membre = {
     id: "fallback-gerant",
     prenom: "Chargement",
     nom: "...",
@@ -73,7 +74,7 @@ const FALLBACK_MEMBRE: MockMembre = {
     motifSortie: null,
     invitationStatut: "ACTIF",
     derniereConnexion: null,
-    codeAcces: "",
+    codeAccesHash: "",
     codeAccesGeneAt: new Date().toISOString(),
     statutContrat: "ASSOCIE",
     fonction: null,
@@ -88,7 +89,7 @@ const FALLBACK_MEMBRE: MockMembre = {
     updatedAt: new Date().toISOString(),
 }
 
-function getDefaultMembre(): MockMembre {
+function getDefaultMembre(): Membre {
     return (
         mockMembres.find((m) => m.actif && m.role === "ASSOCIE_GERANT") ??
         mockMembres.find((m) => m.actif) ??
@@ -147,7 +148,7 @@ interface ProviderProps {
 }
 
 /** Type partiel : ce que renvoie /api/me (Membre Prisma sans codeAccesHash) */
-type ApiMembre = Omit<MockMembre, "codeAcces" | "codeAccesGeneAt" | "dateEmbauche" | "dateSortie" | "derniereConnexion" | "createdAt" | "updatedAt"> & {
+type ApiMembre = Omit<Membre, "codeAcces" | "codeAccesGeneAt" | "dateEmbauche" | "dateSortie" | "derniereConnexion" | "createdAt" | "updatedAt"> & {
     codeAccesGeneAt: string
     dateEmbauche: string
     dateSortie: string | null
@@ -167,7 +168,7 @@ export function CurrentUserProvider({ children, initialMembreId }: ProviderProps
     )
 
     /* Membre chargé depuis /api/me — null tant que pas répondu */
-    const [serverMembre, setServerMembre] = useState<MockMembre | null>(null)
+    const [serverMembre, setServerMembre] = useState<Membre | null>(null)
 
     useEffect(() => {
         let cancelled = false
@@ -181,11 +182,11 @@ export function CurrentUserProvider({ children, initialMembreId }: ProviderProps
             })
             .then((data: { membre: ApiMembre | null } | null) => {
                 if (cancelled || !data?.membre) return
-                /* Adapt API shape → MockMembre (ajoute codeAcces vide pour compat type) */
+                /* Adapt API shape → Membre (ajoute codeAcces vide pour compat type) */
                 setServerMembre({
                     ...data.membre,
-                    codeAcces: "",
-                } as MockMembre)
+                    codeAccesHash: "",
+                } as Membre)
             })
             .catch(() => {
                 /* /api/me indispo (réseau) : on garde le fallback sans rediriger. */

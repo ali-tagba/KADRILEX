@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { initials, ROLES, type RoleKey } from "@/lib/constants/team"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 /**
  * Construit l'URL d'affichage de la photo de profil.
@@ -18,7 +18,7 @@ function resolvePhotoUrl(photoUrl: string | null | undefined): string | null {
 }
 
 interface MembreAvatarProps {
-    membre: Pick<MockMembre, "prenom" | "nom" | "photoUrl" | "role">
+    membre: Pick<Membre, "prenom" | "nom" | "photoUrl" | "role">
     size?: "xs" | "sm" | "md" | "lg" | "xl"
     /** Affiche un anneau coloré selon le rôle */
     ring?: boolean
@@ -95,7 +95,7 @@ export function MembreAvatarStack({
     max = 4,
     size = "sm",
 }: {
-    membres: Pick<MockMembre, "id" | "prenom" | "nom" | "photoUrl" | "role">[]
+    membres: Pick<Membre, "id" | "prenom" | "nom" | "photoUrl" | "role">[]
     max?: number
     size?: MembreAvatarProps["size"]
 }) {

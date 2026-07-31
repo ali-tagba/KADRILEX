@@ -1,25 +1,146 @@
 import { Metadata } from 'next';
-import { Button } from '@/components/ui/button';
-// Removed unused lucide-react imports
-import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 import { DashboardCharts } from './dashboard-charts';
 import { PageGate } from '@/components/auth/require-permission';
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { formatFCFA } from '@/lib/server/finance';
 
 export const metadata: Metadata = {
   title: 'Tableau de Bord Financier | Kadrilex',
   description: 'Analyse consolidée de la trésorerie et facturation',
 };
 
-const chartData = [
-  { month: 'Jan', encaissement: 120, decaissement: 80 },
-  { month: 'Fév', encaissement: 150, decaissement: 90 },
-  { month: 'Mar', encaissement: 180, decaissement: 110 },
-  { month: 'Avr', encaissement: 140, decaissement: 130 },
-  { month: 'Mai', encaissement: 210, decaissement: 80 },
-  { month: 'Juin', encaissement: 250, decaissement: 120 },
-];
+// Ensure dynamic rendering
+export const dynamic = "force-dynamic";
 
-export default function ComptabilitePage() {
+export default async function ComptabilitePage() {
+  const now = new Date();
+  const startMonth = startOfMonth(now);
+  const endMonth = endOfMonth(now);
+
+  // 1. Trésorerie Actuelle (Historique complet)
+  const allEncaissements = await prisma.paiement.aggregate({
+    _sum: { montant: true },
+    where: { facture: { direction: 'EMISE' } }
+  });
+  
+  const allDecaissementsPaiements = await prisma.paiement.aggregate({
+    _sum: { montant: true },
+    where: { facture: { direction: 'RECUE' } }
+  });
+  
+  const allDecaissementsDepenses = await prisma.depense.aggregate({
+    _sum: { montantTTC: true },
+    where: { statut: 'PAYEE' }
+  });
+
+  const totalEncaissementsAll = allEncaissements._sum.montant || 0;
+  const totalDecaissementsAll = (allDecaissementsPaiements._sum.montant || 0) + (allDecaissementsDepenses._sum.montantTTC || 0);
+  const tresorerieActuelle = totalEncaissementsAll - totalDecaissementsAll;
+
+  // 2. Encaissements / Décaissements du Mois
+  const monthEncaissements = await prisma.paiement.aggregate({
+    _sum: { montant: true },
+    where: {
+      facture: { direction: 'EMISE' },
+      date: { gte: startMonth, lte: endMonth }
+    }
+  });
+
+  const monthDecaissementPaiements = await prisma.paiement.aggregate({
+    _sum: { montant: true },
+    where: {
+      facture: { direction: 'RECUE' },
+      date: { gte: startMonth, lte: endMonth }
+    }
+  });
+
+  const monthDecaissementDepenses = await prisma.depense.aggregate({
+    _sum: { montantTTC: true },
+    where: {
+      statut: 'PAYEE',
+      date: { gte: startMonth, lte: endMonth }
+    }
+  });
+
+  const encaissementsMois = monthEncaissements._sum.montant || 0;
+  const decaissementsMois = (monthDecaissementPaiements._sum.montant || 0) + (monthDecaissementDepenses._sum.montantTTC || 0);
+
+  // 3. Créances Clients (Factures Émises Non Payées ou En Retard)
+  const creancesClients = await prisma.facture.findMany({
+    where: {
+      direction: 'EMISE',
+      statut: { in: ['A_PAYER', 'EN_RETARD'] }
+    },
+    select: { montantTTC: true, montantPaye: true }
+  });
+  const totalCreances = creancesClients.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
+
+  // 4. Fonds Séquestres (CARPA)
+  const comptesSequestres = await prisma.compteSequestre.findMany({
+    include: { dossier: true },
+    where: { montantRecu: { gt: 0 } }
+  });
+  let totalSequestre = 0;
+  const activeSequestres = comptesSequestres
+    .map(c => {
+      const solde = c.montantRecu - c.montantReverse;
+      totalSequestre += solde;
+      return { ...c, solde };
+    })
+    .filter(c => c.solde > 0)
+    .sort((a, b) => b.solde - a.solde)
+    .slice(0, 3); // Top 3
+
+  // 5. Alertes
+  const facturesEnRetard = await prisma.facture.findMany({
+    where: { direction: 'EMISE', statut: 'EN_RETARD' },
+    select: { montantTTC: true, montantPaye: true }
+  });
+  const totalRetardMontant = facturesEnRetard.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
+  
+  const depensesAPayerCount = await prisma.depense.count({
+    where: { statut: 'A_PAYER' }
+  });
+
+  // 6. Chart Data (Derniers 6 mois)
+  const chartData = [];
+  const barChartData = [];
+  const monthsStr = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Jui', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+  
+  for (let i = 5; i >= 0; i--) {
+    const dStart = startOfMonth(subMonths(now, i));
+    const dEnd = endOfMonth(subMonths(now, i));
+    
+    const enc = await prisma.paiement.aggregate({
+      _sum: { montant: true },
+      where: { facture: { direction: 'EMISE' }, date: { gte: dStart, lte: dEnd } }
+    });
+    const decP = await prisma.paiement.aggregate({
+      _sum: { montant: true },
+      where: { facture: { direction: 'RECUE' }, date: { gte: dStart, lte: dEnd } }
+    });
+    const decD = await prisma.depense.aggregate({
+      _sum: { montantTTC: true },
+      where: { statut: 'PAYEE', date: { gte: dStart, lte: dEnd } }
+    });
+
+    const mEnc = enc._sum.montant || 0;
+    const mDec = (decP._sum.montant || 0) + (decD._sum.montantTTC || 0);
+    const mName = monthsStr[dStart.getMonth()];
+
+    chartData.push({ month: mName, encaissement: mEnc / 1000, decaissement: mDec / 1000 }); // Scaled for chart readability
+    
+    const totalInOut = mEnc + mDec;
+    const inPct = totalInOut > 0 ? Math.round((mEnc / totalInOut) * 100) : 0;
+    const outPct = totalInOut > 0 ? Math.round((mDec / totalInOut) * 100) : 0;
+    
+    // Only add to bar chart if it's not empty, or keep last 5 for UI consistency
+    if (i < 5) { // Show 5 columns in the mini chart
+      barChartData.push({ month: mName, in: `${inPct}%`, out: `${outPct}%` });
+    }
+  }
+
   return (
     <PageGate perm="finance.view" moduleName="Comptabilité">
       <div className="flex flex-col h-full overflow-hidden bg-background">
@@ -30,19 +151,19 @@ export default function ComptabilitePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-density-loose">
             <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-density-medium flex flex-col justify-center">
               <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Trésorerie Actuelle</p>
-              <p className="font-display-md text-display-md text-on-surface font-mono-num">142 500 FCFA</p>
+              <p className="font-display-md text-display-md text-on-surface font-mono-num">{formatFCFA(tresorerieActuelle)}</p>
             </div>
             <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-density-medium flex flex-col justify-center">
               <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Encaissements (Mois)</p>
-              <p className="font-display-md text-display-md text-[#166534] font-mono-num">+ 45 200 FCFA</p>
+              <p className="font-display-md text-display-md text-[#166534] font-mono-num">+ {formatFCFA(encaissementsMois)}</p>
             </div>
             <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-density-medium flex flex-col justify-center">
               <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Décaissements (Mois)</p>
-              <p className="font-display-md text-display-md text-error font-mono-num">- 28 900 FCFA</p>
+              <p className="font-display-md text-display-md text-error font-mono-num">- {formatFCFA(decaissementsMois)}</p>
             </div>
             <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-density-medium flex flex-col justify-center">
               <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Créances Clients</p>
-              <p className="font-display-md text-display-md text-[#e65100] font-mono-num">8 200 FCFA</p>
+              <p className="font-display-md text-display-md text-[#e65100] font-mono-num">{formatFCFA(totalCreances)}</p>
             </div>
           </div>
 
@@ -55,10 +176,9 @@ export default function ComptabilitePage() {
               {/* Cash Flow Chart */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col">
                 <div className="bg-surface-container-low px-density-medium py-3 border-b border-outline-variant flex justify-between items-center rounded-t-lg">
-                  <h3 className="font-h2 text-[16px] text-on-surface">Évolution de la Trésorerie</h3>
-                  <select className="bg-transparent border-none text-body-sm text-on-surface-variant font-medium py-0 focus:ring-0 cursor-pointer outline-none">
-                    <option>Derniers 6 mois</option>
-                    <option>Année en cours</option>
+                  <h3 className="font-h2 text-[16px] text-on-surface">Évolution de la Trésorerie (k FCFA)</h3>
+                  <select className="bg-transparent border-none text-body-sm text-on-surface-variant font-medium py-0 focus:ring-0 cursor-pointer outline-none" defaultValue="6months">
+                    <option value="6months">Derniers 6 mois</option>
                   </select>
                 </div>
                 <div className="p-density-medium h-72">
@@ -66,23 +186,16 @@ export default function ComptabilitePage() {
                 </div>
               </div>
 
-              {/* Income/Expense Bar Chart Stub from mockup */}
+              {/* Income/Expense Bar Chart */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col">
                 <div className="bg-surface-container-low px-density-medium py-3 border-b border-outline-variant flex justify-between items-center rounded-t-lg">
-                  <h3 className="font-h2 text-[16px] text-on-surface">Recettes vs Dépenses</h3>
+                  <h3 className="font-h2 text-[16px] text-on-surface">Recettes vs Dépenses (%)</h3>
                 </div>
                 <div className="p-density-medium h-56 flex items-end justify-around gap-2 pt-8">
-                  {/* Bar chart abstraction */}
-                  {[
-                    { month: 'Mai', in: '70%', out: '30%' },
-                    { month: 'Juin', in: '60%', out: '40%' },
-                    { month: 'Jui', in: '80%', out: '25%' },
-                    { month: 'Aoû', in: '50%', out: '35%' },
-                    { month: 'Sep', in: '90%', out: '20%' }
-                  ].map((item, idx) => (
+                  {barChartData.map((item, idx) => (
                     <div key={idx} className="flex flex-col justify-end h-full w-12 gap-1 items-center">
-                      <div className="w-8 bg-secondary-container rounded-t-sm" style={{ height: item.in }}></div>
-                      <div className="w-8 bg-surface-variant rounded-t-sm" style={{ height: item.out }}></div>
+                      <div className="w-8 bg-secondary-container rounded-t-sm transition-all duration-500" style={{ height: item.in }}></div>
+                      <div className="w-8 bg-surface-variant rounded-t-sm transition-all duration-500" style={{ height: item.out }}></div>
                       <span className="font-label-caps text-[10px] text-outline mt-2">{item.month}</span>
                     </div>
                   ))}
@@ -97,19 +210,19 @@ export default function ComptabilitePage() {
               <div className="bg-[#6B4423] text-white rounded-lg flex flex-col overflow-hidden shadow-sm">
                 <div className="px-density-medium py-4">
                   <h3 className="font-label-caps text-[11px] uppercase tracking-wider text-white/80 mb-4">Fonds Séquestres (CARPA)</h3>
-                  <div className="font-display-md text-[32px] font-bold text-white mb-1">214 000 FCFA</div>
+                  <div className="font-display-md text-[32px] font-bold text-white mb-1">{formatFCFA(totalSequestre)}</div>
                   <div className="font-body-sm text-white/80 mb-6">Total des fonds de tiers consignés</div>
                   
-                  <div className="flex justify-between items-center py-2">
-                    <span className="font-body-sm text-white/90">Dossier #402 - L'Oréal</span>
-                    <span className="font-mono-num text-body-sm font-bold">150 000 FCFA</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 mb-4">
-                    <span className="font-body-sm text-white/90">Dossier #389 - Sanofi</span>
-                    <span className="font-mono-num text-body-sm font-bold">64 000 FCFA</span>
-                  </div>
+                  {activeSequestres.map((seq) => (
+                     <div key={seq.id} className="flex justify-between items-center py-2">
+                       <span className="font-body-sm text-white/90 truncate mr-2" title={seq.dossier.titre}>
+                         Dossier #{seq.dossier.numero ?? seq.dossier.id.substring(0,6)}
+                       </span>
+                       <span className="font-mono-num text-body-sm font-bold whitespace-nowrap">{formatFCFA(seq.solde)}</span>
+                     </div>
+                  ))}
                   
-                  <button className="w-full py-2 bg-white text-[#6B4423] rounded font-medium text-sm hover:bg-white/90 transition-colors">
+                  <button className="w-full py-2 mt-4 bg-white text-[#6B4423] rounded font-medium text-sm hover:bg-white/90 transition-colors">
                     Gérer les consignations
                   </button>
                 </div>
@@ -131,10 +244,10 @@ export default function ComptabilitePage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <span className="font-body-sm font-semibold text-on-surface">5 Factures en retard</span>
-                        <span className="font-mono-num text-[12px] text-error font-medium">8 200 FCFA</span>
+                        <span className="font-body-sm font-semibold text-on-surface">{facturesEnRetard.length} Factures en retard</span>
+                        <span className="font-mono-num text-[12px] text-error font-medium">{formatFCFA(totalRetardMontant)}</span>
                       </div>
-                      <span className="font-body-sm text-[12px] text-on-surface-variant">Relances automatiques désactivées</span>
+                      <span className="font-body-sm text-[12px] text-on-surface-variant">Client à relancer</span>
                     </div>
                   </div>
                   
@@ -145,10 +258,10 @@ export default function ComptabilitePage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <span className="font-body-sm font-semibold text-on-surface">3 Notes de frais</span>
-                        <span className="font-body-sm text-[12px] text-primary font-medium">À valider</span>
+                        <span className="font-body-sm font-semibold text-on-surface">{depensesAPayerCount} Notes de frais</span>
+                        <span className="font-body-sm text-[12px] text-primary font-medium">À payer</span>
                       </div>
-                      <span className="font-body-sm text-[12px] text-on-surface-variant">Soumises par Me. Dubois</span>
+                      <span className="font-body-sm text-[12px] text-on-surface-variant">En attente de décaissement</span>
                     </div>
                   </div>
                 </div>

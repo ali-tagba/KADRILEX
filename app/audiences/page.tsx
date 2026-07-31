@@ -18,13 +18,12 @@ import {
     type AudienceFilters,
 } from "@/components/audiences/audience-filter-drawer"
 import {
-    audienceClientLabel,
     type MockAudience,
     type MockTache,
 } from "@/lib/mock/audiences"
 import type { MockDossier } from "@/lib/mock/dossiers"
 import { usePersistedFilters } from "@/lib/hooks/use-persisted-filters"
-import type { MockClient } from "@/lib/mock/clients"
+import { clientDisplayName, type MockClient } from "@/lib/mock/clients"
 import {
     AudienceFormDialog,
     type AudienceFormDraft,
@@ -127,7 +126,7 @@ export default function AudiencesPage() {
                     a.titre,
                     a.juridiction ?? "",
                     a.salleAudience ?? "",
-                    audienceClientLabel(a),
+                    a.client ? clientDisplayName(a.client) : "Sans client",
                 ]
                     .join(" ")
                     .toLowerCase()
@@ -244,6 +243,7 @@ export default function AudiencesPage() {
                         <div className="lg:col-span-8 min-h-0">
                             <AgendaView
                                 audiences={filteredAudiences}
+                                taches={taches}
                                 onAudienceClick={handleAudienceClick}
                             />
                         </div>
@@ -252,10 +252,11 @@ export default function AudiencesPage() {
                         </div>
                     </div>
                 ) : viewMode === "gallery" ? (
-                    <GalleryView audiences={filteredAudiences} pageSize={12} />
+                    <GalleryView audiences={filteredAudiences} taches={taches} pageSize={12} />
                 ) : (
                     <CalendarView
                         audiences={filteredAudiences}
+                        taches={taches}
                         onAudienceClick={handleAudienceClick}
                     />
                 )}

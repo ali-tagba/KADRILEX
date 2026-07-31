@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     try {
         const membre = await requirePermission("clients.write")
         const data = await parseJson(req, ClientCreateSchema)
-        const { equipeIds, ...rest } = data
+        const { equipeIds, createdAt, ...rest } = data
 
         const created = await prisma.$transaction(async (tx) => {
             const numero = await nextClientNumber(tx)
@@ -115,6 +115,8 @@ export async function POST(req: NextRequest) {
                 data: {
                     numeroClient: numero,
                     ...rest,
+                    // Conversion explicite ou omission si null
+                    ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
                     dateNaissance: rest.dateNaissance ? new Date(rest.dateNaissance) : null,
                     responsableId,
                     iconHint: rest.iconHint ?? (rest.type === "PERSONNE_MORALE" ? "domain" : "person"),

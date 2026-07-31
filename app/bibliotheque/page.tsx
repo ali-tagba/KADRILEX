@@ -237,19 +237,47 @@ export default function BibliothequePage() {
         }
     }
 
-    const handleDuplicate = (doc: MockDocument) => {
-        const copy: MockDocument = {
-            ...doc,
-            id: `doc-local-${Date.now()}`,
-            titre: `${doc.titre} (copie)`,
-            estFavori: false,
-            nbConsultations: 0,
-            derniereConsultation: null,
-            dossierIdsLies: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+    const handleDuplicate = async (doc: MockDocument) => {
+        try {
+            const res = await fetch("/api/documents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    titre: `${doc.titre} (copie)`,
+                    categorie: doc.categorie,
+                    type: doc.type ?? null,
+                    domaineJuridique: doc.domaineJuridique ?? null,
+                    juridiction: doc.juridiction ?? null,
+                    niveauJuridiction: doc.niveauJuridiction ?? null,
+                    reference: doc.reference ?? null,
+                    dateDocument: doc.dateDocument ?? null,
+                    description: doc.description ?? null,
+                    tags: doc.tags ?? "",
+                    auteur: doc.auteur ?? null,
+                    source: doc.source ?? null,
+                    notes: doc.notes ?? null,
+                    articlesCites: doc.articlesCites ?? null,
+                    issue: doc.issue ?? null,
+                    fileName: doc.fileName ?? null,
+                    fileSize: doc.fileSize ?? null,
+                    fileUrl: doc.fileUrl ?? null,
+                    mimeType: doc.mimeType ?? null,
+                }),
+            })
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${res.status}`)
+            }
+            const copy: MockDocument = await res.json()
+            setCreated((prev) => [copy, ...prev])
+            setSelectedId(copy.id)
+            const { toast } = await import("@/components/ui/toaster")
+            toast.success("Document dupliqué.")
+        } catch (e) {
+            const { toast } = await import("@/components/ui/toaster")
+            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
         }
-        setCreated((prev) => [copy, ...prev])
     }
 
     const handleAttach = (doc: MockDocument) => {

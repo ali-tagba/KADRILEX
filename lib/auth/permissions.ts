@@ -15,7 +15,7 @@ import {
     type PermissionKey,
     type PermissionScope,
 } from "@/lib/constants/team"
-import type { MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 
 /* ============================================================
    Types : la "ressource" sur laquelle on vérifie l'appartenance
@@ -39,7 +39,7 @@ export interface OwnableResource {
  * permissions du rôle, surchargées par d'éventuels overrides individuels.
  */
 export function resolvePermissions(
-    membre: MockMembre
+    membre: Membre
 ): Record<PermissionKey, PermissionScope> {
     const base = ROLE_PERMISSIONS[membre.role]
     if (!membre.permissionsOverrides) return base
@@ -54,7 +54,7 @@ export function resolvePermissions(
  * Returns true si le membre a au moins un accès limité (OWN ou ALL) à la permission.
  * Utilisé pour montrer/cacher la navigation et les boutons d'action.
  */
-export function hasAccess(membre: MockMembre | null, perm: PermissionKey): boolean {
+export function hasAccess(membre: Membre | null, perm: PermissionKey): boolean {
     if (!membre) return false
     if (!membre.actif) return false
     const scope = resolvePermissions(membre)[perm]
@@ -62,7 +62,7 @@ export function hasAccess(membre: MockMembre | null, perm: PermissionKey): boole
 }
 
 export function getScope(
-    membre: MockMembre | null,
+    membre: Membre | null,
     perm: PermissionKey
 ): PermissionScope {
     if (!membre || !membre.actif) return "NONE"
@@ -78,7 +78,7 @@ export function getScope(
    ============================================================ */
 
 export function can(
-    membre: MockMembre | null,
+    membre: Membre | null,
     perm: PermissionKey,
     resource?: OwnableResource
 ): boolean {
@@ -111,7 +111,7 @@ export function belongsToMembre(resource: OwnableResource, membreId: string): bo
    ============================================================ */
 
 export function filterByVisibility<T extends OwnableResource>(
-    membre: MockMembre | null,
+    membre: Membre | null,
     items: T[],
     perm: PermissionKey
 ): T[] {
@@ -126,10 +126,10 @@ export function filterByVisibility<T extends OwnableResource>(
    canAny / canAll : helpers de combinaison
    ============================================================ */
 
-export function canAny(membre: MockMembre | null, perms: PermissionKey[]): boolean {
+export function canAny(membre: Membre | null, perms: PermissionKey[]): boolean {
     return perms.some((p) => hasAccess(membre, p))
 }
 
-export function canAll(membre: MockMembre | null, perms: PermissionKey[]): boolean {
+export function canAll(membre: Membre | null, perms: PermissionKey[]): boolean {
     return perms.every((p) => hasAccess(membre, p))
 }

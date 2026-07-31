@@ -9,7 +9,7 @@ import {
     fullName,
     type RoleKey,
 } from "@/lib/constants/team"
-import { type MockMembre } from "@/lib/mock/employes"
+import type { Membre } from "@prisma/client"
 import { useMembres } from "@/lib/hooks/use-membres"
 import { MembreAvatar, MembreAvatarStack } from "./membre-avatar"
 
@@ -57,7 +57,7 @@ export function TeamPickerCompact({
 
     /* Composition affichée : responsable d'abord, puis équipe */
     const displayedMembres = useMemo(() => {
-        const list: MockMembre[] = []
+        const list: Membre[] = []
         if (responsableId) {
             const r = membres.find((m) => m.id === responsableId)
             if (r) list.push(r)
@@ -181,7 +181,7 @@ interface PanelProps {
     onClose: () => void
     activeOnly: boolean
     allowedRoles?: RoleKey[]
-    membres: MockMembre[]
+    membres: Membre[]
 }
 
 function TeamPickerPanel({
@@ -423,7 +423,7 @@ export function TeamPickerExpanded({
     const responsable = responsableId ? membres.find((m) => m.id === responsableId) : null
     const equipe = equipeIds
         .map((id) => membres.find((m) => m.id === id))
-        .filter((m): m is MockMembre => !!m)
+        .filter((m): m is Membre => !!m)
 
     return (
         <div className="space-y-2">

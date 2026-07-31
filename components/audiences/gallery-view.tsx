@@ -11,16 +11,17 @@ import {
     type AudienceStatutKey,
 } from "@/lib/constants/legal"
 import {
-    audienceClientLabel,
     getAudienceClient,
     getAudienceDossier,
-    getAudienceTaches,
     type MockAudience,
+    type MockTache,
 } from "@/lib/mock/audiences"
+import { clientDisplayName, type MockClient } from "@/lib/mock/clients"
 import { AudienceActionsMenu } from "./audience-actions-menu"
 
 interface GalleryViewProps {
     audiences: MockAudience[]
+    taches?: MockTache[]
     pageSize?: number
 }
 
@@ -93,7 +94,7 @@ function relativeBadge(iso: string): { label: string; tone: "today" | "soon" | "
    Composant principal
    ============================================================ */
 
-export function GalleryView({ audiences, pageSize = 12 }: GalleryViewProps) {
+export function GalleryView({ audiences, taches = [], pageSize = 12 }: GalleryViewProps) {
     const router = useRouter()
     const [page, setPage] = useState(1)
     /* Suppression locale en session — sera propagée via DELETE API plus tard */
@@ -138,6 +139,7 @@ export function GalleryView({ audiences, pageSize = 12 }: GalleryViewProps) {
                             <AudienceCard
                                 key={a.id}
                                 audience={a}
+                                taches={taches}
                                 onOpen={() => router.push(`/audiences/${a.id}`)}
                                 onDelete={async () => {
                                     const prev = hiddenIds
@@ -208,21 +210,22 @@ export function GalleryView({ audiences, pageSize = 12 }: GalleryViewProps) {
 interface AudienceCardProps {
     onDelete: () => void
     audience: MockAudience
+    taches: MockTache[]
     onOpen: () => void
 }
 
-function AudienceCard({ audience, onOpen, onDelete }: AudienceCardProps) {
-    const dossier = getAudienceDossier(audience)
-    const client = getAudienceClient(audience)
+function AudienceCard({ audience, taches, onOpen, onDelete }: AudienceCardProps) {
+    const dossier = audience.dossier ?? null
+    const client = audience.client ?? (audience.dossier as any)?.client ?? null
     const nature = AUDIENCE_NATURES[audience.nature]
     const derivedKey = deriveStatut(audience)
     const statutMeta = STATUT_DERIVED_META[derivedKey]
     const resultat = audience.resultatAudience ? RESULTATS_AUDIENCE[audience.resultatAudience] : null
     const dateBadge = formatDateBadge(audience.dateDebut)
     const rel = relativeBadge(audience.dateDebut)
-    const taches = getAudienceTaches(audience.id)
-    const tachesFaites = taches.filter((t) => t.statut === "FAIT").length
-    const allDone = taches.length > 0 && tachesFaites === taches.length
+    const audTaches = taches.filter((t) => t.audienceId === audience.id)
+    const tachesFaites = audTaches.filter((t) => t.statut === "FAIT").length
+    const allDone = audTaches.length > 0 && tachesFaites === audTaches.length
 
     const avocat = audience.avocatPlaidant ?? client?.avocatEnCharge ?? null
 
@@ -295,7 +298,7 @@ function AudienceCard({ audience, onOpen, onDelete }: AudienceCardProps) {
                 {/* Métadonnées */}
                 <ul className="flex flex-col gap-1 font-body-sm text-[12px] text-on-surface-variant">
                     <MetaLine icon={client?.type === "PERSONNE_MORALE" ? "domain" : "person"}>
-                        <span className="truncate">{audienceClientLabel(audience)}</span>
+                        <span className="truncate">{audience.client ? clientDisplayName(audience.client) : "Sans client"}</span>
                         {dossier && (
                             <>
                                 <span className="text-outline-variant mx-1">·</span>
