@@ -59,6 +59,7 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
         montantHT: initial?.montantHT ?? 0,
         tvaRate: initial?.tvaRate ?? 19,
         mode: initial?.mode ?? "VIREMENT",
+        statut: initial?.statut ?? "A_PAYER",
         reference: initial?.reference ?? null,
         recurrent: initial?.recurrent ?? false,
         recurrenceFrequence: initial?.recurrenceFrequence ?? null,
@@ -66,7 +67,6 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
         employeId: initial?.employeId ?? null,
         notes: initial?.notes ?? null,
         attachment: null,
-        statut: initial?.statut ?? "PAYEE",
     }))
 
     /* Quand on change la catégorie, on suggère la TVA et la récurrence */
