@@ -43,7 +43,7 @@ export function resolvePermissions(
 ): Record<PermissionKey, PermissionScope> {
     const base = ROLE_PERMISSIONS[membre.role]
     if (!membre.permissionsOverrides) return base
-    return { ...base, ...membre.permissionsOverrides }
+    return { ...base, ...(membre.permissionsOverrides as Record<PermissionKey, PermissionScope>) }
 }
 
 /* ============================================================

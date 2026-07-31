@@ -164,7 +164,7 @@ export default function EquipePage() {
         const updated: Membre = {
             ...m,
             invitationStatut: "INVITE",
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
         }
         setMembres((list) => list.map((x) => (x.id === m.id ? updated : x)))
         toast.info(`Invitation envoyée à ${m.email}`)
@@ -202,8 +202,8 @@ export default function EquipePage() {
                 ...m,
                 actif: false,
                 invitationStatut: "DESACTIVE",
-                dateSortie: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
+                dateSortie: new Date(),
+                updatedAt: new Date(),
             }
             setMembres((list) => sortMembres(list.map((x) => (x.id === m.id ? updated : x))))
             const t = result.transferts
@@ -234,7 +234,7 @@ export default function EquipePage() {
                 invitationStatut: "ACTIF",
                 dateSortie: null,
                 motifSortie: null,
-                updatedAt: new Date().toISOString(),
+                updatedAt: new Date(),
             }
             setMembres((list) => sortMembres(list.map((x) => (x.id === m.id ? updated : x))))
         } catch (e) {

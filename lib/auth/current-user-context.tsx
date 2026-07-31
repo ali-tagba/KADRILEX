@@ -69,13 +69,13 @@ const FALLBACK_MEMBRE: Membre = {
     telephone: null,
     photoUrl: null,
     actif: true,
-    dateEmbauche: new Date().toISOString(),
+    dateEmbauche: new Date(),
     dateSortie: null,
     motifSortie: null,
     invitationStatut: "ACTIF",
     derniereConnexion: null,
     codeAccesHash: "",
-    codeAccesGeneAt: new Date().toISOString(),
+    codeAccesGeneAt: new Date(),
     statutContrat: "ASSOCIE",
     fonction: null,
     salaireBaseBrut: 0,
@@ -85,8 +85,8 @@ const FALLBACK_MEMBRE: Membre = {
     modeVersementParDefaut: "VIREMENT",
     avocatCabinetKey: null,
     notes: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
 }
 
 function getDefaultMembre(): Membre {
@@ -186,7 +186,7 @@ export function CurrentUserProvider({ children, initialMembreId }: ProviderProps
                 setServerMembre({
                     ...data.membre,
                     codeAccesHash: "",
-                } as Membre)
+                } as unknown as Membre)
             })
             .catch(() => {
                 /* /api/me indispo (réseau) : on garde le fallback sans rediriger. */

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { DashboardCharts } from './dashboard-charts';
 import { PageGate } from '@/components/auth/require-permission';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { formatFCFA } from '@/lib/server/finance';
+import { formatFCFA } from '@/lib/constants/finance';
 
 export const metadata: Metadata = {
   title: 'Tableau de Bord Financier | Kadrilex',
@@ -70,7 +70,7 @@ export default async function ComptabilitePage() {
   const creancesClients = await prisma.facture.findMany({
     where: {
       direction: 'EMISE',
-      statut: { in: ['A_PAYER', 'EN_RETARD'] }
+      statut: { in: ['EMISE', 'PARTIELLE', 'EN_RETARD'] }
     },
     select: { montantTTC: true, montantPaye: true }
   });

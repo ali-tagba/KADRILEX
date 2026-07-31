@@ -6,7 +6,7 @@ import { FactureFormDialog } from "@/components/facturation/facture-form-dialog"
 import { PaiementDialog } from "@/components/facturation/paiement-dialog"
 import { type MockFacture } from "@/lib/mock/invoices"
 import { useRouter } from "next/navigation"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/components/ui/toaster"
 
 export function FacturesClient({ 
     initialFactures, 
@@ -81,10 +81,10 @@ export function FacturesClient({
             setFormOpen(false)
             setEditingFacture(null)
             router.refresh()
-            toast({ title: "Succès", description: "Facture enregistrée." })
+            toast.success("Facture enregistrée.")
         } catch (e: any) {
             console.error(e)
-            toast({ title: "Erreur", description: e.message || "Erreur réseau", variant: "destructive" })
+            toast.error(e.message || "Erreur réseau")
         }
     }
 

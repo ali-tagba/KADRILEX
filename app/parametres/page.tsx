@@ -197,7 +197,7 @@ export default function ParametresPage() {
                             setCurrent((m) => ({
                                 ...m,
                                 codeAccesHash: newCode,
-                                codeAccesGeneAt: generatedAt,
+                                codeAccesGeneAt: new Date(generatedAt),
                             }))
                         }}
                     />
