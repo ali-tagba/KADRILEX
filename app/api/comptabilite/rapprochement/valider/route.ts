@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { PrismaClient, ModePaiement } from "@prisma/client";
 import { AccountingService } from "@/lib/server/accounting";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
+    await requirePermission("finance.write");
     const { factureId, transaction } = await req.json();
 
     if (!factureId || !transaction) {

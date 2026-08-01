@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requirePermission } from '@/lib/auth/server-permissions';
 
 const compteSchema = z.object({
   numero: z.string().min(1),
@@ -25,6 +26,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await requirePermission("finance.write");
     const body = await request.json();
     const parsed = compteSchema.parse(body);
 

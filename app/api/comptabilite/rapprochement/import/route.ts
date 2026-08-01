@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 export async function POST(req: Request) {
   try {
+    await requirePermission("finance.write");
     const formData = await req.formData();
     const file = formData.get("file") as File;
 

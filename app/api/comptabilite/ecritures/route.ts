@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requirePermission } from '@/lib/auth/server-permissions';
 
 const ligneSchema = z.object({
   compteId: z.string(),
@@ -23,6 +24,7 @@ const ecritureSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await requirePermission("finance.write");
     const body = await request.json();
     const parsed = ecritureSchema.parse(body);
 
@@ -101,6 +103,7 @@ export async function GET(request: Request) {
   const exerciceId = searchParams.get('exerciceId');
 
   try {
+    await requirePermission("finance.view");
     const ecritures = await prisma.ecriture.findMany({
       where: {
         ...(journalId && { journalId }),

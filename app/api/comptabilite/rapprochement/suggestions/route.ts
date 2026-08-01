@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
+  try {
+    await requirePermission("finance.view");
+  } catch {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+  }
   const { searchParams } = new URL(req.url);
   const montantStr = searchParams.get("montant");
   const montant = montantStr ? parseInt(montantStr, 10) : null;
