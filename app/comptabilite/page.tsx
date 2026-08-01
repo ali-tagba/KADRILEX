@@ -86,8 +86,18 @@ export default async function ComptabilitePage() {
   const totalCreances = creancesClients.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
 
   // 4. Alertes
+  // Filet de sécurité : statut EN_RETARD déjà posé, OU échéance dépassée et pas encore
+  // recalculée (le statut n'est mis à jour qu'à l'écriture — création/paiement d'une
+  // facture précise — donc une facture jamais retouchée après son échéance ne bascule
+  // pas automatiquement de son côté).
   const facturesEnRetard = await prisma.facture.findMany({
-    where: { direction: 'EMISE', statut: 'EN_RETARD' },
+    where: {
+      direction: 'EMISE',
+      OR: [
+        { statut: 'EN_RETARD' },
+        { dateEcheance: { lt: now }, statut: { in: ['EMISE', 'PARTIELLE'] } },
+      ],
+    },
     select: { montantTTC: true, montantPaye: true }
   });
   const totalRetardMontant = facturesEnRetard.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
