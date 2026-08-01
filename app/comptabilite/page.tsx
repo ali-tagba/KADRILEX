@@ -101,10 +101,6 @@ export default async function ComptabilitePage() {
     select: { montantTTC: true, montantPaye: true }
   });
   const totalRetardMontant = facturesEnRetard.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
-  
-  const depensesAPayerCount = await prisma.depense.count({
-    where: { statut: 'A_PAYER' }
-  });
 
   // 6. Chart Data (Derniers 6 mois)
   const chartData = [];
@@ -149,8 +145,6 @@ export default async function ComptabilitePage() {
   const pctEncaisseMois = totalMouvementMois > 0 ? Math.round((encaissementsMois / totalMouvementMois) * 100) : 0;
   const circonference = 2 * Math.PI * 45;
   const soldeDashOffset = circonference * (1 - pctEncaisseMois / 100);
-  const totalAlertes = facturesEnRetard.length + depensesAPayerCount;
-
   return (
     <PageGate perm="finance.view" moduleName="Comptabilité">
       <div className="flex flex-col h-full overflow-hidden bg-background">
@@ -287,31 +281,19 @@ export default async function ComptabilitePage() {
               <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col flex-1">
                 <div className="bg-surface-container-low px-density-medium py-3 border-b border-outline-variant flex justify-between items-center">
                   <h3 className="font-h2 text-[16px] text-on-surface">Actions Requises</h3>
-                  {totalAlertes > 0 && (
-                    <span className="bg-error text-on-error font-mono-num text-[11px] px-2 py-0.5 rounded-full">{totalAlertes} Alerte{totalAlertes > 1 ? "s" : ""}</span>
+                  {facturesEnRetard.length > 0 && (
+                    <span className="bg-error text-on-error font-mono-num text-[11px] px-2 py-0.5 rounded-full">{facturesEnRetard.length} Alerte{facturesEnRetard.length > 1 ? "s" : ""}</span>
                   )}
                 </div>
                 <div className="p-0">
                   {/* Invoices */}
-                  <div className="px-density-medium py-3 border-b border-outline-variant flex items-start gap-3 hover:bg-surface-container-low transition-colors cursor-pointer group">
+                  <div className="px-density-medium py-3 flex items-start gap-3 hover:bg-surface-container-low transition-colors cursor-pointer group">
                     <div className="text-error mt-0.5">
                       <span className="material-symbols-outlined text-[20px]">warning</span>
                     </div>
                     <div className="flex-1">
                       <span className="font-body-sm font-semibold text-on-surface block">{facturesEnRetard.length} Factures en retard</span>
                       <span className="font-body-sm text-[12px] text-on-surface-variant">Total : <span className="font-mono-num">{formatFCFA(totalRetardMontant)}</span></span>
-                    </div>
-                    <span className="material-symbols-outlined text-on-surface-variant/50 text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
-                  </div>
-
-                  {/* Expenses */}
-                  <div className="px-density-medium py-3 flex items-start gap-3 hover:bg-surface-container-low transition-colors cursor-pointer group">
-                    <div className="text-secondary mt-0.5">
-                      <span className="material-symbols-outlined text-[20px]">assignment_late</span>
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-body-sm font-semibold text-on-surface block">{depensesAPayerCount} Notes de frais à payer</span>
-                      <span className="font-body-sm text-[12px] text-on-surface-variant">En attente de décaissement</span>
                     </div>
                     <span className="material-symbols-outlined text-on-surface-variant/50 text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
                   </div>
