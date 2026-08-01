@@ -176,6 +176,9 @@ function RapprochementView() {
       const batch = Date.now()
       const imported = (data.transactions as BankTx[]).map((t) => ({ ...t, id: `${batch}-${t.id}` }))
       setTransactions((prev) => [...prev, ...imported])
+      if (data.skipped > 0) {
+        setError(`${imported.length} ligne(s) importée(s), ${data.skipped} ligne(s) ignorée(s) (format invalide).`)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Échec de l'import du relevé")
     } finally {
