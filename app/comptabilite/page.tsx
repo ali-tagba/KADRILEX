@@ -76,23 +76,7 @@ export default async function ComptabilitePage() {
   });
   const totalCreances = creancesClients.reduce((acc, f) => acc + (f.montantTTC - f.montantPaye), 0);
 
-  // 4. Fonds Séquestres (CARPA)
-  const comptesSequestres = await prisma.compteSequestre.findMany({
-    include: { dossier: true },
-    where: { montantRecu: { gt: 0 } }
-  });
-  let totalSequestre = 0;
-  const activeSequestres = comptesSequestres
-    .map(c => {
-      const solde = c.montantRecu - c.montantReverse;
-      totalSequestre += solde;
-      return { ...c, solde };
-    })
-    .filter(c => c.solde > 0)
-    .sort((a, b) => b.solde - a.solde)
-    .slice(0, 3); // Top 3
-
-  // 5. Alertes
+  // 4. Alertes
   const facturesEnRetard = await prisma.facture.findMany({
     where: { direction: 'EMISE', statut: 'EN_RETARD' },
     select: { montantTTC: true, montantPaye: true }
@@ -205,28 +189,6 @@ export default async function ComptabilitePage() {
 
             {/* Right Column: Widgets (Span 4) */}
             <div className="lg:col-span-4 flex flex-col gap-gutter">
-              
-              {/* CARPA Widget */}
-              <div className="bg-[#6B4423] text-white rounded-lg flex flex-col overflow-hidden shadow-sm">
-                <div className="px-density-medium py-4">
-                  <h3 className="font-label-caps text-[11px] uppercase tracking-wider text-white/80 mb-4">Fonds Séquestres (CARPA)</h3>
-                  <div className="font-display-md text-[32px] font-bold text-white mb-1">{formatFCFA(totalSequestre)}</div>
-                  <div className="font-body-sm text-white/80 mb-6">Total des fonds de tiers consignés</div>
-                  
-                  {activeSequestres.map((seq) => (
-                     <div key={seq.id} className="flex justify-between items-center py-2">
-                       <span className="font-body-sm text-white/90 truncate mr-2" title={seq.dossier.titre}>
-                         Dossier #{seq.dossier.numero ?? seq.dossier.id.substring(0,6)}
-                       </span>
-                       <span className="font-mono-num text-body-sm font-bold whitespace-nowrap">{formatFCFA(seq.solde)}</span>
-                     </div>
-                  ))}
-                  
-                  <button className="w-full py-2 mt-4 bg-white text-[#6B4423] rounded font-medium text-sm hover:bg-white/90 transition-colors">
-                    Gérer les consignations
-                  </button>
-                </div>
-              </div>
 
               {/* Alerts Widget */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col">
