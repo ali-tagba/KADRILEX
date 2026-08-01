@@ -17,7 +17,7 @@ export function ComptabiliteNav() {
   ]
 
   return (
-    <div className="flex-none px-container-margin pt-container-margin flex items-center justify-between border-b border-outline-variant/30 pb-0 bg-[#FBF7F0]">
+    <div className="print:hidden flex-none px-container-margin pt-container-margin flex items-center justify-between border-b border-outline-variant/30 pb-0 bg-[#FBF7F0]">
       {/* Gauche: Titre et Tabs */}
       <div className="flex items-end gap-8 flex-wrap">
         <div className="flex items-baseline gap-2 pb-3">
@@ -55,8 +55,13 @@ export function ComptabiliteNav() {
             Plan Comptable
           </Link>
         </Button>
-        {/* Sur la page Dépenses : PAS de "Nouvelle Écriture" car les écritures sont auto-générées */}
-        {pathname !== "/comptabilite/depenses" && pathname !== "/comptabilite/factures" && (
+        {/* PAS de "Nouvelle Écriture" sur les pages de consultation/auto-génération :
+            Dépenses et Factures génèrent leurs écritures automatiquement, Grand Livre
+            et Balance sont des vues de lecture seule. */}
+        {pathname !== "/comptabilite/depenses" &&
+          pathname !== "/comptabilite/factures" &&
+          pathname !== "/comptabilite/grand-livre" &&
+          pathname !== "/comptabilite/balance" && (
           <Button asChild className="h-9 px-4 text-sm font-medium bg-[#6B4423] text-white hover:bg-[#5a381c] shadow-sm">
             <Link href="/comptabilite/ecritures/nouvelle">
               <span className="material-symbols-outlined text-[18px] mr-2">add</span>

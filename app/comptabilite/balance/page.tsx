@@ -25,9 +25,9 @@ function formatCurrency(amount: number) {
 export default async function BalancePage({
   searchParams
 }: {
-  searchParams: { exerciceId?: string }
+  searchParams: Promise<{ exerciceId?: string }>
 }) {
-  const { exerciceId } = searchParams;
+  const { exerciceId } = await searchParams;
 
   const exercices = await prisma.exerciceComptable.findMany({
     orderBy: { dateDebut: 'desc' }
@@ -98,7 +98,7 @@ export default async function BalancePage({
              </div>
           </div>
           <div className="max-w-6xl mx-auto w-full bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm flex flex-col overflow-hidden">
-            <div className="overflow-x-auto flex-1 max-h-[700px] scrollbar-thin">
+            <div className="overflow-x-auto flex-1 max-h-[700px] scrollbar-thin print:max-h-none print:overflow-visible">
               <table className="w-full text-left text-body-sm whitespace-nowrap">
                 <thead className="sticky top-0 bg-surface-container-lowest shadow-[0_1px_0_0_var(--color-outline-variant)] z-10 font-label-caps text-label-caps text-outline uppercase tracking-wider">
                   <tr>

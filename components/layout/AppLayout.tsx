@@ -19,9 +19,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <CurrentUserProvider>
             <DataSyncProvider>
-                <div className="flex h-screen w-full bg-[--color-background] overflow-hidden">
+                <div className="flex h-screen w-full bg-[--color-background] overflow-hidden print:h-auto print:overflow-visible">
                     {/* Sidebar — fixed width */}
-                    <div className="hidden lg:block flex-shrink-0">
+                    <div className="hidden lg:block flex-shrink-0 print:hidden">
                         <Sidebar />
                     </div>
 
@@ -29,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <MobileNav />
 
                     {/* Main */}
-                    <main className="flex-1 h-full overflow-hidden flex flex-col min-w-0">
+                    <main className="flex-1 h-full overflow-hidden flex flex-col min-w-0 print:h-auto print:overflow-visible">
                         {children}
                     </main>
                 </div>

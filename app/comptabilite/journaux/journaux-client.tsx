@@ -1,6 +1,5 @@
 "use client"
 import React, { useState } from "react"
-import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 export function JournauxClient({ journaux, ecritures = [] }: { journaux: any[], ecritures?: any[] }) {
@@ -51,12 +50,6 @@ function JournauxView({ journaux, ecritures = [] }: { journaux: any[], ecritures
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
       <div className="p-4 bg-[#FBF7F0] border-b border-outline-variant flex justify-between items-center">
         <h2 className="font-h2 text-h2 text-on-surface">Grand Livre / Écritures</h2>
-        <Link
-          href="/comptabilite/ecritures/nouvelle"
-          className="px-3 py-1.5 bg-[#6B4423] text-white rounded font-body-sm hover:bg-[#5a381c] transition-colors flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span> Nouvelle Écriture
-        </Link>
       </div>
       
       <table className="w-full text-left">

@@ -26,9 +26,9 @@ function formatCurrency(amount: number | null | undefined) {
 export default async function GrandLivrePage({
   searchParams
 }: {
-  searchParams: { compte?: string, exerciceId?: string }
+  searchParams: Promise<{ compte?: string, exerciceId?: string }>
 }) {
-  const { compte, exerciceId } = searchParams;
+  const { compte, exerciceId } = await searchParams;
 
   const exercices = await prisma.exerciceComptable.findMany({
     orderBy: { dateDebut: 'desc' }
@@ -126,7 +126,7 @@ export default async function GrandLivrePage({
             {/* Table des mouvements (Odoo-style) */}
             <div className="lg:col-span-3">
               <div className="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm flex flex-col overflow-hidden">
-                <div className="overflow-x-auto flex-1 max-h-[600px] scrollbar-thin">
+                <div className="overflow-x-auto flex-1 max-h-[600px] scrollbar-thin print:max-h-none print:overflow-visible">
                   <table className="w-full text-left text-body-sm whitespace-nowrap">
                     <thead className="sticky top-0 bg-surface-container-lowest shadow-[0_1px_0_0_var(--color-outline-variant)] z-10 font-label-caps text-label-caps text-outline uppercase tracking-wider">
                       <tr>

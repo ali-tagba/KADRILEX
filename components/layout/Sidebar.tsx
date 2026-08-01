@@ -74,7 +74,7 @@ export function Sidebar() {
     }
 
     return (
-        <nav className="h-screen w-64 flex flex-col border-r border-[#E8DCC8] bg-primary-container z-40 shrink-0">
+        <nav className="print:hidden h-screen w-64 flex flex-col border-r border-[#E8DCC8] bg-primary-container z-40 shrink-0">
             {/* Logo + profil */}
             <div className="p-6 border-b border-white/10 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center overflow-hidden flex-shrink-0">

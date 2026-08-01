@@ -14,9 +14,9 @@ export const metadata: Metadata = {
 export default async function JournauxPage({
   searchParams
 }: {
-  searchParams: { exerciceId?: string }
+  searchParams: Promise<{ exerciceId?: string }>
 }) {
-  const { exerciceId } = searchParams;
+  const { exerciceId } = await searchParams;
 
   const exercices = await prisma.exerciceComptable.findMany({
     orderBy: { dateDebut: 'desc' }
@@ -61,9 +61,6 @@ export default async function JournauxPage({
               <a href={`/api/comptabilite/export/ecritures${exerciceId ? `?exerciceId=${exerciceId}` : ''}`} download>
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Exporter
               </a>
-            </Button>
-            <Button asChild className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
-              <Link href="/comptabilite/ecritures/nouvelle">Nouvelle écriture</Link>
             </Button>
           </div>
         </div>

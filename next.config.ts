@@ -59,6 +59,13 @@ const nextConfig: NextConfig = {
        parfait pour Docker. Réduit l'image finale de ~1.5 GB à ~150 MB. */
     output: "standalone",
 
+    /* exceljs fait des require() dynamiques (writers par format) que le
+       tracing standalone de Next.js ne détecte pas, ce qui fait planter
+       les exports Excel en prod ("Cannot find module 'exceljs'") malgré
+       un build réussi. On l'exclut du bundling pour qu'il soit résolu
+       directement depuis node_modules au runtime (cf. Dockerfile). */
+    serverExternalPackages: ["exceljs"],
+
     turbopack: {
         root: path.resolve("."),
     },
