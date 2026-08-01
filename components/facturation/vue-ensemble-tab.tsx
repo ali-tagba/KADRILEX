@@ -15,6 +15,7 @@ import type { MockDepense } from "@/lib/mock/depenses"
 import type { MockBulletin } from "@/lib/mock/bulletins"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
+import { factureClientName } from "@/lib/mock/invoices"
 import { mockMembres } from "@/lib/mock/employes"
 import { fullName } from "@/lib/constants/team"
 
@@ -121,22 +122,19 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
 
         for (const f of factures) {
             if (f.statut === "BROUILLON" || f.statut === "ANNULEE") continue
-            const dossier = f.dossierId
-                ? mockDossiers.find((d) => d.id === f.dossierId) ?? null
-                : null
+            const dossier = f.dossier ?? (f.dossierId ? mockDossiers.find((d) => d.id === f.dossierId) ?? null : null)
             const stat = STATUTS_FACTURE[f.statut]
 
             if (f.direction === "EMISE") {
-                const client = f.clientId
-                    ? mockClients.find((c) => c.id === f.clientId) ?? null
-                    : null
+                const clientMock = f.clientId ? mockClients.find((c) => c.id === f.clientId) ?? null : null
+                const clientLabel = f.client ? factureClientName(f.client) : (clientMock ? clientDisplayName(clientMock) : null)
                 lines.push({
                     id: `inv-${f.id}`,
                     kind: "FACTURE_EMISE",
                     date: f.date,
                     numero: f.numero,
                     libelle: f.description ?? f.lignes[0]?.libelle ?? "Honoraires",
-                    tiers: client ? clientDisplayName(client) : "Client inconnu",
+                    tiers: clientLabel ?? "Client inconnu",
                     dossierNumero: dossier?.numero ?? null,
                     montant: f.montantTTC,
                     statut: stat.label,
@@ -151,7 +149,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
                         date: p.date,
                         numero: p.reference ?? f.numero,
                         libelle: `Paiement ${f.numero}`,
-                        tiers: client ? clientDisplayName(client) : "Client",
+                        tiers: clientLabel ?? "Client",
                         dossierNumero: dossier?.numero ?? null,
                         montant: p.montant,
                         statut: "Encaissé",
@@ -161,9 +159,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
                 }
             } else {
                 /* RECUE — c'est un frais externe ou cabinet */
-                const fournisseur = f.fournisseurId
-                    ? mockFournisseurs.find((x) => x.id === f.fournisseurId) ?? null
-                    : null
+                const fournisseur = f.fournisseur ?? (f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) ?? null : null)
                 const isFraisExterne = f.refacturable || (dossier !== null && f.clientId !== null)
                 lines.push({
                     id: `inv-${f.id}`,

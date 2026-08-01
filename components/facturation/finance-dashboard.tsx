@@ -21,6 +21,7 @@ import {
 } from "@/lib/mock/bulletins"
 import { mockEmployes } from "@/lib/mock/employes"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
+import { factureClientName } from "@/lib/mock/invoices"
 
 interface FinanceDashboardProps {
     factures: MockFacture[]
@@ -187,10 +188,16 @@ export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashb
             if (!f.clientId) continue
             map.set(f.clientId, (map.get(f.clientId) ?? 0) + f.montantTTC)
         }
+        const embeddedById = new Map<string, NonNullable<MockFacture["client"]>>()
+        for (const f of factures) {
+            if (f.clientId && f.client) embeddedById.set(f.clientId, f.client)
+        }
         const arr = Array.from(map.entries())
             .map(([id, total]) => {
+                const embedded = embeddedById.get(id)
                 const c = mockClients.find((x) => x.id === id)
-                return { id, name: c ? clientDisplayName(c) : "Inconnu", total }
+                const name = embedded ? factureClientName(embedded) : c ? clientDisplayName(c) : "Inconnu"
+                return { id, name, total }
             })
             .sort((a, b) => b.total - a.total)
         const top = arr.slice(0, 5)
@@ -311,7 +318,8 @@ export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashb
             .filter((f) => f.direction === "EMISE" && f.statut === "EN_RETARD")
             .map((f) => {
                 const c = f.clientId ? mockClients.find((x) => x.id === f.clientId) : null
-                return { facture: f, name: c ? clientDisplayName(c) : "Inconnu", restant: f.montantTTC - f.montantPaye }
+                const name = f.client ? factureClientName(f.client) : c ? clientDisplayName(c) : "Inconnu"
+                return { facture: f, name, restant: f.montantTTC - f.montantPaye }
             })
             .sort((a, b) => b.restant - a.restant)
             .slice(0, 5)

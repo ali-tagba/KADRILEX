@@ -4,7 +4,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { INVITATION_STATUTS, ROLES, ancienneteLabel, fullName } from "@/lib/constants/team"
 import type { Membre } from "@prisma/client"
-import { computeMembreStats } from "@/lib/mock/membre-stats"
+import { computeMembreStats, type MembreStatsData } from "@/lib/mock/membre-stats"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { MembreAvatar } from "./membre-avatar"
 import { MembreActionsMenu } from "./membre-actions-menu"
@@ -17,6 +17,7 @@ interface MembreGalleryViewProps {
     onDeactivate: (m: Membre) => void
     onReactivate: (m: Membre) => void
     onDelete: (m: Membre) => void
+    statsData: MembreStatsData
 }
 
 export function MembreGalleryView({
@@ -27,6 +28,7 @@ export function MembreGalleryView({
     onDeactivate,
     onReactivate,
     onDelete,
+    statsData,
 }: MembreGalleryViewProps) {
     if (membres.length === 0) {
         return (
@@ -52,6 +54,7 @@ export function MembreGalleryView({
                     onDeactivate={() => onDeactivate(m)}
                     onReactivate={() => onReactivate(m)}
                     onDelete={() => onDelete(m)}
+                    statsData={statsData}
                 />
             ))}
         </div>
@@ -66,6 +69,7 @@ function MembreCard({
     onDeactivate,
     onReactivate,
     onDelete,
+    statsData,
 }: {
     membre: Membre
     canWrite: boolean
@@ -74,11 +78,12 @@ function MembreCard({
     onDeactivate: () => void
     onReactivate: () => void
     onDelete: () => void
+    statsData: MembreStatsData
 }) {
     const { membre: currentUser, can } = useCurrentUser()
     const role = ROLES[membre.role]
     const invit = INVITATION_STATUTS[membre.invitationStatut]
-    const stats = computeMembreStats(membre)
+    const stats = computeMembreStats(membre, statsData)
     const showStats = can("equipe.write") || currentUser.id === membre.id
     return (
         <article

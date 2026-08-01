@@ -4,9 +4,9 @@ import { useState } from "react"
 import Link from "next/link"
 import { cn, formatRelativeFr } from "@/lib/utils"
 import { toast } from "@/components/ui/toaster"
-import { useDossier } from "@/components/dossiers/dossier-context"
+import { useDossier, type DossierConflit } from "@/components/dossiers/dossier-context"
 import { DiligencesSection } from "@/components/diligences/diligences-section"
-import { mockClients, clientDisplayName } from "@/lib/mock/clients"
+import { clientDisplayName } from "@/lib/mock/clients"
 import type { MockDossier } from "@/lib/mock/dossiers"
 
 const AUDIENCE_STATUT_LABEL: Record<string, string> = {
@@ -24,12 +24,12 @@ const AUDIENCE_STATUT_CHIP: Record<string, string> = {
 }
 
 export default function DossierOverviewPage() {
-    const { dossier, client } = useDossier()
+    const { dossier, client, conflits } = useDossier()
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-container-margin">
             <div className="lg:col-span-2 space-y-container-margin">
-                {dossier.kind === "CLIENT" && <PartiesSection dossier={dossier} client={client} />}
+                {dossier.kind === "CLIENT" && <PartiesSection dossier={dossier} client={client} conflits={conflits} />}
                 <AudiencesSection dossier={dossier} />
                 <DiligencesSection dossier={dossier} />
                 <NotesSection dossier={dossier} />
@@ -127,9 +127,11 @@ function NotesSection({ dossier }: { dossier: MockDossier }) {
 function PartiesSection({
     dossier,
     client,
+    conflits,
 }: {
     dossier: MockDossier
     client: ReturnType<typeof useDossier>["client"]
+    conflits: DossierConflit[]
 }) {
     const [addingParty, setAddingParty] = useState(false)
     const [partyName, setPartyName] = useState("")
@@ -220,7 +222,7 @@ function PartiesSection({
                     </div>
                 ) : (
                     dossier.partiesAdverses.map((p, i) => {
-                        const matched = mockClients.find((c) => clientDisplayName(c) === p && c.id !== dossier.clientId)
+                        const matched = conflits.find((c) => c.partie === p)?.client ?? null
                         return (
                             <div key={`${p}-${i}`} className="group px-4 py-3 flex items-center gap-3">
                                 <div className="w-10 h-10 rounded bg-error-container/30 border border-outline-variant flex items-center justify-center flex-shrink-0">

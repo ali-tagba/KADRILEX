@@ -12,9 +12,9 @@
  */
 
 import type { MockClient, ClientActivityItem } from "@/lib/mock/clients"
-import { mockDossiers } from "@/lib/mock/dossiers"
-import { mockAudiences } from "@/lib/mock/audiences"
-import { mockFactures } from "@/lib/mock/invoices"
+import type { MockDossier } from "@/lib/mock/dossiers"
+import type { MockAudience } from "@/lib/mock/audiences"
+import type { MockFacture } from "@/lib/mock/invoices"
 import { formatFCFA, formatDateCourte } from "@/lib/constants/finance"
 
 interface ComputeOptions {
@@ -26,6 +26,9 @@ interface ComputeOptions {
 
 export function computeClientActivity(
     client: MockClient,
+    dossiers: MockDossier[],
+    audiences: MockAudience[],
+    factures: MockFacture[],
     opts: ComputeOptions = {}
 ): ClientActivityItem[] {
     const canSeeFinance = opts.canSeeFinance ?? true
@@ -33,7 +36,7 @@ export function computeClientActivity(
     const items: ClientActivityItem[] = []
 
     /* === Dossiers liés au client === */
-    const clientDossiers = mockDossiers.filter((d) => d.clientId === client.id)
+    const clientDossiers = dossiers.filter((d) => d.clientId === client.id)
     const dossierIds = new Set(clientDossiers.map((d) => d.id))
 
     for (const d of clientDossiers) {
@@ -56,7 +59,7 @@ export function computeClientActivity(
     }
 
     /* === Audiences sur les dossiers du client === */
-    for (const a of mockAudiences) {
+    for (const a of audiences) {
         if (!a.dossierId || !dossierIds.has(a.dossierId)) continue
         const dossier = clientDossiers.find((d) => d.id === a.dossierId)
         const dossierLabel = dossier ? dossier.numero : a.dossierId
@@ -81,7 +84,7 @@ export function computeClientActivity(
     }
 
     /* === Factures émises au client === */
-    const facturesClient = mockFactures.filter(
+    const facturesClient = factures.filter(
         (f) =>
             f.direction === "EMISE" &&
             f.clientId === client.id &&
@@ -113,7 +116,7 @@ export function computeClientActivity(
     }
 
     /* === Frais externes refacturables (factures reçues liées à un dossier de ce client) === */
-    const fraisRefactures = mockFactures.filter(
+    const fraisRefactures = factures.filter(
         (f) =>
             f.direction === "RECUE" &&
             f.dossierId !== null &&

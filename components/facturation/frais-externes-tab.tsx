@@ -11,8 +11,8 @@ import {
 } from "@/lib/constants/finance"
 import type { MockFacture } from "@/lib/mock/invoices"
 import { recomputeFacture, mockFournisseurs } from "@/lib/mock/invoices"
-import { mockDossiers } from "@/lib/mock/dossiers"
-import { mockClients } from "@/lib/mock/clients"
+import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
+import type { MockClient } from "@/lib/mock/clients"
 import { FactureActionsMenu } from "./facture-actions-menu"
 import {
     AjouterFraisExterneDialog,
@@ -26,11 +26,13 @@ interface FraisExternesTabProps {
     factures: MockFacture[]
     onChangeFactures: (next: MockFacture[]) => void
     onSelect: (f: MockFacture) => void
+    clients?: MockClient[]
+    dossiers?: MockDossier[]
 }
 
 type RefacFilter = "ALL" | "EN_ATTENTE" | "REFACTUREES"
 
-export function FraisExternesTab({ factures, onChangeFactures, onSelect }: FraisExternesTabProps) {
+export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients = [], dossiers = [] }: FraisExternesTabProps) {
     const [filter, setFilter] = useState<RefacFilter>("EN_ATTENTE")
     const [search, setSearch] = useState("")
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -48,8 +50,8 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect }: Frais
         const q = search.trim().toLowerCase()
         if (q) {
             list = list.filter((f) => {
-                const fr = f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) : null
-                const dos = f.dossierId ? mockDossiers.find((d) => d.id === f.dossierId) : null
+                const fr = f.fournisseur ?? (f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) : null)
+                const dos = f.dossier ?? (f.dossierId ? dossiers.find((d) => d.id === f.dossierId) ?? mockDossiers.find((d) => d.id === f.dossierId) : null)
                 const hay = [
                     f.numero,
                     fr?.nom ?? "",
@@ -107,7 +109,7 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect }: Frais
         const numero = `REC-${annee}-${String(numCount).padStart(3, "0")}`
         const now = new Date().toISOString()
         const dossier = draft.dossierId
-            ? mockDossiers.find((d) => d.id === draft.dossierId) ?? null
+            ? dossiers.find((d) => d.id === draft.dossierId) ?? mockDossiers.find((d) => d.id === draft.dossierId) ?? null
             : null
         const clientId = dossier?.clientId ?? null
         const tvaMontant = calcTVA(draft.montantHT, draft.tvaRate)
@@ -391,10 +393,10 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect }: Frais
                             <tbody className="font-body-sm text-body-sm divide-y divide-outline-variant/50">
                                 {visible.map((f) => {
                                     const stat = STATUTS_FACTURE[f.statut]
-                                    const dossier = f.dossierId ? mockDossiers.find((d) => d.id === f.dossierId) : null
-                                    const fournisseur = f.fournisseurId
+                                    const dossier = f.dossier ?? (f.dossierId ? dossiers.find((d) => d.id === f.dossierId) ?? mockDossiers.find((d) => d.id === f.dossierId) : null)
+                                    const fournisseur = f.fournisseur ?? (f.fournisseurId
                                         ? mockFournisseurs.find((x) => x.id === f.fournisseurId)
-                                        : null
+                                        : null)
                                     const isRefacturee = f.refacturable && f.refactureeViaFactureId
                                     const isSelectable = f.refacturable && !f.refactureeViaFactureId
                                     return (
@@ -487,8 +489,8 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect }: Frais
             {ajoutOpen && (
                 <AjouterFraisExterneDialog
                     fournisseurs={mockFournisseurs}
-                    dossiers={mockDossiers}
-                    clients={mockClients}
+                    dossiers={dossiers}
+                    clients={clients}
                     onSave={handleAjouterFrais}
                     onClose={() => setAjoutOpen(false)}
                 />

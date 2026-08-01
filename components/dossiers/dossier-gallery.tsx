@@ -4,11 +4,12 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import type { MockDossier } from "@/lib/mock/dossiers"
 import { getClientForDossier } from "@/lib/mock/dossiers"
-import { mockClients, clientDisplayName } from "@/lib/mock/clients"
+import { clientDisplayName, type MockClient } from "@/lib/mock/clients"
 import { DOSSIER_STATUTS } from "@/lib/constants/legal"
 
 interface DossierGalleryProps {
     dossiers: MockDossier[]
+    clients: MockClient[]
 }
 
 const STATUT_BADGE: Record<string, string> = {
@@ -19,7 +20,7 @@ const STATUT_BADGE: Record<string, string> = {
     muted: "bg-surface-container text-outline",
 }
 
-export function DossierGallery({ dossiers }: DossierGalleryProps) {
+export function DossierGallery({ dossiers, clients }: DossierGalleryProps) {
     if (dossiers.length === 0) return null
 
     return (
@@ -32,7 +33,7 @@ export function DossierGallery({ dossiers }: DossierGalleryProps) {
 
                     // Détection conflit : une partie adverse est aussi cliente
                     const hasConflict = d.partiesAdverses.some((p) =>
-                        mockClients.some((c) => clientDisplayName(c) === p)
+                        clients.some((c) => c.id !== d.clientId && clientDisplayName(c) === p)
                     )
 
                     return (

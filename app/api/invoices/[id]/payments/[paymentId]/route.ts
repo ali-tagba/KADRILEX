@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/server-permissions"
 import { handleApiError } from "@/lib/server/api-helpers"
 import { recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
+import { AccountingService } from "@/lib/server/accounting"
 
 /**
  * Suppression d'un paiement.
@@ -66,6 +67,13 @@ export async function DELETE(
             })
             return facture
         })
+
+        // Contre-passe l'écriture d'encaissement/décaissement générée pour ce paiement
+        try {
+            await AccountingService.reversePaymentEntries(paymentId)
+        } catch (accError) {
+            console.error("Erreur annulation écriture comptable paiement:", accError)
+        }
 
         return Response.json({ ok: true, facture: result })
     } catch (e) {

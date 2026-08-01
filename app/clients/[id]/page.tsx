@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/toaster"
 import type { MockClient } from "@/lib/mock/clients"
 import { clientDisplayName, detectConflits, getConflitsActifs, getConflitsHistoriques, type ClientContact } from "@/lib/mock/clients"
+import type { MockDossier } from "@/lib/mock/dossiers"
+import type { MockAudience } from "@/lib/mock/audiences"
+import type { MockFacture } from "@/lib/mock/invoices"
 import { InlineTextCell } from "@/components/inline"
 import { ContactFormDialog, type ContactDraft } from "@/components/clients/contact-form-dialog"
 import { ClientFormDialog, type ClientFormDraft } from "@/components/clients/client-form-dialog"
@@ -800,9 +803,51 @@ function ActiviteRecenteSection({
     client: MockClient
     canSeeFinance: boolean
 }) {
+    const [dossiers, setDossiers] = useState<MockDossier[]>([])
+    const [audiences, setAudiences] = useState<MockAudience[]>([])
+    const [factures, setFactures] = useState<MockFacture[]>([])
+
+    useEffect(() => {
+        let alive = true
+        fetch(`/api/dossiers?clientId=${encodeURIComponent(client.id)}`, { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<MockDossier[]>) : Promise.resolve([] as MockDossier[])))
+            .then(async (dos) => {
+                if (!alive) return
+                setDossiers(dos)
+                const [audLists, facLists] = await Promise.all([
+                    Promise.all(
+                        dos.map((d) =>
+                            fetch(`/api/audiences?dossierId=${encodeURIComponent(d.id)}`, { credentials: "include" })
+                                .then((r) => (r.ok ? (r.json() as Promise<MockAudience[]>) : Promise.resolve([] as MockAudience[])))
+                                .catch(() => [] as MockAudience[])
+                        )
+                    ),
+                    Promise.all([
+                        fetch(`/api/invoices?clientId=${encodeURIComponent(client.id)}`, { credentials: "include" })
+                            .then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : Promise.resolve([] as MockFacture[])))
+                            .catch(() => [] as MockFacture[]),
+                        ...dos.map((d) =>
+                            fetch(`/api/invoices?dossierId=${encodeURIComponent(d.id)}`, { credentials: "include" })
+                                .then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : Promise.resolve([] as MockFacture[])))
+                                .catch(() => [] as MockFacture[])
+                        ),
+                    ]),
+                ])
+                if (!alive) return
+                setAudiences(audLists.flat())
+                const facMap = new Map<string, MockFacture>()
+                for (const list of facLists) for (const f of list) facMap.set(f.id, f)
+                setFactures(Array.from(facMap.values()))
+            })
+            .catch(() => {})
+        return () => {
+            alive = false
+        }
+    }, [client.id])
+
     const items = useMemo(
-        () => computeClientActivity(client, { canSeeFinance, limit: 30 }),
-        [client, canSeeFinance]
+        () => computeClientActivity(client, dossiers, audiences, factures, { canSeeFinance, limit: 30 }),
+        [client, dossiers, audiences, factures, canSeeFinance]
     )
     return (
         <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">

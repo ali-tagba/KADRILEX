@@ -338,6 +338,8 @@ export default function FinancePage() {
                         <FraisExternesTab
                             factures={factures}
                             onChangeFactures={syncFactures}
+                            clients={clients}
+                            dossiers={dossiers}
                             onSelect={(f) => {
                                 /* On bascule vers la tab Facturation avec la facture sélectionnée */
                                 handleTabChange("facturation")

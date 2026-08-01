@@ -233,6 +233,9 @@ function daysFromNow(d: number, hour = 10, minute = 0): string {
 
 /** Récupère le client lié pour exposer son nom */
 export function getClientForDossier(dossier: MockDossier): MockClient | null {
+    // Préfère la relation embarquée par l'API (/api/dossiers inclut client), fallback sur les mocks (dev local).
+    const embedded = (dossier as unknown as { client?: MockClient | null }).client
+    if (embedded !== undefined) return embedded
     if (!dossier.clientId) return null
     return mockClients.find((c) => c.id === dossier.clientId) ?? null
 }

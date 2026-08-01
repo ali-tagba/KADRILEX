@@ -8,12 +8,20 @@
  * `equipeIds[]`) et ce helper deviendra plus simple et plus précis.
  */
 
-import { mockClients, type MockClient } from "@/lib/mock/clients"
-import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
-import { mockAudiences, mockTaches, type MockAudience, type MockTache } from "@/lib/mock/audiences"
+import type { MockClient } from "@/lib/mock/clients"
+import type { MockDossier } from "@/lib/mock/dossiers"
+import type { MockAudience, MockTache } from "@/lib/mock/audiences"
 import type { Membre } from "@prisma/client"
 import { mockMembres } from "@/lib/mock/employes"
 import { membreIdFromAvocatKey, membreIdFromText } from "@/lib/mock/membre-bridge"
+
+/** Données réelles (fetchées une fois par la page Équipe) requises pour calculer la charge d'un membre. */
+export interface MembreStatsData {
+    clients: MockClient[]
+    dossiers: MockDossier[]
+    audiences: MockAudience[]
+    taches: MockTache[]
+}
 
 export interface MembreStats {
     clients: number
@@ -83,30 +91,30 @@ function isMembreOnTache(t: MockTache, membreId: string): boolean {
     return false
 }
 
-export function computeMembreStats(membre: Membre, ref = new Date()): MembreStats {
+export function computeMembreStats(membre: Membre, data: MembreStatsData, ref = new Date()): MembreStats {
     if (!membre.actif) return EMPTY
 
     /* Clients */
-    const clients = mockClients.filter((c) =>
+    const clients = data.clients.filter((c) =>
         isMembreOnClient(c, membre.id, membre.avocatCabinetKey)
     )
 
     /* Dossiers : direct ou via héritage du client parent */
-    const dossiers = mockDossiers.filter((d) => {
-        const parent = d.clientId ? mockClients.find((c) => c.id === d.clientId) ?? null : null
+    const dossiers = data.dossiers.filter((d) => {
+        const parent = d.clientId ? data.clients.find((c) => c.id === d.clientId) ?? null : null
         return isMembreOnDossier(d, membre.id, parent, membre.avocatCabinetKey)
     })
     const dossiersActifs = dossiers.filter((d) => d.statut === "EN_COURS")
 
     /* Audiences */
-    const audiencesTotal = mockAudiences.filter((a) => isMembreOnAudience(a, membre.id))
+    const audiencesTotal = data.audiences.filter((a) => isMembreOnAudience(a, membre.id))
     const audiencesAVenir = audiencesTotal.filter((a) => {
         const d = new Date(a.dateDebut)
         return d.getTime() >= ref.getTime() && a.statut !== "ANNULEE" && a.statut !== "REPORTEE"
     })
 
     /* Tâches */
-    const tachesTotal = mockTaches.filter((t) => isMembreOnTache(t, membre.id))
+    const tachesTotal = data.taches.filter((t) => isMembreOnTache(t, membre.id))
     const tachesEnCours = tachesTotal.filter(
         (t) => t.statut !== "FAIT" && t.statut !== "ANNULE"
     )
@@ -137,16 +145,16 @@ export function computeMembreStats(membre: Membre, ref = new Date()): MembreStat
 }
 
 /** Récupère le détail (objets, pas juste compteurs) — pour la fiche membre. */
-export function getMembreActivity(membre: Membre, ref = new Date()) {
-    const clients = mockClients.filter((c) => isMembreOnClient(c, membre.id, membre.avocatCabinetKey))
-    const dossiers = mockDossiers.filter((d) => {
-        const parent = d.clientId ? mockClients.find((c) => c.id === d.clientId) ?? null : null
+export function getMembreActivity(membre: Membre, data: MembreStatsData, ref = new Date()) {
+    const clients = data.clients.filter((c) => isMembreOnClient(c, membre.id, membre.avocatCabinetKey))
+    const dossiers = data.dossiers.filter((d) => {
+        const parent = d.clientId ? data.clients.find((c) => c.id === d.clientId) ?? null : null
         return isMembreOnDossier(d, membre.id, parent, membre.avocatCabinetKey)
     })
-    const audiences = mockAudiences
+    const audiences = data.audiences
         .filter((a) => isMembreOnAudience(a, membre.id))
         .sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime())
-    const taches = mockTaches
+    const taches = data.taches
         .filter((t) => isMembreOnTache(t, membre.id))
         .sort((a, b) => {
             const aDate = a.echeance ? new Date(a.echeance).getTime() : Infinity

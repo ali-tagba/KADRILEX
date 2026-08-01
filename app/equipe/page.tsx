@@ -17,6 +17,10 @@ import {
     MembreFormDialog,
     type MembreFormDraft,
 } from "@/components/equipe/membre-form-dialog"
+import type { MembreStatsData } from "@/lib/mock/membre-stats"
+import type { MockClient } from "@/lib/mock/clients"
+import type { MockDossier } from "@/lib/mock/dossiers"
+import type { MockAudience, MockTache } from "@/lib/mock/audiences"
 
 type ViewMode = "table" | "gallery"
 type ActifFilter = "ALL" | "ACTIFS" | "ARCHIVES"
@@ -52,6 +56,8 @@ export default function EquipePage() {
     const [formOpen, setFormOpen] = useState(false)
     const [editing, setEditing] = useState<Membre | null>(null)
 
+    const [statsData, setStatsData] = useState<MembreStatsData>({ clients: [], dossiers: [], audiences: [], taches: [] })
+
     useEffect(() => {
         fetch("/api/membres")
             .then(res => res.json())
@@ -63,6 +69,21 @@ export default function EquipePage() {
                 toast.error("Erreur lors du chargement de l'équipe")
                 setLoading(false)
             })
+    }, [])
+
+    useEffect(() => {
+        let alive = true
+        Promise.all([
+            fetch("/api/clients", { credentials: "include" }).then((r) => (r.ok ? (r.json() as Promise<MockClient[]>) : [])).catch(() => [] as MockClient[]),
+            fetch("/api/dossiers", { credentials: "include" }).then((r) => (r.ok ? (r.json() as Promise<MockDossier[]>) : [])).catch(() => [] as MockDossier[]),
+            fetch("/api/audiences", { credentials: "include" }).then((r) => (r.ok ? (r.json() as Promise<MockAudience[]>) : [])).catch(() => [] as MockAudience[]),
+            fetch("/api/taches", { credentials: "include" }).then((r) => (r.ok ? (r.json() as Promise<MockTache[]>) : [])).catch(() => [] as MockTache[]),
+        ]).then(([clients, dossiers, audiences, taches]) => {
+            if (alive) setStatsData({ clients, dossiers, audiences, taches })
+        })
+        return () => {
+            alive = false
+        }
     }, [])
 
     const filtered = useMemo(() => {
@@ -447,6 +468,7 @@ export default function EquipePage() {
                         onDeactivate={handleDeactivate}
                         onReactivate={handleReactivate}
                         onDelete={handleDelete}
+                        statsData={statsData}
                     />
                 ) : (
                     <MembreGalleryView
@@ -457,6 +479,7 @@ export default function EquipePage() {
                         onDeactivate={handleDeactivate}
                         onReactivate={handleReactivate}
                         onDelete={handleDelete}
+                        statsData={statsData}
                     />
                 )}
             </div>

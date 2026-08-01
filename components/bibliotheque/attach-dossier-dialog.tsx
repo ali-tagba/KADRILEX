@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { useEscapeClose } from "@/lib/hooks/use-escape-close"
 import { cn } from "@/lib/utils"
-import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
-import { mockClients, clientDisplayName } from "@/lib/mock/clients"
+import { getClientForDossier, type MockDossier } from "@/lib/mock/dossiers"
+import { clientDisplayName } from "@/lib/mock/clients"
 import { postEntity, deleteEntity } from "@/lib/api/patch"
 import { toast } from "@/components/ui/toaster"
 import type { MockDocument } from "@/lib/mock/documents"
@@ -23,19 +23,33 @@ export function AttachDossierDialog({ document, initialDossierIds, onClose, onCh
     const [search, setSearch] = useState("")
     const [linkedIds, setLinkedIds] = useState<Set<string>>(new Set(initialDossierIds))
     const [pending, setPending] = useState<Set<string>>(new Set())
+    const [allDossiers, setAllDossiers] = useState<MockDossier[]>([])
 
     // Rafraîchit l'état local quand la prop change (édition d'un autre doc)
     useEffect(() => {
         setLinkedIds(new Set(initialDossierIds))
     }, [initialDossierIds])
 
+    useEffect(() => {
+        let alive = true
+        fetch("/api/dossiers", { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<MockDossier[]>) : []))
+            .then((data) => {
+                if (alive) setAllDossiers(data)
+            })
+            .catch(() => {})
+        return () => {
+            alive = false
+        }
+    }, [])
+
     const dossiersActifs = useMemo(() => {
         const q = search.trim().toLowerCase()
-        return mockDossiers
+        return allDossiers
             .filter((d) => d.kind === "CLIENT" && d.statut !== "ARCHIVE")
             .filter((d) => {
                 if (!q) return true
-                const client = mockClients.find((c) => c.id === d.clientId)
+                const client = getClientForDossier(d)
                 const clientName = client ? clientDisplayName(client) : ""
                 return (
                     d.numero.toLowerCase().includes(q) ||
@@ -44,7 +58,7 @@ export function AttachDossierDialog({ document, initialDossierIds, onClose, onCh
                 )
             })
             .sort((a, b) => a.numero.localeCompare(b.numero, "fr"))
-    }, [search])
+    }, [search, allDossiers])
 
     async function toggle(d: MockDossier) {
         if (pending.has(d.id)) return
@@ -141,7 +155,7 @@ export function AttachDossierDialog({ document, initialDossierIds, onClose, onCh
                             {dossiersActifs.map((d) => {
                                 const isLinked = linkedIds.has(d.id)
                                 const isPending = pending.has(d.id)
-                                const client = mockClients.find((c) => c.id === d.clientId)
+                                const client = getClientForDossier(d)
                                 return (
                                     <li key={d.id}>
                                         <button

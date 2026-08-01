@@ -11,7 +11,7 @@ import type {
     DossierTypeKey,
     NatureAffaire,
 } from "@/lib/constants/legal"
-import { mockClients } from "@/lib/mock/clients"
+import { getClientForDossier } from "@/lib/mock/dossiers"
 
 export type DatePreset =
     | "ALL"
@@ -135,7 +135,7 @@ export function applyDossierFilters(
         }
         // Avocat (dérivé du client lié)
         if (s.avocats.length > 0) {
-            const client = d.clientId ? mockClients.find((c) => c.id === d.clientId) : null
+            const client = getClientForDossier(d)
             if (!client?.avocatEnCharge || !s.avocats.includes(client.avocatEnCharge)) return false
         }
         // Date d'ouverture
@@ -143,7 +143,7 @@ export function applyDossierFilters(
 
         // Recherche texte
         if (!q) return true
-        const client = d.clientId ? mockClients.find((c) => c.id === d.clientId) : null
+        const client = getClientForDossier(d)
         const haystack = [
             d.numero,
             d.titre,

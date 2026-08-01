@@ -216,7 +216,7 @@ export default function DossiersPage() {
                 ) : filters.viewMode === "table" ? (
                     <DossierTable dossiers={filtered} pageSize={10} />
                 ) : (
-                    <DossierGallery dossiers={filtered} />
+                    <DossierGallery dossiers={filtered} clients={clients} />
                 )}
             </div>
 
@@ -227,6 +227,7 @@ export default function DossiersPage() {
                 onChange={setFilters}
                 availableYears={availableYears}
                 availableJuridictions={availableJuridictions}
+                clients={clients}
             />
 
             {/* Dialog création dossier */}

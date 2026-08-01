@@ -12,8 +12,7 @@ import {
     type DossierTypeKey,
     type NatureAffaire,
 } from "@/lib/constants/legal"
-import { mockClients } from "@/lib/mock/clients"
-import { clientDisplayName } from "@/lib/mock/clients"
+import { clientDisplayName, type MockClient } from "@/lib/mock/clients"
 import {
     INITIAL_DOSSIER_FILTERS,
     countActiveDossierFilters,
@@ -28,6 +27,7 @@ interface DossierFilterDrawerProps {
     onChange: (next: DossierFiltersState) => void
     availableYears: string[]
     availableJuridictions: string[]
+    clients: MockClient[]
 }
 
 export function DossierFilterDrawer({
@@ -37,6 +37,7 @@ export function DossierFilterDrawer({
     onChange,
     availableYears,
     availableJuridictions,
+    clients,
 }: DossierFilterDrawerProps) {
     useEffect(() => {
         if (!open) return
@@ -76,8 +77,8 @@ export function DossierFilterDrawer({
         update({ juridictions: filters.juridictions.includes(j) ? filters.juridictions.filter((x) => x !== j) : [...filters.juridictions, j] })
 
     const clientsList = useMemo(
-        () => mockClients.map((c) => ({ id: c.id, label: `${clientDisplayName(c)} · ${c.numeroClient}` })),
-        []
+        () => clients.map((c) => ({ id: c.id, label: `${clientDisplayName(c)} · ${c.numeroClient}` })),
+        [clients]
     )
 
     const activeCount = countActiveDossierFilters(filters)

@@ -90,7 +90,6 @@ export class AccountingService {
 
     // Journaux
     const journalCode = estEmise ? "VE" : "AC"
-    const journal = await requireCompte("000000").catch(async () => null) // just trick, use below
     const journalObj = await prisma.journalComptable.findUnique({ where: { code: journalCode } })
     if (!journalObj) throw new Error(`Journal ${journalCode} introuvable`)
 
@@ -247,6 +246,48 @@ export class AccountingService {
         annule: false,
         dossierId: paiement.facture.dossierId,
         lignes: { createMany: { data: lignes } },
+      },
+    })
+  }
+
+  /**
+   * Génère une contre-écriture pour ANNULER un paiement (ex: suppression d'un paiement saisi par erreur).
+   * Inverse l'écriture d'encaissement/décaissement générée par generatePaymentEntries.
+   */
+  static async reversePaymentEntries(paiementId: string) {
+    const pieceRef = `PAY-${paiementId.substring(0, 8).toUpperCase()}`
+    const original = await prisma.ecriture.findFirst({
+      where: { numeroPiece: pieceRef, annule: false },
+      include: { lignes: true },
+    })
+    if (!original) return // Rien à annuler (paiement sans écriture générée)
+
+    await prisma.ecriture.update({ where: { id: original.id }, data: { annule: true } })
+
+    const exercice = await findExercice(new Date())
+    const journalOD = await prisma.journalComptable.findUnique({ where: { code: "OD" } })
+    if (!journalOD) throw new Error("Journal OD introuvable")
+
+    return prisma.ecriture.create({
+      data: {
+        exerciceId: exercice.id,
+        journalId: journalOD.id,
+        numeroPiece: `ANN-${pieceRef}`,
+        dateEcriture: new Date(),
+        libelle: `Annulation paiement (${original.libelle})`,
+        validee: true,
+        annule: false,
+        dossierId: original.dossierId,
+        lignes: {
+          create: original.lignes.map(l => ({
+            compteId: l.compteId,
+            debit: l.credit,   // Inversé
+            credit: l.debit,   // Inversé
+            libelle: l.libelle ? `[Annulation] ${l.libelle}` : "[Annulation]",
+            clientId: l.clientId,
+            fournisseurId: l.fournisseurId,
+          })),
+        },
       },
     })
   }
