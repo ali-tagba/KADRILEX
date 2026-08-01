@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { Plus, ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PageGate } from '@/components/auth/require-permission';
 import { JournauxClient } from './journaux-client';
@@ -62,14 +62,13 @@ export default async function JournauxPage({
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Exporter
               </a>
             </Button>
-            <Button className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
-              Nouveau Journal
+            <Button asChild className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
+              <Link href="/comptabilite/ecritures/nouvelle">Nouvelle écriture</Link>
             </Button>
           </div>
         </div>
 
-        <div className="px-container-margin mb-4 w-[300px]">
+        <div className="px-container-margin mb-3 w-[240px]">
           <ExerciceFilter exercices={exercices} />
         </div>
 

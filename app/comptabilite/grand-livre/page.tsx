@@ -1,10 +1,12 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Printer, Filter, Settings2 } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PageGate } from '@/components/auth/require-permission';
 import { ExerciceFilter } from '../components/exercice-filter';
+import { CompteFilter } from '../components/compte-filter';
+import { PrintButton } from '../components/print-button';
 
 export const metadata: Metadata = {
   title: 'Grand Livre | Kadrilex',
@@ -73,13 +75,8 @@ export default async function GrandLivrePage({
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="h-8 px-3 text-[13px] font-medium border-outline-variant text-on-surface hover:bg-surface-variant shadow-sm">
-              <Filter className="w-3.5 h-3.5 mr-1.5" /> Filtrer
-            </Button>
-            <Button variant="outline" className="h-8 px-3 text-[13px] font-medium border-outline-variant text-on-surface hover:bg-surface-variant shadow-sm">
-              <Printer className="w-3.5 h-3.5 mr-1.5" /> Imprimer
-            </Button>
+          <div className="flex items-center gap-2 print:hidden">
+            <PrintButton />
             <Button asChild className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
               <a href={`/api/comptabilite/export/grand-livre?${new URLSearchParams({
                 ...(exerciceId && { exerciceId }),
@@ -98,19 +95,8 @@ export default async function GrandLivrePage({
             <div className="lg:col-span-1 space-y-4 sticky top-0">
               <div className="bg-surface-container-lowest p-5 rounded-lg border border-outline-variant/50 shadow-sm space-y-4">
                 <ExerciceFilter exercices={exercices} />
-                <div>
-                  <label className="font-label-caps text-label-caps text-outline uppercase tracking-wider block mb-2">Compte Comptable</label>
-                  <select 
-                    className="w-full bg-surface border border-outline-variant rounded-md px-3 py-2 text-body-sm font-medium text-on-surface focus:ring-1 focus:ring-primary outline-none"
-                    value={compte || ''}
-                  >
-                    <option value="">Tous les comptes</option>
-                    {comptes.map(c => (
-                      <option key={c.id} value={c.id}>{c.numero} - {c.libelle}</option>
-                    ))}
-                  </select>
-                </div>
-                
+                <CompteFilter comptes={comptes} />
+
                 <div className="pt-4 border-t border-outline-variant/50 space-y-3">
                   <div>
                     <div className="font-label-caps text-label-caps text-outline uppercase tracking-wider mb-1">Total Débit</div>

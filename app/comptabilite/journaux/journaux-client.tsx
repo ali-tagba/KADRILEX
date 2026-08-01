@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 export function JournauxClient({ journaux, ecritures = [] }: { journaux: any[], ecritures?: any[] }) {
@@ -50,14 +51,12 @@ function JournauxView({ journaux, ecritures = [] }: { journaux: any[], ecritures
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
       <div className="p-4 bg-[#FBF7F0] border-b border-outline-variant flex justify-between items-center">
         <h2 className="font-h2 text-h2 text-on-surface">Grand Livre / Écritures</h2>
-        <div className="flex gap-2">
-          <button className="px-3 py-1.5 bg-surface border border-outline-variant rounded text-on-surface font-body-sm hover:bg-surface-variant transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">filter_list</span> Filtrer
-          </button>
-          <button className="px-3 py-1.5 bg-[#6B4423] text-white rounded font-body-sm hover:bg-[#5a381c] transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">add</span> Nouvelle Écriture
-          </button>
-        </div>
+        <Link
+          href="/comptabilite/ecritures/nouvelle"
+          className="px-3 py-1.5 bg-[#6B4423] text-white rounded font-body-sm hover:bg-[#5a381c] transition-colors flex items-center gap-2"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span> Nouvelle Écriture
+        </Link>
       </div>
       
       <table className="w-full text-left">
@@ -137,116 +136,229 @@ function JournauxView({ journaux, ecritures = [] }: { journaux: any[], ecritures
   )
 }
 
+interface BankTx {
+  id: string
+  date: string
+  libelle: string
+  montant: number // positif = encaissement (credit banque), négatif = décaissement (debit banque)
+}
+
+interface FactureSuggestion {
+  id: string
+  numero: string
+  partenaire: string
+  montantTotal: number
+  resteAPayer: number
+  score: number
+}
+
+function formatMontant(n: number): string {
+  return Math.abs(n).toLocaleString("fr-FR")
+}
+
 function RapprochementView() {
+  const [transactions, setTransactions] = useState<BankTx[]>([])
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<FactureSuggestion[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [validatingId, setValidatingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const selectedTx = transactions.find((t) => t.id === selectedTxId) ?? null
+
+  async function handleImport(file: File) {
+    setImporting(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const r = await fetch("/api/comptabilite/rapprochement/import", {
+        method: "POST",
+        body: formData,
+      })
+      const data = await r.json()
+      if (!r.ok || !data.success) throw new Error(data.error ?? `HTTP ${r.status}`)
+      // Préfixe les ids pour garantir l'unicité entre plusieurs imports successifs
+      const batch = Date.now()
+      const imported = (data.transactions as BankTx[]).map((t) => ({ ...t, id: `${batch}-${t.id}` }))
+      setTransactions((prev) => [...prev, ...imported])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Échec de l'import du relevé")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function selectTransaction(tx: BankTx) {
+    setSelectedTxId(tx.id)
+    setSuggestions([])
+    setLoadingSuggestions(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams({
+        montant: String(Math.abs(tx.montant)),
+        type: tx.montant >= 0 ? "credit" : "debit",
+      })
+      const r = await fetch(`/api/comptabilite/rapprochement/suggestions?${params}`)
+      const data = await r.json()
+      if (!r.ok || !data.success) throw new Error(data.error ?? `HTTP ${r.status}`)
+      setSuggestions(data.suggestions as FactureSuggestion[])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Échec de la recherche de correspondances")
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  async function validerMatch(suggestion: FactureSuggestion) {
+    if (!selectedTx) return
+    setValidatingId(suggestion.id)
+    setError(null)
+    try {
+      const r = await fetch("/api/comptabilite/rapprochement/valider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factureId: suggestion.id,
+          transaction: {
+            date: selectedTx.date,
+            montant: Math.abs(selectedTx.montant),
+            libelle: selectedTx.libelle,
+          },
+        }),
+      })
+      const data = await r.json()
+      if (!r.ok || !data.success) throw new Error(data.error ?? `HTTP ${r.status}`)
+      setTransactions((prev) => prev.filter((t) => t.id !== selectedTx.id))
+      setSelectedTxId(null)
+      setSuggestions([])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Échec de la validation du rapprochement")
+    } finally {
+      setValidatingId(null)
+    }
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="font-h2 text-h2 text-on-surface">Rapprochement Bancaire</h2>
-          <p className="text-body-sm text-on-surface-variant mt-1">Liez vos relevés bancaires aux écritures comptables.</p>
+          <p className="text-body-sm text-on-surface-variant mt-1">
+            Importez un relevé (CSV : Date, Libellé, Montant) et associez chaque mouvement à une facture.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <select className="px-3 py-1.5 bg-surface border border-outline-variant rounded font-body-sm outline-none">
-            <option>SGBS - Compte Courant</option>
-            <option>ECOBANK - Compte Séquestre</option>
-          </select>
-          <button className="px-3 py-1.5 bg-surface border border-outline-variant rounded text-on-surface font-body-sm hover:bg-surface-variant transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">upload</span> Importer Relevé
-          </button>
-        </div>
+        <label className="px-3 py-1.5 bg-surface border border-outline-variant rounded text-on-surface font-body-sm hover:bg-surface-variant transition-colors flex items-center gap-2 cursor-pointer">
+          <span className="material-symbols-outlined text-[18px]">upload</span>
+          {importing ? "Import…" : "Importer Relevé (CSV)"}
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            disabled={importing}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void handleImport(file)
+              e.target.value = ""
+            }}
+          />
+        </label>
       </div>
 
+      {error && (
+        <p className="mb-3 text-error font-body-sm text-body-sm bg-error-container/40 border border-error/30 rounded px-3 py-2">
+          {error}
+        </p>
+      )}
+
       <div className="flex-1 flex gap-4 overflow-hidden">
-        {/* Left: Relevé Bancaire */}
+        {/* Left: Relevé Bancaire (transactions importées, en session) */}
         <div className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col overflow-hidden shadow-sm">
           <div className="p-3 bg-[#FBF7F0] border-b border-outline-variant font-label-caps text-label-caps text-[#9C8B73] font-semibold flex items-center justify-between">
-            <span>Relevé Bancaire (SGBS)</span>
-            <span className="bg-white px-2 py-0.5 rounded border border-outline-variant/50">3 à rapprocher</span>
+            <span>Relevé importé</span>
+            <span className="bg-white px-2 py-0.5 rounded border border-outline-variant/50">{transactions.length} à rapprocher</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-surface">
-            {/* Ligne Relevé 1 */}
-            <div className="p-3 bg-white border-2 border-primary/40 rounded-lg shadow-sm relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">20 Oct 2026</span>
-                <span className="font-mono-num text-body-sm font-bold text-[#166534]">+ 8 950 000</span>
+            {transactions.length === 0 ? (
+              <div className="py-10 text-center font-body-sm text-on-surface-variant">
+                Aucun relevé importé. Utilisez « Importer Relevé (CSV) » ci-dessus.
               </div>
-              <p className="font-body-sm font-medium text-on-surface">VIREMENT RECU IMMOBILIERE HAUSSMANN</p>
-              <p className="text-[11px] text-on-surface-variant truncate mt-0.5">Ref: VIR-89320 / Motif: FACTURE FAC-2026-042</p>
-            </div>
-
-            {/* Ligne Relevé 2 */}
-            <div className="p-3 bg-white border border-outline-variant rounded-lg hover:border-outline transition-colors cursor-pointer">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">16 Oct 2026</span>
-                <span className="font-mono-num text-body-sm font-bold text-error">- 85 000</span>
-              </div>
-              <p className="font-body-sm font-medium text-on-surface">PRLV SENELEC DAKAR</p>
-              <p className="text-[11px] text-on-surface-variant truncate mt-0.5">Ref: PRLV-9921 / Motif: FACTURE SEPT 26</p>
-            </div>
-
-            {/* Ligne Relevé 3 */}
-            <div className="p-3 bg-white border border-outline-variant rounded-lg hover:border-outline transition-colors cursor-pointer">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">15 Oct 2026</span>
-                <span className="font-mono-num text-body-sm font-bold text-[#166534]">+ 4 500 000</span>
-              </div>
-              <p className="font-body-sm font-medium text-on-surface">REMISE CHQ 8928374</p>
-              <p className="text-[11px] text-on-surface-variant truncate mt-0.5">Dépôt Guichet Agence Plateau</p>
-            </div>
+            ) : (
+              transactions.map((tx) => (
+                <button
+                  key={tx.id}
+                  onClick={() => void selectTransaction(tx)}
+                  className={cn(
+                    "w-full text-left p-3 bg-white border rounded-lg transition-colors relative overflow-hidden",
+                    selectedTxId === tx.id ? "border-2 border-primary/40 shadow-sm" : "border-outline-variant hover:border-outline"
+                  )}
+                >
+                  {selectedTxId === tx.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>}
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-mono-num text-[11px] text-on-surface-variant">
+                      {new Date(tx.date).toLocaleDateString("fr-FR")}
+                    </span>
+                    <span className={cn("font-mono-num text-body-sm font-bold", tx.montant >= 0 ? "text-[#166534]" : "text-error")}>
+                      {tx.montant >= 0 ? "+" : "- "}{formatMontant(tx.montant)}
+                    </span>
+                  </div>
+                  <p className="font-body-sm font-medium text-on-surface">{tx.libelle}</p>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Center: Match Button */}
-        <div className="flex flex-col items-center justify-center">
-          <button className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-transform hover:scale-105" title="Rapprocher (Match)">
-            <span className="material-symbols-outlined text-[24px]">sync_alt</span>
-          </button>
-        </div>
-
-        {/* Right: Écritures Comptables */}
+        {/* Right: Suggestions de factures correspondantes */}
         <div className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col overflow-hidden shadow-sm">
-          <div className="p-3 bg-surface-container border-b border-outline-variant font-label-caps text-label-caps text-on-surface-variant font-semibold flex items-center justify-between">
-            <span>Écritures (En attente de lettrage)</span>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-outline cursor-pointer">search</span>
-              <span className="material-symbols-outlined text-[16px] text-outline cursor-pointer">filter_list</span>
-            </div>
+          <div className="p-3 bg-surface-container border-b border-outline-variant font-label-caps text-label-caps text-on-surface-variant font-semibold">
+            {selectedTx ? `Factures correspondantes — ${formatMontant(selectedTx.montant)}` : "Sélectionnez un mouvement"}
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-surface">
-            {/* Ligne Compta 1 (Selected/Suggested Match) */}
-            <div className="p-3 bg-primary-container/10 border-2 border-primary/40 rounded-lg cursor-pointer">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">18 Oct 2026 · <span className="text-secondary font-bold">FAC-2026-042</span></span>
-                <span className="font-mono-num text-body-sm font-bold text-on-surface">8 950 000</span>
+            {!selectedTx ? (
+              <div className="py-10 text-center font-body-sm text-on-surface-variant">
+                Cliquez sur un mouvement à gauche pour voir les factures correspondantes.
               </div>
-              <p className="font-body-sm font-medium text-on-surface">Immobilière Haussmann</p>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">Paiement Facture (Banque 521000)</p>
-              
-              <div className="mt-2 text-[10px] text-primary flex items-center gap-1 font-semibold">
-                <span className="material-symbols-outlined text-[14px]">auto_awesome</span> Suggestion automatique (Montant & Réf)
+            ) : loadingSuggestions ? (
+              <div className="py-10 text-center font-body-sm text-on-surface-variant">Recherche…</div>
+            ) : suggestions.length === 0 ? (
+              <div className="py-10 text-center font-body-sm text-on-surface-variant">
+                Aucune facture {selectedTx.montant >= 0 ? "émise" : "reçue"} en attente ne correspond.
               </div>
-            </div>
-
-            {/* Ligne Compta 2 */}
-            <div className="p-3 bg-white border border-outline-variant rounded-lg hover:border-outline transition-colors cursor-pointer">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">15 Oct 2026 · <span className="text-primary font-bold">DEP-102</span></span>
-                <span className="font-mono-num text-body-sm font-bold text-on-surface">85 000</span>
-              </div>
-              <p className="font-body-sm font-medium text-on-surface">Facture SENELEC</p>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">Paiement Dépense (Banque 521000)</p>
-            </div>
-
-            {/* Ligne Compta 3 */}
-            <div className="p-3 bg-white border border-outline-variant rounded-lg hover:border-outline transition-colors cursor-pointer">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-mono-num text-[11px] text-on-surface-variant">12 Oct 2026 · <span className="text-secondary font-bold">FAC-2026-040</span></span>
-                <span className="font-mono-num text-body-sm font-bold text-on-surface">4 500 000</span>
-              </div>
-              <p className="font-body-sm font-medium text-on-surface">SA TechInnovate</p>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">Acompte Provision (Banque 521000)</p>
-            </div>
+            ) : (
+              suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  className={cn(
+                    "p-3 bg-white border rounded-lg",
+                    s.score > 0 ? "border-2 border-primary/40" : "border-outline-variant"
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-mono-num text-[11px] text-on-surface-variant">
+                      <span className="text-secondary font-bold">{s.numero}</span>
+                    </span>
+                    <span className="font-mono-num text-body-sm font-bold text-on-surface">{formatMontant(s.resteAPayer)}</span>
+                  </div>
+                  <p className="font-body-sm font-medium text-on-surface">{s.partenaire}</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">Reste à payer sur montant total {formatMontant(s.montantTotal)}</p>
+                  {s.score > 0 && (
+                    <div className="mt-2 text-[10px] text-primary flex items-center gap-1 font-semibold">
+                      <span className="material-symbols-outlined text-[14px]">auto_awesome</span> Montant exact
+                    </div>
+                  )}
+                  <button
+                    onClick={() => void validerMatch(s)}
+                    disabled={validatingId === s.id}
+                    className="mt-2 w-full px-3 py-1.5 bg-primary text-on-primary rounded font-body-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">sync_alt</span>
+                    {validatingId === s.id ? "Rapprochement…" : "Rapprocher"}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

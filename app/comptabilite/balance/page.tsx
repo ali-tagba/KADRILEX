@@ -1,10 +1,11 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PageGate } from '@/components/auth/require-permission';
 import { ExerciceFilter } from '../components/exercice-filter';
+import { PrintButton } from '../components/print-button';
 
 export const metadata: Metadata = {
   title: 'Balance Générale | Kadrilex',
@@ -79,10 +80,8 @@ export default async function BalancePage({
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="h-8 px-3 text-[13px] font-medium border-outline-variant text-on-surface hover:bg-surface-variant shadow-sm">
-              <Printer className="w-3.5 h-3.5 mr-1.5" /> Imprimer
-            </Button>
+          <div className="flex items-center gap-2 print:hidden">
+            <PrintButton />
             <Button asChild className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
               <a href={`/api/comptabilite/export/balance${exerciceId ? `?exerciceId=${exerciceId}` : ''}`} download>
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Exporter (Excel)

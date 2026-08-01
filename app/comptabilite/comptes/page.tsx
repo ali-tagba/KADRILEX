@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Download, Settings2 } from 'lucide-react';
+import { ArrowLeft, Download, Settings2 } from 'lucide-react';
 import Link from 'next/link';
 import { PageGate } from '@/components/auth/require-permission';
+import { ComptesActions } from './comptes-actions';
 
 export const metadata: Metadata = {
   title: 'Plan Comptable | Kadrilex',
@@ -33,14 +34,13 @@ export default async function ComptesPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="h-8 px-3 text-[13px] font-medium border-outline-variant text-on-surface hover:bg-surface-variant shadow-sm">
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              Exporter
+            <Button asChild variant="outline" className="h-8 px-3 text-[13px] font-medium border-outline-variant text-on-surface hover:bg-surface-variant shadow-sm">
+              <a href="/api/comptabilite/export/comptes" download>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Exporter
+              </a>
             </Button>
-            <Button className="h-8 px-3 text-[13px] font-medium bg-primary text-on-primary hover:bg-primary-container shadow-sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
-              Nouveau
-            </Button>
+            <ComptesActions />
           </div>
         </div>
 
