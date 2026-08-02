@@ -204,11 +204,7 @@ function MembreRow({
 
             {/* Charge stratégique */}
             <td className="py-2 px-4">
-                {isInvite ? (
-                    <span className="text-outline italic text-[11px]">
-                        Aucune charge assignée
-                    </span>
-                ) : !showStats ? (
+                {!showStats ? (
                     <span
                         className="inline-flex items-center gap-1 text-outline italic text-[11px]"
                         title="Confidentiel — réservé à l'Associé gérant"
