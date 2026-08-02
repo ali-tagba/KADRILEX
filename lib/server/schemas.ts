@@ -276,6 +276,7 @@ const NiveauJuridictionEnum = z.enum([
     "ETAT", "SUPREME", "CCJA", "ARBITRAL", "AUTRE",
 ])
 const IssueJurisEnum = z.enum(["FAVORABLE", "DEFAVORABLE", "MIXTE", "NA"])
+const DocStatutEnum = z.enum(["ACTIF", "ARCHIVE"])
 
 export const DocumentCreateSchema = z.object({
     titre: z.string().min(1).max(300),
@@ -305,6 +306,7 @@ export const DocumentCreateSchema = z.object({
     articlesCites: z.string().optional().nullable(),
     issue: IssueJurisEnum.optional().nullable(),
     estFavori: z.boolean().default(false),
+    statut: DocStatutEnum.optional(),
 })
 
 export const DocumentUpdateSchema = DocumentCreateSchema.partial()

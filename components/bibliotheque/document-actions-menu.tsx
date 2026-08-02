@@ -8,8 +8,11 @@ interface DocumentActionsMenuProps {
     onDuplicate: () => void
     onAttach: () => void
     onToggleFavori: () => void
+    /** Archive (statut -> ARCHIVE) ou désarchive (statut -> ACTIF) selon `archived`. */
     onArchive: () => void
     isFavori: boolean
+    /** Le document est déjà archivé : affiche "Désarchiver" (action non destructive, sans confirmation). */
+    archived?: boolean
     /** Taille de l'icône 3-dot en px (défaut 18) */
     size?: number
     /** Alignement du menu (défaut "end") */
@@ -28,6 +31,7 @@ export function DocumentActionsMenu({
     onToggleFavori,
     onArchive,
     isFavori,
+    archived = false,
     size = 18,
     align = "end",
 }: DocumentActionsMenuProps) {
@@ -161,7 +165,16 @@ export function DocumentActionsMenu({
                         }}
                     />
                     <div className="my-1 border-t border-outline-variant/40" />
-                    {confirmingArchive ? (
+                    {archived ? (
+                        <MenuItem
+                            icon="unarchive"
+                            label="Désarchiver"
+                            onClick={() => {
+                                close()
+                                onArchive()
+                            }}
+                        />
+                    ) : confirmingArchive ? (
                         <div className="px-3 py-2 flex flex-col gap-2">
                             <p className="font-body-sm text-[12px] text-on-surface">
                                 Archiver ce document ?

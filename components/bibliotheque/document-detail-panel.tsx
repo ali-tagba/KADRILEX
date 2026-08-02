@@ -20,7 +20,7 @@ interface DocumentDetailPanelProps {
     onToggleFavori: (id: string) => void
     onEdit: (doc: MockDocument) => void
     onDuplicate: (doc: MockDocument) => void
-    onDelete: (id: string) => void
+    onArchive: (id: string) => void
     onAttach: (doc: MockDocument) => void
 }
 
@@ -58,7 +58,7 @@ export function DocumentDetailPanel({
     onToggleFavori,
     onEdit,
     onDuplicate,
-    onDelete,
+    onArchive,
     onAttach,
 }: DocumentDetailPanelProps) {
     /* Reset scroll quand on change de document */
@@ -68,6 +68,24 @@ export function DocumentDetailPanel({
         if (scrollRef.current) scrollRef.current.scrollTop = 0
         setPreviewOpen(false)
     }, [document?.id])
+
+    /* Dossiers liés — la liste consolidée côté page ne contient que les IDs ;
+       on va chercher les objets complets (numero/titre) pour un affichage lisible. */
+    const [dossiersLies, setDossiersLies] = useState<{ id: string; numero: string; titre: string }[]>([])
+    useEffect(() => {
+        setDossiersLies([])
+        if (!document || document.dossierIdsLies.length === 0) return
+        let alive = true
+        fetch(`/api/documents/${document.id}`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (alive && data?.dossiers) setDossiersLies(data.dossiers)
+            })
+            .catch(() => undefined)
+        return () => {
+            alive = false
+        }
+    }, [document])
 
     const downloadFile = () => {
         if (!document) return
@@ -150,8 +168,9 @@ export function DocumentDetailPanel({
                         onDuplicate={() => onDuplicate(document)}
                         onAttach={() => onAttach(document)}
                         onToggleFavori={() => onToggleFavori(document.id)}
-                        onArchive={() => onDelete(document.id)}
+                        onArchive={() => onArchive(document.id)}
                         isFavori={document.estFavori}
+                        archived={document.statut === "ARCHIVE"}
                         size={20}
                     />
                     <button
@@ -322,19 +341,31 @@ export function DocumentDetailPanel({
                                 Dossiers liés ({document.dossierIdsLies.length})
                             </h4>
                             <ul className="space-y-1">
-                                {document.dossierIdsLies.map((id) => (
-                                    <li key={id}>
-                                        <Link
-                                            href={`/dossiers/${id}`}
-                                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-[12px] transition-colors"
-                                        >
-                                            <span className="material-symbols-outlined text-[14px] text-outline">
-                                                folder
-                                            </span>
-                                            {id.toUpperCase()}
-                                        </Link>
-                                    </li>
-                                ))}
+                                {document.dossierIdsLies.map((id) => {
+                                    const dossier = dossiersLies.find((d) => d.id === id)
+                                    return (
+                                        <li key={id}>
+                                            <Link
+                                                href={`/dossiers/${id}`}
+                                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-[12px] transition-colors"
+                                            >
+                                                <span className="material-symbols-outlined text-[14px] text-outline">
+                                                    folder
+                                                </span>
+                                                {dossier ? (
+                                                    <>
+                                                        <span className="font-mono-num">{dossier.numero}</span>
+                                                        <span className="text-outline truncate max-w-[160px]">
+                                                            {dossier.titre}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    "Chargement…"
+                                                )}
+                                            </Link>
+                                        </li>
+                                    )
+                                })}
                             </ul>
                         </section>
                     )}

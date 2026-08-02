@@ -1,4 +1,3 @@
-import { safeDict } from "./safe-dict"
 /**
  * Listes contrôlées du module Bibliothèque.
  * Adapté au contexte juridique nigérien + OHADA.

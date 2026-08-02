@@ -34,7 +34,6 @@ export default function BibliothequePage() {
     /* Mutations locales (mock mode) */
     const [patches, setPatches] = useState<Record<string, Partial<MockDocument>>>({})
     const [created, setCreated] = useState<MockDocument[]>([])
-    const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
     /* Sélection (side panel) + form dialog */
     const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -64,11 +63,11 @@ export default function BibliothequePage() {
         }
     }, [])
 
-    /** Documents consolidés : (serveur + créés) - supprimés + patches */
+    /** Documents consolidés : (serveur + créés) + patches */
     const consolidated = useMemo<MockDocument[]>(() => {
-        const all = [...documents, ...created].filter((d) => !deletedIds.has(d.id))
+        const all = [...documents, ...created]
         return all.map((d) => ({ ...d, ...(patches[d.id] ?? {}) }))
-    }, [documents, created, deletedIds, patches])
+    }, [documents, created, patches])
 
     /** Listes peuplant les filtres drawer */
     const availableJuridictions = useMemo(() => {
@@ -181,9 +180,7 @@ export default function BibliothequePage() {
                         juridiction: draft.juridiction ?? null,
                         niveauJuridiction: draft.niveauJuridiction ?? null,
                         reference: draft.reference ?? null,
-                        dateDocument: draft.dateDocument
-                            ? new Date(draft.dateDocument + "T10:00").toISOString()
-                            : null,
+                        dateDocument: draft.dateDocument ?? null,
                         description: draft.description ?? null,
                         tags: draft.tags ?? "",
                         auteur: draft.auteur ?? null,
@@ -211,30 +208,12 @@ export default function BibliothequePage() {
         setEditingDoc(null)
     }
 
-    const handleDelete = async (id: string) => {
-        const prevDeleted = deletedIds
-        setDeletedIds((prev) => {
-            const next = new Set(prev)
-            next.add(id)
-            return next
-        })
-        if (selectedId === id) setSelectedId(null)
-        try {
-            const r = await fetch(`/api/documents/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            })
-            if (!r.ok) {
-                const body = await r.json().catch(() => ({}))
-                throw new Error(body.error ?? `HTTP ${r.status}`)
-            }
-            const { toast } = await import("@/components/ui/toaster")
-            toast.success("Document supprimé.")
-        } catch (e) {
-            setDeletedIds(prevDeleted)
-            const { toast } = await import("@/components/ui/toaster")
-            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
-        }
+    /** Archive (soft-delete) ou désarchive un document — statut ACTIF <-> ARCHIVE. */
+    const handleArchive = (id: string) => {
+        const current = consolidated.find((d) => d.id === id)
+        if (!current) return
+        const nextStatut = current.statut === "ARCHIVE" ? "ACTIF" : "ARCHIVE"
+        patchDoc(id, { statut: nextStatut })
     }
 
     const handleDuplicate = async (doc: MockDocument) => {
@@ -357,7 +336,7 @@ export default function BibliothequePage() {
                             onEdit={openEdit}
                             onDuplicate={handleDuplicate}
                             onAttach={handleAttach}
-                            onArchive={handleDelete}
+                            onArchive={handleArchive}
                             onPatch={patchDoc}
                         />
                     ) : filters.viewMode === "gallery" ? (
@@ -369,7 +348,7 @@ export default function BibliothequePage() {
                             onEdit={openEdit}
                             onDuplicate={handleDuplicate}
                             onAttach={handleAttach}
-                            onArchive={handleDelete}
+                            onArchive={handleArchive}
                         />
                     ) : (
                         <DocumentVeilleView
@@ -380,7 +359,7 @@ export default function BibliothequePage() {
                             onEdit={openEdit}
                             onDuplicate={handleDuplicate}
                             onAttach={handleAttach}
-                            onArchive={handleDelete}
+                            onArchive={handleArchive}
                         />
                     )}
                 </div>
@@ -392,7 +371,7 @@ export default function BibliothequePage() {
                         onToggleFavori={handleToggleFavori}
                         onEdit={openEdit}
                         onDuplicate={handleDuplicate}
-                        onDelete={handleDelete}
+                        onArchive={handleArchive}
                         onAttach={handleAttach}
                     />
                 )}

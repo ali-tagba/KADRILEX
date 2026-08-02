@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
         await requirePermission("bibliotheque.view")
         const q = getQuery(req.url)
 
-        const where: Prisma.DocumentWhereInput = { statut: "ACTIF" }
+        // Par défaut on renvoie tous les statuts (ACTIF + ARCHIVE) : le filtre
+        // "Inclure les archivés" est appliqué côté client (voir filters-state.ts,
+        // applyFilters). q.statut permet de restreindre explicitement si besoin.
+        const where: Prisma.DocumentWhereInput = {}
         if (q.search) {
             where.OR = [
                 { titre: { contains: q.search, mode: "insensitive" } },
@@ -38,10 +41,7 @@ export async function GET(req: NextRequest) {
         if (q.domaine) where.domaineJuridique = q.domaine as Prisma.DocumentWhereInput["domaineJuridique"]
         if (q.type) where.type = q.type as Prisma.DocumentWhereInput["type"]
         if (q.favori === "true") where.estFavori = true
-        if (q.statut === "ARCHIVE") {
-            delete where.statut
-            where.statut = "ARCHIVE"
-        }
+        if (q.statut === "ARCHIVE" || q.statut === "ACTIF") where.statut = q.statut
 
         const documents = await prisma.document.findMany({
             where,

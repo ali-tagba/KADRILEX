@@ -258,12 +258,21 @@ export function DocumentTableView({
                                             <InlineComboCell
                                                 value={dom ? dom.label : ""}
                                                 onChange={(v) => {
-                                                    /* Si la valeur correspond à un label connu, on stocke la clé.
-                                                       Sinon on stocke null + on log (la persistence custom-domain
-                                                       sera gérée par l'API plus tard). */
+                                                    /* domaineJuridique est un enum Prisma strict : aucune valeur
+                                                       libre n'est persistable. Si le libellé saisi ne correspond
+                                                       à aucune option connue, on retombe sur "Autre" (au lieu de
+                                                       silencieusement effacer la saisie de l'utilisateur) et on
+                                                       le prévient que le texte libre n'est pas conservé. */
                                                     const key = DOMAINE_LABEL_TO_KEY.get(v)
+                                                    if (!key && v !== "") {
+                                                        import("@/components/ui/toaster").then(({ toast }) =>
+                                                            toast.error(
+                                                                `"${v}" n'est pas un domaine reconnu — classé en "Autre" (la saisie libre n'est pas conservée).`
+                                                            )
+                                                        )
+                                                    }
                                                     onPatch(d.id, {
-                                                        domaineJuridique: key ?? null,
+                                                        domaineJuridique: key ?? (v === "" ? null : "AUTRE"),
                                                     })
                                                 }}
                                                 options={DOMAINE_LABELS_LIST}
@@ -385,6 +394,7 @@ export function DocumentTableView({
                                             onToggleFavori={() => onToggleFavori(d.id)}
                                             onArchive={() => onArchive(d.id)}
                                             isFavori={d.estFavori}
+                                            archived={d.statut === "ARCHIVE"}
                                         />
                                     </td>
                                 </tr>

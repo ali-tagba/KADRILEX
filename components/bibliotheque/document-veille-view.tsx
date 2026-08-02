@@ -255,6 +255,7 @@ function VeilleRow({
                                 onToggleFavori={onToggleFavori}
                                 onArchive={onArchive}
                                 isFavori={document.estFavori}
+                                archived={document.statut === "ARCHIVE"}
                                 size={16}
                             />
                         </div>
