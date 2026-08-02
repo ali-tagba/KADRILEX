@@ -17,7 +17,7 @@ import path from "path"
  *  - form-action : 'self'
  *  - frame-ancestors : 'none' (anti clickjacking — pas d'embed externe)
  */
-const SUPABASE_DOMAIN = "https://supabase.82.25.116.169.sslip.io"
+const SUPABASE_DOMAIN = "https://supabase.37.59.99.86.nip.io"
 const GOOGLE_FONTS = "https://fonts.googleapis.com https://fonts.gstatic.com"
 const GOOGLE_DOCS_VIEWER = "https://docs.google.com"
 
