@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
         const pdfBytes = await generateAudiencesPdf(rows, `${membre.prenom} ${membre.nom}`)
 
-        return new Response(pdfBytes, {
+        return new Response(Buffer.from(pdfBytes), {
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `attachment; filename="registre-audiences-${new Date().toISOString().slice(0, 10)}.pdf"`,
