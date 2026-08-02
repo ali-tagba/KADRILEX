@@ -204,13 +204,23 @@ export default function AudiencesPage() {
                     </p>
                 </div>
 
-                <button
-                    onClick={() => setCreateOpen(true)}
-                    className="flex-shrink-0 bg-accent text-white px-4 py-2 rounded font-body-sm text-body-sm font-medium flex items-center gap-2 hover:bg-opacity-90 transition-colors shadow-sm active:scale-[0.98] duration-150 ease-out"
-                >
-                    <span className="material-symbols-outlined text-[18px]">add</span>
-                    Programmer audience
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <a
+                        href="/api/audiences/export"
+                        download
+                        className="bg-surface border border-outline-variant text-on-surface px-4 py-2 rounded font-body-sm text-body-sm font-medium flex items-center gap-2 hover:bg-surface-container-low transition-colors shadow-sm active:scale-[0.98] duration-150 ease-out"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        Télécharger PDF
+                    </a>
+                    <button
+                        onClick={() => setCreateOpen(true)}
+                        className="bg-accent text-white px-4 py-2 rounded font-body-sm text-body-sm font-medium flex items-center gap-2 hover:bg-opacity-90 transition-colors shadow-sm active:scale-[0.98] duration-150 ease-out"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">add</span>
+                        Programmer audience
+                    </button>
+                </div>
             </header>
 
             {/* Toolbar */}
