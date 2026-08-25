@@ -149,7 +149,7 @@ export function applyDossierFilters(
             d.titre,
             d.juridiction ?? "",
             d.etatProcedure ?? "",
-            d.partiesAdverses.join(" "),
+            (d.partiesAdverses || []).join(" "),
             client?.raisonSociale ?? "",
             client?.nom ?? "",
             client?.prenom ?? "",

@@ -4,7 +4,18 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export function DashboardCharts({ data }: { data: any[] }) {
   return (
-    <div className="h-[300px] w-full">
+    <div className="h-[300px] w-full flex flex-col">
+      <div className="flex items-center gap-4 justify-end pr-6 mb-1">
+        <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#6B7280]">
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#c8772f' }} />
+          Encaissements
+        </span>
+        <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#6B7280]">
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#83746b' }} />
+          Décaissements
+        </span>
+      </div>
+      <div className="flex-1 min-h-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
@@ -34,6 +45,7 @@ export function DashboardCharts({ data }: { data: any[] }) {
           <Bar dataKey="decaissement" fill="#83746b" radius={[4, 4, 0, 0]} maxBarSize={40} />
         </BarChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

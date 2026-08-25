@@ -187,7 +187,7 @@ export function DossierTable({ dossiers, pageSize = 10 }: DossierTableProps) {
                                     {/* Parties adverses — inline text (séparées par virgule) */}
                                     <td className="py-1 px-3" onClick={(e) => e.stopPropagation()}>
                                         <InlineTextCell
-                                            value={d.partiesAdverses.join(", ")}
+                                            value={(d.partiesAdverses || []).join(", ")}
                                             onChange={(v) =>
                                                 patchDossier(d.id, {
                                                     partiesAdverses: v

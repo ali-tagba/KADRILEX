@@ -32,7 +32,7 @@ export function DossierGallery({ dossiers, clients }: DossierGalleryProps) {
                     const isClosed = d.statut === "CLOTURE" || d.statut === "TERMINE" || d.statut === "ARCHIVE"
 
                     // Détection conflit : une partie adverse est aussi cliente
-                    const hasConflict = d.partiesAdverses.some((p) =>
+                    const hasConflict = (d.partiesAdverses || []).some((p) =>
                         clients.some((c) => c.id !== d.clientId && clientDisplayName(c) === p)
                     )
 
@@ -84,11 +84,11 @@ export function DossierGallery({ dossiers, clients }: DossierGalleryProps) {
                             {/* Footer chips compteurs */}
                             <div className="px-4 py-3 border-t border-outline-variant bg-surface-bright flex justify-between items-center flex-shrink-0">
                                 <div className="flex gap-2">
-                                    <CountChip icon="event" value={d.audiences.length} dim={isClosed} />
-                                    <CountChip icon="description" value={d.files.length} dim={isClosed} />
+                                    <CountChip icon="event" value={d.audiences?.length || 0} dim={isClosed} />
+                                    <CountChip icon="description" value={d.files?.length || 0} dim={isClosed} />
                                     <CountChip
                                         icon="payments"
-                                        value={d.factures.length}
+                                        value={d.factures?.length || 0}
                                         dim={isClosed}
                                     />
                                 </div>
