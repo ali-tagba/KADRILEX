@@ -31,7 +31,7 @@ const navigation: NavItem[] = [
     { name: "Équipe", href: "/equipe", icon: "groups", perm: "equipe.view" },
     {
         name: "Finance",
-        href: "/comptabilite",
+        href: "/facturation",
         icon: "account_balance_wallet",
         perm: "finance.view",
     },

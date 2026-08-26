@@ -9,8 +9,6 @@ export function ComptabiliteNav() {
   
   const navItems = [
     { name: "Tableau de bord", href: "/comptabilite" },
-    { name: "Factures Clients", href: "/comptabilite/factures" },
-    { name: "Dépenses & Frais", href: "/comptabilite/depenses" },
     { name: "Journaux & Rapprochement", href: "/comptabilite/journaux" },
     { name: "Grand Livre", href: "/comptabilite/grand-livre" },
     { name: "Balance", href: "/comptabilite/balance" },
@@ -55,12 +53,9 @@ export function ComptabiliteNav() {
             Plan Comptable
           </Link>
         </Button>
-        {/* PAS de "Nouvelle Écriture" sur les pages de consultation/auto-génération :
-            Dépenses et Factures génèrent leurs écritures automatiquement, Grand Livre
-            et Balance sont des vues de lecture seule. */}
-        {pathname !== "/comptabilite/depenses" &&
-          pathname !== "/comptabilite/factures" &&
-          pathname !== "/comptabilite/grand-livre" &&
+        {/* PAS de "Nouvelle Écriture" sur les pages de consultation :
+            Grand Livre et Balance sont des vues de lecture seule. */}
+        {pathname !== "/comptabilite/grand-livre" &&
           pathname !== "/comptabilite/balance" && (
           <Button asChild className="h-9 px-4 text-sm font-medium bg-[#6B4423] text-white hover:bg-[#5a381c] shadow-sm">
             <Link href="/comptabilite/ecritures/nouvelle">

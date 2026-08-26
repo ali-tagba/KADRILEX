@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageGate } from "@/components/auth/require-permission"
 import { patchEntity, postEntity, deleteEntity, showApiError } from "@/lib/api/patch"
@@ -296,6 +297,13 @@ export default function FinancePage() {
                 <div className="flex-1 min-w-0">
                     <FinanceTabs active={activeTab} onChange={handleTabChange} counters={tabCounters} />
                 </div>
+                <Link
+                    href="/comptabilite"
+                    className="flex-shrink-0 font-body-sm text-body-sm text-outline hover:text-primary hover:underline whitespace-nowrap"
+                    title="Grand livre, balance, journaux et rapprochement bancaire (SYSCOHADA)"
+                >
+                    Comptabilité avancée
+                </Link>
             </div>
 
             {/* Contenu — scroll vertical pour Dashboard, full-height pour autres tabs */}
