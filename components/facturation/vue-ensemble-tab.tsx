@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
     formatDateCourte,
@@ -29,6 +29,7 @@ type FluxKind =
     | "DEPENSE_INTERNE"
     | "PAIEMENT_RECU"
     | "BULLETIN_PAIE"
+    | "ENCAISSEMENT"
 
 interface FluxLine {
     id: string
@@ -58,6 +59,12 @@ const KIND_META: Record<FluxKind, { label: string; icon: string; chipClass: stri
     PAIEMENT_RECU: {
         label: "Paiement reçu",
         icon: "savings",
+        chipClass: "bg-[#e8f5e9] text-[#166534]",
+        sign: 1,
+    },
+    ENCAISSEMENT: {
+        label: "Encaissement mensuel",
+        icon: "payments",
         chipClass: "bg-[#e8f5e9] text-[#166534]",
         sign: 1,
     },
@@ -97,8 +104,30 @@ interface VueEnsembleTabProps {
     bulletins: MockBulletin[]
 }
 
+interface EncaissementRow {
+    id: string
+    annee: number
+    mois: number
+    client: { raisonSociale: string | null; nom: string | null } | null
+    montantEncaisse: number
+}
+
+/** Import ponctuel Bilan (totaux mensuels sans détail ligne par ligne) — exclu du
+ *  journal opérationnel jour-le-jour, déjà comptabilisé dans l'onglet Bilan. */
+function isDepenseImportBilan(d: MockDepense): boolean {
+    return (d.notes ?? "").startsWith("Import initial Bilan")
+}
+
 export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTabProps) {
     const [search, setSearch] = useState("")
+    const [encaissements, setEncaissements] = useState<EncaissementRow[]>([])
+
+    useEffect(() => {
+        fetch("/api/encaissements", { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<EncaissementRow[]>) : []))
+            .then(setEncaissements)
+            .catch(() => {})
+    }, [])
     const [activeKinds, setActiveKinds] = useState<Set<FluxKind>>(
         new Set(Object.keys(KIND_META) as FluxKind[])
     )
@@ -177,6 +206,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
         }
 
         for (const d of depenses) {
+            if (isDepenseImportBilan(d)) continue
             lines.push({
                 id: `dep-${d.id}`,
                 kind: "DEPENSE_INTERNE",
@@ -217,8 +247,27 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
             })
         }
 
+        for (const e of encaissements) {
+            if (e.montantEncaisse <= 0) continue
+            lines.push({
+                id: `enc-${e.id}`,
+                kind: "ENCAISSEMENT",
+                date: new Date(e.annee, e.mois - 1, 28).toISOString(),
+                numero: `${e.annee}-${String(e.mois).padStart(2, "0")}`,
+                libelle: e.client
+                    ? `Encaissement — ${e.client.raisonSociale ?? e.client.nom}`
+                    : "Encaissement du mois",
+                tiers: e.client ? (e.client.raisonSociale ?? e.client.nom ?? "Client") : "Autres clients",
+                dossierNumero: null,
+                montant: e.montantEncaisse,
+                statut: "Encaissé",
+                statutChip: "bg-[#e8f5e9] text-[#166534]",
+                mode: null,
+            })
+        }
+
         return lines
-    }, [factures, depenses, bulletins])
+    }, [factures, depenses, bulletins, encaissements])
 
     /* `now` figé au mount (lazy useState) — évite l'appel impur Date.now() en render */
     const [now] = useState(() => Date.now())
@@ -263,12 +312,13 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
             FRAIS_EXTERNE: { count: 0, montant: 0 },
             DEPENSE_INTERNE: { count: 0, montant: 0 },
             BULLETIN_PAIE: { count: 0, montant: 0 },
+            ENCAISSEMENT: { count: 0, montant: 0 },
         }
         for (const l of filtered) {
             byKind[l.kind].count += 1
             byKind[l.kind].montant += l.montant
         }
-        const entrees = byKind.PAIEMENT_RECU.montant
+        const entrees = byKind.PAIEMENT_RECU.montant + byKind.ENCAISSEMENT.montant
         const sorties =
             byKind.FACTURE_RECUE.montant +
             byKind.FRAIS_EXTERNE.montant +
