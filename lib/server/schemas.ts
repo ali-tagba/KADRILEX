@@ -515,6 +515,24 @@ export const ApportUpdateSchema = ApportCreateSchema.partial().extend({
 })
 
 /* ============================================================
+   BILAN — Encaissements mensuels
+   ============================================================ */
+
+export const EncaissementCreateSchema = z.object({
+    annee: z.number().int().min(2000).max(2100),
+    mois: z.number().int().min(1).max(12),
+    clientId: z.string().optional().nullable(),
+    montantHT: z.number().int().nonnegative(),
+    tauxTVA: z.number().nonnegative().default(19),
+    tauxBIC: z.number().nonnegative().default(5),
+    montantRetenueBIC: z.number().int().nonnegative().default(0),
+    montantTVARetenueSource: z.number().int().nonnegative().default(0),
+    notes: z.string().optional().nullable(),
+})
+
+export const EncaissementUpdateSchema = EncaissementCreateSchema.partial()
+
+/* ============================================================
    PARTAGE
    ============================================================ */
 

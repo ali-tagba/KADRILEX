@@ -18,6 +18,7 @@ import { FraisExternesTab } from "@/components/facturation/frais-externes-tab"
 import { DepensesTab } from "@/components/facturation/depenses-tab"
 import { PaieTab } from "@/components/facturation/paie-tab"
 import { ApportsTab } from "@/components/facturation/apports-tab"
+import { BilanTab } from "@/components/facturation/bilan-tab"
 
 const VALID_TABS: FinanceTabKey[] = [
     "dashboard",
@@ -27,6 +28,7 @@ const VALID_TABS: FinanceTabKey[] = [
     "depenses",
     "paie",
     "apports",
+    "bilan",
 ]
 
 export default function FinancePage() {
@@ -57,6 +59,15 @@ export default function FinancePage() {
     const [dossiers, setDossiers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    const clientOptions = useMemo(
+        () =>
+            clients.map((c) => ({
+                id: c.id as string,
+                label: (c.raisonSociale ?? `${c.prenom ?? ""} ${c.nom ?? ""}`.trim() ?? "Client") as string,
+            })),
+        [clients]
+    )
 
     /**
      * Wrapper qui détecte les diffs et appelle l'API correspondante.
@@ -368,7 +379,7 @@ export default function FinancePage() {
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">
                         <PaieTab employes={employes} bulletins={bulletins} onChangeBulletins={syncBulletins} />
                     </div>
-                ) : (
+                ) : activeTab === "apports" ? (
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">
                         <ApportsTab
                             membres={employes}
@@ -376,6 +387,10 @@ export default function FinancePage() {
                             canWrite={hasAccess("apports.write")}
                             presetMembreId={presetMembreId}
                         />
+                    </div>
+                ) : (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <BilanTab clients={clientOptions} canWrite={hasAccess("finance.write")} />
                     </div>
                 )}
             </div>

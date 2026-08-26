@@ -177,3 +177,46 @@ export function recomputeApportBeneficiaires(
         montant: Math.round((montantRetrocessionTotal * s.pourcentage) / 100),
     }))
 }
+
+/* ============================================================
+   BILAN CABINET — Encaissements mensuels
+   Reproduit exactement "BILAN 2026.xlsx" / feuille ENCAISSEMENT :
+   HT (saisi) → TVA → TTC → BIC → retenues (saisies, attestations client)
+   → collecté/encaissé net. Les deux retenues (BIC et TVA à la source)
+   ne sont PAS calculables : ce sont des montants que le client a déjà
+   prélevés et atteste au cabinet — toujours une saisie manuelle.
+   ============================================================ */
+
+export const TAUX_TVA_ENCAISSEMENT_DEFAUT = 19
+export const TAUX_BIC_DEFAUT = 5
+
+export interface EncaissementComputed {
+    montantTVA: number
+    montantTTC: number
+    montantBIC: number
+    montantBICCollecte: number
+    montantTVACollectee: number
+    montantEncaisse: number
+}
+
+export function recomputeEncaissement(input: {
+    montantHT: number
+    tauxTVA?: number
+    tauxBIC?: number
+    montantRetenueBIC?: number
+    montantTVARetenueSource?: number
+}): EncaissementComputed {
+    const tauxTVA = input.tauxTVA ?? TAUX_TVA_ENCAISSEMENT_DEFAUT
+    const tauxBIC = input.tauxBIC ?? TAUX_BIC_DEFAUT
+    const retenueBIC = input.montantRetenueBIC ?? 0
+    const retenueTVASource = input.montantTVARetenueSource ?? 0
+
+    const montantTVA = Math.round((input.montantHT * tauxTVA) / 100)
+    const montantTTC = input.montantHT + montantTVA
+    const montantBIC = Math.round((montantTTC * tauxBIC) / 100)
+    const montantBICCollecte = montantBIC - retenueBIC
+    const montantTVACollectee = montantTVA - retenueTVASource
+    const montantEncaisse = montantTTC - retenueBIC - retenueTVASource
+
+    return { montantTVA, montantTTC, montantBIC, montantBICCollecte, montantTVACollectee, montantEncaisse }
+}
