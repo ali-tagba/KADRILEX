@@ -94,6 +94,8 @@ export type PermissionKey =
     | "finance.write"
     | "paie.view"
     | "paie.write"
+    | "apports.view"
+    | "apports.write"
     | "equipe.view"
     | "equipe.write"
     | "dashboard.global"
@@ -116,6 +118,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "ALL",
         "paie.view": "ALL",
         "paie.write": "ALL",
+        "apports.view": "ALL",
+        "apports.write": "ALL",
         "equipe.view": "ALL",
         "equipe.write": "ALL",
         "dashboard.global": "ALL",
@@ -137,6 +141,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "OWN",
         "paie.view": "OWN",
         "paie.write": "NONE",
+        "apports.view": "OWN",
+        "apports.write": "NONE",
         "equipe.view": "ALL",
         "equipe.write": "NONE",
         "dashboard.global": "ALL",
@@ -158,6 +164,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "NONE",
         "paie.view": "OWN",
         "paie.write": "NONE",
+        "apports.view": "OWN",
+        "apports.write": "NONE",
         "equipe.view": "ALL",
         "equipe.write": "NONE",
         "dashboard.global": "OWN",
@@ -179,6 +187,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "NONE",
         "paie.view": "OWN",
         "paie.write": "NONE",
+        "apports.view": "OWN",
+        "apports.write": "NONE",
         "equipe.view": "ALL",
         "equipe.write": "NONE",
         "dashboard.global": "OWN",
@@ -200,6 +210,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "NONE",
         "paie.view": "OWN",
         "paie.write": "NONE",
+        "apports.view": "OWN",
+        "apports.write": "NONE",
         "equipe.view": "ALL",
         "equipe.write": "NONE",
         "dashboard.global": "OWN",
@@ -221,6 +233,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "finance.write": "NONE",
         "paie.view": "OWN",
         "paie.write": "NONE",
+        "apports.view": "OWN",
+        "apports.write": "NONE",
         "equipe.view": "ALL",
         "equipe.write": "NONE",
         "dashboard.global": "OWN",

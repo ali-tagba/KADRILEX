@@ -9,6 +9,7 @@ export type FinanceTabKey =
     | "frais-externes"
     | "depenses"
     | "paie"
+    | "apports"
 
 interface FinanceTabsProps {
     active: FinanceTabKey
@@ -24,6 +25,7 @@ const TABS: { key: FinanceTabKey; label: string; icon: string }[] = [
     { key: "frais-externes", label: "Frais externes", icon: "inbox" },
     { key: "depenses", label: "Dépenses internes", icon: "account_balance_wallet" },
     { key: "paie", label: "Paie", icon: "groups" },
+    { key: "apports", label: "Apports avocats", icon: "handshake" },
 ]
 
 /**

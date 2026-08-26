@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageGate } from "@/components/auth/require-permission"
+import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { patchEntity, postEntity, deleteEntity, showApiError } from "@/lib/api/patch"
 import type { MockFacture } from "@/lib/mock/invoices"
 import type { MockDepense } from "@/lib/mock/depenses"
@@ -16,6 +17,7 @@ import { FacturationTab } from "@/components/facturation/facturation-tab"
 import { FraisExternesTab } from "@/components/facturation/frais-externes-tab"
 import { DepensesTab } from "@/components/facturation/depenses-tab"
 import { PaieTab } from "@/components/facturation/paie-tab"
+import { ApportsTab } from "@/components/facturation/apports-tab"
 
 const VALID_TABS: FinanceTabKey[] = [
     "dashboard",
@@ -24,17 +26,20 @@ const VALID_TABS: FinanceTabKey[] = [
     "frais-externes",
     "depenses",
     "paie",
+    "apports",
 ]
 
 export default function FinancePage() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { hasAccess } = useCurrentUser()
 
     const tabParam = searchParams.get("tab") as FinanceTabKey | null
     const initialTab: FinanceTabKey = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dashboard"
     const [activeTab, setActiveTab] = useState<FinanceTabKey>(initialTab)
 
     const presetClientId = searchParams.get("clientId")
+    const presetMembreId = searchParams.get("membreId")
     const presetDossierId = searchParams.get("dossierId")
 
     const handleTabChange = (tab: FinanceTabKey) => {
@@ -359,9 +364,18 @@ export default function FinancePage() {
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">
                         <DepensesTab depenses={depenses} onChangeDepenses={syncDepenses} />
                     </div>
-                ) : (
+                ) : activeTab === "paie" ? (
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">
                         <PaieTab employes={employes} bulletins={bulletins} onChangeBulletins={syncBulletins} />
+                    </div>
+                ) : (
+                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
+                        <ApportsTab
+                            membres={employes}
+                            dossiers={dossiers}
+                            canWrite={hasAccess("apports.write")}
+                            presetMembreId={presetMembreId}
+                        />
                     </div>
                 )}
             </div>

@@ -312,13 +312,21 @@ export default function MembreFichePage({ params }: PageProps) {
                                 <span className="font-mono-num">{membre.mobileMoney}</span>
                             </KV>
                         )}
-                        <div className="pt-2 mt-2 border-t border-outline-variant/40">
+                        <div className="pt-2 mt-2 border-t border-outline-variant/40 space-y-1.5">
                             <Link
                                 href={`/facturation?tab=paie`}
                                 className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"
                             >
                                 <span className="material-symbols-outlined text-[14px]">receipt_long</span>
                                 Voir les bulletins de paie
+                                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                            </Link>
+                            <Link
+                                href={`/facturation?tab=apports&membreId=${membre.id}`}
+                                className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">handshake</span>
+                                Voir ses apports
                                 <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                             </Link>
                         </div>

@@ -128,3 +128,52 @@ export function computeDossierFinance(factures: Facture[]): DossierFinanceComput
         fraisRefacturablesEnAttente,
     }
 }
+
+/* ============================================================
+   APPORTS DES AVOCATS — HT → ISB → Net après ISB → Société → Rétrocession
+   Reproduit exactement la logique des feuilles Excel du cabinet
+   (voir "APPORTS DES AVOCATS 2025.xlsx" / "RETENUES SUR PRODUITS").
+   ============================================================ */
+
+export const TAUX_ISB_DEFAUT = 30
+export const TAUX_SOCIETE_DEFAUT = 20
+
+export interface ApportComputed {
+    montantISB: number
+    montantNetApresISB: number
+    montantSociete: number
+    montantRetrocessionTotal: number
+}
+
+export function recomputeApport(input: {
+    montantHT: number
+    tauxISB?: number
+    tauxSociete?: number
+}): ApportComputed {
+    const tauxISB = input.tauxISB ?? TAUX_ISB_DEFAUT
+    const tauxSociete = input.tauxSociete ?? TAUX_SOCIETE_DEFAUT
+    const montantISB = Math.round((input.montantHT * tauxISB) / 100)
+    const montantNetApresISB = input.montantHT - montantISB
+    const montantSociete = Math.round((montantNetApresISB * tauxSociete) / 100)
+    const montantRetrocessionTotal = montantNetApresISB - montantSociete
+    return { montantISB, montantNetApresISB, montantSociete, montantRetrocessionTotal }
+}
+
+export interface ApportBeneficiaireComputed {
+    membreId: string
+    pourcentage: number
+    montant: number
+}
+
+/** Répartit montantRetrocessionTotal entre bénéficiaires selon leur %. Pas de garde "somme = 100" :
+ *  les données réelles du cabinet ne totalisent pas toujours 100%. */
+export function recomputeApportBeneficiaires(
+    montantRetrocessionTotal: number,
+    splits: { membreId: string; pourcentage: number }[]
+): ApportBeneficiaireComputed[] {
+    return splits.map((s) => ({
+        membreId: s.membreId,
+        pourcentage: s.pourcentage,
+        montant: Math.round((montantRetrocessionTotal * s.pourcentage) / 100),
+    }))
+}

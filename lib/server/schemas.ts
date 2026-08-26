@@ -486,6 +486,35 @@ export const BulletinUpdateSchema = z.object({
 }).partial()
 
 /* ============================================================
+   APPORTS DES AVOCATS
+   ============================================================ */
+
+export const ApportBeneficiaireSchema = z.object({
+    membreId: z.string(),
+    pourcentage: z.number().min(0).max(100),
+})
+
+export const ApportCreateSchema = z.object({
+    annee: z.number().int().min(2000).max(2100),
+    mois: z.number().int().min(1).max(12),
+    dateReglement: z.string().datetime().optional().nullable(),
+    dossierId: z.string().optional().nullable(),
+    clientId: z.string().optional().nullable(),
+    referenceLibre: z.string().max(200).optional().nullable(),
+    clientLibre: z.string().max(200).optional().nullable(),
+    montantHT: z.number().int().nonnegative(),
+    fraisDossier: z.number().int().nonnegative().default(0),
+    tauxISB: z.number().nonnegative().default(30),
+    tauxSociete: z.number().nonnegative().default(20),
+    notes: z.string().optional().nullable(),
+    beneficiaires: z.array(ApportBeneficiaireSchema).min(1),
+})
+
+export const ApportUpdateSchema = ApportCreateSchema.partial().extend({
+    valide: z.boolean().optional(),
+})
+
+/* ============================================================
    PARTAGE
    ============================================================ */
 
