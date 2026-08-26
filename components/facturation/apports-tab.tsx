@@ -25,15 +25,18 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
     const now = new Date()
     const [annee, setAnnee] = useState(now.getFullYear())
     const [membreFiltre, setMembreFiltre] = useState<string>(presetMembreId ?? "")
-    const [apports, setApports] = useState<ApportFull[]>([])
+    const [allApports, setAllApports] = useState<ApportFull[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [formOpen, setFormOpen] = useState(false)
     const [editing, setEditing] = useState<ApportFull | null>(null)
+    const [yearAutoSelected, setYearAutoSelected] = useState(false)
 
+    // Charge TOUTES les années (filtré seulement par avocat) : le sélecteur d'année
+    // doit lister les années réellement présentes, pas seulement celle affichée.
     const load = () => {
         setLoading(true)
-        const params = new URLSearchParams({ annee: String(annee) })
+        const params = new URLSearchParams()
         if (membreFiltre) params.set("membreId", membreFiltre)
         fetch(`/api/apports?${params.toString()}`, { credentials: "include" })
             .then((r) => {
@@ -41,20 +44,34 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                 return r.json() as Promise<ApportFull[]>
             })
             .then((data) => {
-                setApports(data)
+                setAllApports(data)
                 setError(null)
+                // Au premier chargement, si l'année courante n'a aucune donnée mais
+                // qu'une autre année en a, on bascule sur la plus récente avec des apports.
+                if (!yearAutoSelected) {
+                    setYearAutoSelected(true)
+                    const years = Array.from(new Set(data.map((a) => a.annee))).sort((a, b) => b - a)
+                    if (years.length > 0 && !years.includes(now.getFullYear())) {
+                        setAnnee(years[0])
+                    }
+                }
             })
             .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
             .finally(() => setLoading(false))
     }
 
-    useEffect(load, [annee, membreFiltre]) // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(load, [membreFiltre]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const availableYears = useMemo(() => {
         const set = new Set<number>([now.getFullYear()])
-        for (const a of apports) set.add(a.annee)
+        for (const a of allApports) set.add(a.annee)
         return Array.from(set).sort((a, b) => b - a)
-    }, [apports, now])
+    }, [allApports, now])
+
+    const apports = useMemo(
+        () => allApports.filter((a) => a.annee === annee),
+        [allApports, annee]
+    )
 
     const totaux = useMemo(() => {
         const totalHT = apports.reduce((s, a) => s + a.montantHT, 0)
@@ -97,7 +114,7 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                 const body = await r.json().catch(() => ({}))
                 throw new Error(body.error ?? `HTTP ${r.status}`)
             }
-            setApports((prev) => prev.filter((x) => x.id !== a.id))
+            setAllApports((prev) => prev.filter((x) => x.id !== a.id))
             toast.success("Apport supprimé.")
         } catch (e) {
             toast.error("Échec suppression : " + (e instanceof Error ? e.message : "Erreur"))
