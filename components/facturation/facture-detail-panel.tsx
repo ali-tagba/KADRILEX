@@ -14,7 +14,7 @@ import {
 import type { MockFacture } from "@/lib/mock/invoices"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { computeFinance, mockDossiers } from "@/lib/mock/dossiers"
-import { mockFournisseurs, factureClientName } from "@/lib/mock/invoices"
+import { factureClientName } from "@/lib/mock/invoices"
 import { FilePreviewModal } from "@/components/shared/file-preview-modal"
 
 interface FactureDetailPanelProps {
@@ -103,9 +103,6 @@ export function FactureDetailPanel({
     // Mock lookups (dev local) — peuvent être vides en prod
     const clientMock = facture.clientId ? mockClients.find((c) => c.id === facture.clientId) : null
     const dossierFull = facture.dossierId ? mockDossiers.find((d) => d.id === facture.dossierId) : null
-    const fournisseurMock = facture.fournisseurId
-        ? mockFournisseurs.find((f) => f.id === facture.fournisseurId)
-        : null
     // Affichage : préfère les relations embarquées de l'API
     const clientName = facture.client
         ? factureClientName(facture.client)
@@ -114,7 +111,7 @@ export function FactureDetailPanel({
         : null
     const clientLinkId = facture.client?.id ?? clientMock?.id ?? null
     const dossierRef = facture.dossier ?? (dossierFull ? { id: dossierFull.id, numero: dossierFull.numero, titre: dossierFull.titre } : null)
-    const fournisseurName = facture.fournisseur?.nom ?? fournisseurMock?.nom ?? null
+    const fournisseurName = facture.fournisseur?.nom ?? facture.fournisseurNomLibre ?? null
 
     const canEdit = facture.statut === "BROUILLON" || facture.statut === "EMISE" || facture.statut === "EN_RETARD"
     const canPaiement =
@@ -225,18 +222,7 @@ export function FactureDetailPanel({
                             </>
                         )}
                         {facture.direction === "RECUE" && fournisseurName && (
-                            <>
-                                <p className="font-body-md text-body-md font-semibold text-on-surface">{fournisseurName}</p>
-                                {fournisseurMock?.adresse && (
-                                    <p className="text-[11px] text-on-surface-variant mt-0.5">{fournisseurMock.adresse}</p>
-                                )}
-                                {fournisseurMock?.nif && (
-                                    <p className="text-[11px] text-on-surface-variant font-mono-num">NIF : {fournisseurMock.nif}</p>
-                                )}
-                            </>
-                        )}
-                        {facture.direction === "RECUE" && !fournisseurName && facture.fournisseurNomLibre && (
-                            <p className="font-body-md text-body-md font-semibold text-on-surface">{facture.fournisseurNomLibre}</p>
+                            <p className="font-body-md text-body-md font-semibold text-on-surface">{fournisseurName}</p>
                         )}
                         {dossierRef && (
                             <div className="mt-2 pt-2 border-t border-outline-variant/60 flex items-center gap-1.5 text-[11px] text-on-surface-variant">

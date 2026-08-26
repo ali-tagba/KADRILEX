@@ -12,7 +12,6 @@ import {
     ancienneteAnnees,
     ancienneteLabel,
     fullName,
-    type PermissionKey,
 } from "@/lib/constants/team"
 import { STATUTS_CONTRAT, formatFCFA, MODES_PAIEMENT } from "@/lib/constants/finance"
 import { TACHE_STATUTS, AUDIENCE_STATUTS } from "@/lib/constants/legal"
@@ -627,51 +626,3 @@ function Empty({ text }: { text: string }) {
     )
 }
 
-function ScopeChip({ scope }: { scope: "ALL" | "OWN" | "NONE" }) {
-    if (scope === "ALL") {
-        return (
-            <span className="inline-flex items-center gap-0.5 font-label-caps text-[9px] uppercase text-[#166534] bg-[#e8f5e9] rounded px-1.5 py-0.5 tracking-wider">
-                <span className="material-symbols-outlined text-[10px]">check</span>
-                Total
-            </span>
-        )
-    }
-    if (scope === "OWN") {
-        return (
-            <span className="inline-flex items-center gap-0.5 font-label-caps text-[9px] uppercase text-secondary bg-tertiary-fixed-dim/40 rounded px-1.5 py-0.5 tracking-wider">
-                <span className="material-symbols-outlined text-[10px]">visibility</span>
-                Limité
-            </span>
-        )
-    }
-    return (
-        <span className="inline-flex items-center gap-0.5 font-label-caps text-[9px] uppercase text-outline bg-surface-container-high rounded px-1.5 py-0.5 tracking-wider line-through">
-            Aucun
-        </span>
-    )
-}
-
-function labelForPermission(k: PermissionKey): string {
-    const map: Record<PermissionKey, string> = {
-        "clients.view": "Voir les clients",
-        "clients.write": "Modifier les clients",
-        "dossiers.view": "Voir les dossiers",
-        "dossiers.write": "Modifier les dossiers",
-        "audiences.view": "Voir les audiences",
-        "audiences.write": "Modifier les audiences",
-        "taches.view": "Voir les tâches",
-        "taches.write": "Modifier les tâches",
-        "diligences.view": "Voir les diligences",
-        "diligences.write": "Modifier les diligences",
-        "bibliotheque.view": "Voir la bibliothèque",
-        "bibliotheque.write": "Modifier la bibliothèque",
-        "finance.view": "Voir la finance",
-        "finance.write": "Modifier la finance",
-        "paie.view": "Voir les paies",
-        "paie.write": "Modifier les paies",
-        "equipe.view": "Voir l'équipe",
-        "equipe.write": "Gérer l'équipe",
-        "dashboard.global": "Tableau de bord global",
-    }
-    return map[k]
-}

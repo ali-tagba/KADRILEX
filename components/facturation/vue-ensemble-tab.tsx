@@ -10,7 +10,6 @@ import {
     MODES_PAIEMENT,
 } from "@/lib/constants/finance"
 import type { MockFacture } from "@/lib/mock/invoices"
-import { mockFournisseurs } from "@/lib/mock/invoices"
 import type { MockDepense } from "@/lib/mock/depenses"
 import type { MockBulletin } from "@/lib/mock/bulletins"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
@@ -159,7 +158,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
                 }
             } else {
                 /* RECUE — c'est un frais externe ou cabinet */
-                const fournisseur = f.fournisseur ?? (f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) ?? null : null)
+                const fournisseur = f.fournisseur
                 const isFraisExterne = f.refacturable || (dossier !== null && f.clientId !== null)
                 lines.push({
                     id: `inv-${f.id}`,
@@ -178,16 +177,13 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
         }
 
         for (const d of depenses) {
-            const fournisseur = d.fournisseurId
-                ? mockFournisseurs.find((x) => x.id === d.fournisseurId) ?? null
-                : null
             lines.push({
                 id: `dep-${d.id}`,
                 kind: "DEPENSE_INTERNE",
                 date: d.date,
                 numero: d.id.slice(-6).toUpperCase(),
                 libelle: d.libelle,
-                tiers: fournisseur?.nom ?? d.fournisseurNomLibre ?? "—",
+                tiers: d.fournisseurNomLibre ?? "—",
                 dossierNumero: null,
                 montant: d.montantTTC,
                 statut: d.statut === "PAYEE" ? "Payée" : "À payer",

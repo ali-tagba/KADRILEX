@@ -5,7 +5,6 @@ import { postEntity, showApiError } from "@/lib/api/patch"
 import { recomputeFacture, type MockFacture, type MockPaiement } from "@/lib/mock/invoices"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
-import { mockFournisseurs } from "@/lib/mock/invoices"
 import { TVA_NIGER, calcTTC, calcTVA, type StatutFactureKey } from "@/lib/constants/finance"
 import { FacturationToolbar } from "./facturation-toolbar"
 import { FacturationFilterDrawer } from "./facturation-filter-drawer"
@@ -79,16 +78,9 @@ export function FacturationTab({
             .filter(Boolean) as { id: string; numero: string }[]
     }, [factures, dossiers])
 
-    const availableFournisseurs = useMemo(() => {
-        const ids = new Set<string>()
-        for (const f of factures) if (f.fournisseurId) ids.add(f.fournisseurId)
-        return Array.from(ids)
-            .map((id) => {
-                const fr = mockFournisseurs.find((x) => x.id === id)
-                return fr ? { id: fr.id, nom: fr.nom } : null
-            })
-            .filter(Boolean) as { id: string; nom: string }[]
-    }, [factures])
+    // Fournisseur est toujours saisi en texte libre (fournisseurNomLibre) — pas d'entités
+    // Fournisseur en base à ce jour, donc pas de facette de filtre par fournisseur pour l'instant.
+    const availableFournisseurs = useMemo(() => [] as { id: string; nom: string }[], [])
 
     const selectedFacture = useMemo(
         () => (selectedId ? factures.find((f) => f.id === selectedId) ?? null : null),

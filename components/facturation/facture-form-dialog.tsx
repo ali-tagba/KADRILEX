@@ -13,7 +13,6 @@ import {
     type DirectionFactureKey,
 } from "@/lib/constants/finance"
 import type { MockFacture, MockLigneFacture } from "@/lib/mock/invoices"
-import { mockFournisseurs } from "@/lib/mock/invoices"
 import { mockClients, clientDisplayName, type MockClient } from "@/lib/mock/clients"
 import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
 import { FileUploadField, type AttachmentInfo } from "./file-upload-field"
@@ -350,29 +349,9 @@ export function FactureFormDialog({
                             </Field>
                         </div>
                     ) : (
-                        /* Côté REÇUE : Fournisseur picker */
+                        /* Côté REÇUE : Fournisseur en saisie libre */
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Fournisseur (existant)">
-                                <select
-                                    value={draft.fournisseurId ?? ""}
-                                    onChange={(e) =>
-                                        setDraft((d) => ({
-                                            ...d,
-                                            fournisseurId: e.target.value || null,
-                                            fournisseurNomLibre: e.target.value ? null : d.fournisseurNomLibre,
-                                        }))
-                                    }
-                                    className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
-                                >
-                                    <option value="">— Aucun (saisie libre) —</option>
-                                    {mockFournisseurs.map((f) => (
-                                        <option key={f.id} value={f.id}>
-                                            {f.nom}
-                                        </option>
-                                    ))}
-                                </select>
-                            </Field>
-                            <Field label="Ou nom du fournisseur">
+                            <Field label="Fournisseur" className="col-span-2">
                                 <input
                                     type="text"
                                     value={draft.fournisseurNomLibre ?? ""}
@@ -380,10 +359,9 @@ export function FactureFormDialog({
                                         setDraft((d) => ({
                                             ...d,
                                             fournisseurNomLibre: e.target.value || null,
-                                            fournisseurId: e.target.value ? null : d.fournisseurId,
                                         }))
                                     }
-                                    placeholder="Saisir un nouveau fournisseur"
+                                    placeholder="Nom du fournisseur"
                                     className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
                                 />
                             </Field>

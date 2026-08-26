@@ -11,14 +11,12 @@ import {
     MODES_PAIEMENT,
     type ModePaiementKey,
 } from "@/lib/constants/finance"
-import type { MockFournisseur } from "@/lib/mock/invoices"
 import type { MockDossier } from "@/lib/mock/dossiers"
 import type { MockClient } from "@/lib/mock/clients"
 import { clientDisplayName } from "@/lib/mock/clients"
 
 export interface AjouterFraisDraft {
     date: string // ISO yyyy-mm-dd
-    fournisseurId: string | null
     fournisseurNomLibre: string | null
     libelle: string
     dossierId: string | null
@@ -34,7 +32,6 @@ export interface AjouterFraisDraft {
 }
 
 interface AjouterFraisDialogProps {
-    fournisseurs: MockFournisseur[]
     dossiers: MockDossier[]
     clients: MockClient[]
     onSave: (draft: AjouterFraisDraft) => void
@@ -42,14 +39,12 @@ interface AjouterFraisDialogProps {
 }
 
 export function AjouterFraisExterneDialog({
-    fournisseurs,
     dossiers,
     clients,
     onSave,
     onClose,
 }: AjouterFraisDialogProps) {
     const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10))
-    const [fournisseurId, setFournisseurId] = useState<string>("")
     const [fournisseurNomLibre, setFournisseurNomLibre] = useState<string>("")
     const [libelle, setLibelle] = useState<string>("")
     const [dossierId, setDossierId] = useState<string>("")
@@ -69,8 +64,6 @@ export function AjouterFraisExterneDialog({
     const tva = calcTVA(montantHT, tvaRate)
     const ttc = calcTTC(montantHT, tvaRate)
 
-    const fournisseurChoisi = fournisseurs.find((f) => f.id === fournisseurId) ?? null
-
     const dossierChoisi = dossiers.find((d) => d.id === dossierId) ?? null
     const clientDossier =
         dossierChoisi?.clientId ? clients.find((c) => c.id === dossierChoisi.clientId) ?? null : null
@@ -85,7 +78,7 @@ export function AjouterFraisExterneDialog({
 
     const canSave =
         montantHT > 0 &&
-        (fournisseurId.length > 0 || fournisseurNomLibre.trim().length > 0) &&
+        fournisseurNomLibre.trim().length > 0 &&
         libelle.trim().length > 0
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -93,11 +86,7 @@ export function AjouterFraisExterneDialog({
         if (!canSave) return
         onSave({
             date,
-            fournisseurId: fournisseurId || null,
-            fournisseurNomLibre:
-                !fournisseurId && fournisseurNomLibre.trim()
-                    ? fournisseurNomLibre.trim()
-                    : null,
+            fournisseurNomLibre: fournisseurNomLibre.trim() || null,
             libelle: libelle.trim(),
             dossierId: dossierId || null,
             montantHT,
@@ -178,37 +167,15 @@ export function AjouterFraisExterneDialog({
                         </Field>
                     </div>
 
-                    {/* Fournisseur — choix dans la liste OU saisie libre */}
+                    {/* Fournisseur — saisie libre */}
                     <Field label="Fournisseur" required>
-                        <select
-                            value={fournisseurId}
-                            onChange={(e) => {
-                                setFournisseurId(e.target.value)
-                                if (e.target.value) setFournisseurNomLibre("")
-                            }}
+                        <input
+                            type="text"
+                            value={fournisseurNomLibre}
+                            onChange={(e) => setFournisseurNomLibre(e.target.value)}
+                            placeholder="Nom du fournisseur (huissier, expert, greffe…)"
                             className={inputCls}
-                        >
-                            <option value="">— Saisie libre ci-dessous —</option>
-                            {fournisseurs.map((f) => (
-                                <option key={f.id} value={f.id}>
-                                    {f.nom} ({f.type})
-                                </option>
-                            ))}
-                        </select>
-                        {!fournisseurId && (
-                            <input
-                                type="text"
-                                value={fournisseurNomLibre}
-                                onChange={(e) => setFournisseurNomLibre(e.target.value)}
-                                placeholder="Nom du fournisseur (huissier, expert, greffe…)"
-                                className={cn(inputCls, "mt-2")}
-                            />
-                        )}
-                        {fournisseurChoisi?.nif && (
-                            <p className="font-mono-num text-[10px] text-outline mt-1">
-                                NIF : {fournisseurChoisi.nif}
-                            </p>
-                        )}
+                        />
                     </Field>
 
                     {/* Libellé */}

@@ -11,7 +11,7 @@ import {
 import type { MockFacture } from "@/lib/mock/invoices"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
-import { mockFournisseurs, factureClientName } from "@/lib/mock/invoices"
+import { factureClientName } from "@/lib/mock/invoices"
 import { FactureActionsMenu } from "./facture-actions-menu"
 import { InlineDateCell, InlineSelectCell, type InlineOption } from "./inline-cell-editor"
 
@@ -60,7 +60,7 @@ function getRecipient(f: MockFacture): Recipient {
             isClient: true,
         }
     }
-    const fr = f.fournisseur ?? (f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) : null)
+    const fr = f.fournisseur
     return {
         primary: fr?.nom ?? f.fournisseurNomLibre ?? "Fournisseur inconnu",
         dossierChip: dossier?.numero ?? null,

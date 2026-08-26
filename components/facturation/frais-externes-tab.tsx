@@ -10,7 +10,7 @@ import {
     formatFCFA,
 } from "@/lib/constants/finance"
 import type { MockFacture } from "@/lib/mock/invoices"
-import { recomputeFacture, mockFournisseurs } from "@/lib/mock/invoices"
+import { recomputeFacture } from "@/lib/mock/invoices"
 import { mockDossiers, type MockDossier } from "@/lib/mock/dossiers"
 import type { MockClient } from "@/lib/mock/clients"
 import { FactureActionsMenu } from "./facture-actions-menu"
@@ -50,7 +50,7 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients
         const q = search.trim().toLowerCase()
         if (q) {
             list = list.filter((f) => {
-                const fr = f.fournisseur ?? (f.fournisseurId ? mockFournisseurs.find((x) => x.id === f.fournisseurId) : null)
+                const fr = f.fournisseur
                 const dos = f.dossier ?? (f.dossierId ? dossiers.find((d) => d.id === f.dossierId) ?? mockDossiers.find((d) => d.id === f.dossierId) : null)
                 const hay = [
                     f.numero,
@@ -124,7 +124,7 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients
             clientId,
             dossierId: draft.dossierId,
             audienceId: null,
-            fournisseurId: draft.fournisseurId,
+            fournisseurId: null,
             fournisseurNomLibre: draft.fournisseurNomLibre,
             montantHT: draft.montantHT,
             tvaRate: draft.tvaRate,
@@ -394,9 +394,7 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients
                                 {visible.map((f) => {
                                     const stat = STATUTS_FACTURE[f.statut]
                                     const dossier = f.dossier ?? (f.dossierId ? dossiers.find((d) => d.id === f.dossierId) ?? mockDossiers.find((d) => d.id === f.dossierId) : null)
-                                    const fournisseur = f.fournisseur ?? (f.fournisseurId
-                                        ? mockFournisseurs.find((x) => x.id === f.fournisseurId)
-                                        : null)
+                                    const fournisseur = f.fournisseur
                                     const isRefacturee = f.refacturable && f.refactureeViaFactureId
                                     const isSelectable = f.refacturable && !f.refactureeViaFactureId
                                     return (
@@ -488,7 +486,6 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients
 
             {ajoutOpen && (
                 <AjouterFraisExterneDialog
-                    fournisseurs={mockFournisseurs}
                     dossiers={dossiers}
                     clients={clients}
                     onSave={handleAjouterFrais}
