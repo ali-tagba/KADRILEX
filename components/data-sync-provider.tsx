@@ -20,16 +20,6 @@ import { mockDocuments } from "@/lib/mock/documents"
 import { mockFactures } from "@/lib/mock/invoices"
 import { mockDepenses } from "@/lib/mock/depenses"
 import { mockBulletins } from "@/lib/mock/bulletins"
-import { mockClients as demoClients } from "@/lib/mock/clients"
-import { mockDossiers as demoDossiers } from "@/lib/mock/dossiers"
-import { mockEmployes as demoMembres } from "@/lib/mock/employes"
-import { mockAudiences as demoAudiences, mockTaches as demoTaches } from "@/lib/mock/audiences"
-import { mockDocuments as demoDocuments } from "@/lib/mock/documents"
-import { mockFactures as demoFactures } from "@/lib/mock/invoices"
-import { mockDepenses as demoDepenses } from "@/lib/mock/depenses"
-import { mockBulletins as demoBulletins } from "@/lib/mock/bulletins"
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE !== "0"
 
 const DataSyncContext = createContext<{ synced: boolean; refresh: () => void }>({
     synced: false,
@@ -66,19 +56,6 @@ export function DataSyncProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let alive = true
         const run = async () => {
-            if (DEMO_MODE) {
-                hydrate(mockClients as unknown[], demoClients)
-                hydrate(mockDossiers as unknown[], demoDossiers)
-                hydrate(mockAudiences as unknown[], demoAudiences)
-                hydrate(mockTaches as unknown[], demoTaches)
-                hydrate(mockDocuments as unknown[], demoDocuments)
-                hydrate(mockMembres as unknown[], demoMembres)
-                hydrate(mockFactures as unknown[], demoFactures)
-                hydrate(mockDepenses as unknown[], demoDepenses)
-                hydrate(mockBulletins as unknown[], demoBulletins)
-                if (alive) setSynced(true)
-                return
-            }
             const [clients, dossiers, audiences, taches, documents, membres, factures, depenses, bulletins] =
                 await Promise.all([
                     fetchSafe<unknown>("/api/clients"),

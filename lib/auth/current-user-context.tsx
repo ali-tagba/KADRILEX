@@ -34,7 +34,6 @@ import {
 import type { PermissionKey } from "@/lib/constants/team"
 
 const STORAGE_KEY = "kadrilex.currentMembreId"
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE !== "0"
 
 interface CurrentUserContextValue {
     membre: Membre
@@ -174,7 +173,7 @@ export function CurrentUserProvider({ children, initialMembreId }: ProviderProps
         let cancelled = false
         fetch("/api/me", { credentials: "include" })
             .then((r) => {
-                if (r.status === 401 && pathname !== "/login" && !DEMO_MODE) {
+                if (r.status === 401 && pathname !== "/login") {
                     router.replace("/login")
                     return null
                 }
