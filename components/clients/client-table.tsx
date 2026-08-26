@@ -75,8 +75,28 @@ export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
         [merged, startIdx, pageSize]
     )
 
-    const patchClient = (id: string, patch: Partial<MockClient>) =>
+    const patchClient = async (id: string, patch: Partial<MockClient>) => {
+        const prevOverride = overrides[id]
         setOverrides((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...patch } }))
+        try {
+            const r = await fetch(`/api/clients/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(patch),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+        } catch (e) {
+            setOverrides((prev) => ({ ...prev, [id]: prevOverride ?? {} }))
+            const { toast } = await import("@/components/ui/toaster")
+            toast.error(
+                "Échec de la modification : " + (e instanceof Error ? e.message : "Erreur")
+            )
+        }
+    }
 
     /** Composition équipe : override > responsableId stocké > bridge avocatEnCharge */
     const getTeam = (c: MockClient): { responsableId: string | null; equipeIds: string[] } => {
@@ -88,6 +108,37 @@ export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
         return {
             responsableId: membreIdFromAvocatKey(c.avocatEnCharge),
             equipeIds: [],
+        }
+    }
+
+    const patchTeam = async (
+        id: string,
+        next: { responsableId: string | null; equipeIds: string[] }
+    ) => {
+        const prevOverride = teamOverrides[id]
+        setTeamOverrides((prev) => ({ ...prev, [id]: next }))
+        try {
+            const r = await fetch(`/api/clients/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(next),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+        } catch (e) {
+            setTeamOverrides((prev) => {
+                const copy = { ...prev }
+                if (prevOverride) copy[id] = prevOverride
+                else delete copy[id]
+                return copy
+            })
+            const { toast } = await import("@/components/ui/toaster")
+            toast.error(
+                "Échec de la modification de l'équipe : " + (e instanceof Error ? e.message : "Erreur")
+            )
         }
     }
 
@@ -251,12 +302,7 @@ export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
                                         <TeamPickerCompact
                                             responsableId={getTeam(client).responsableId}
                                             equipeIds={getTeam(client).equipeIds}
-                                            onChange={(next) =>
-                                                setTeamOverrides((prev) => ({
-                                                    ...prev,
-                                                    [client.id]: next,
-                                                }))
-                                            }
+                                            onChange={(next) => patchTeam(client.id, next)}
                                             title="Modifier l'équipe affectée"
                                         />
                                     </td>

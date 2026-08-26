@@ -98,14 +98,65 @@ export function DossierTable({ dossiers, pageSize = 10 }: DossierTableProps) {
         [merged, startIdx, pageSize]
     )
 
-    const patchDossier = (id: string, patch: Partial<MockDossier>) =>
+    const patchDossier = async (id: string, patch: Partial<MockDossier>) => {
+        const prevOverride = overrides[id]
         setOverrides((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...patch } }))
+        try {
+            const r = await fetch(`/api/dossiers/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(patch),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+        } catch (e) {
+            setOverrides((prev) => ({ ...prev, [id]: prevOverride ?? {} }))
+            const { toast } = await import("@/components/ui/toaster")
+            toast.error(
+                "Échec de la modification : " + (e instanceof Error ? e.message : "Erreur")
+            )
+        }
+    }
 
     const getTeam = (d: MockDossier): { responsableId: string | null; equipeIds: string[] } => {
         const o = teamOverrides[d.id]
         if (o) return o
         const client = getClientForDossier(d)
         return resolveTeam(d, client)
+    }
+
+    const patchTeam = async (
+        id: string,
+        next: { responsableId: string | null; equipeIds: string[] }
+    ) => {
+        const prevOverride = teamOverrides[id]
+        setTeamOverrides((prev) => ({ ...prev, [id]: next }))
+        try {
+            const r = await fetch(`/api/dossiers/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(next),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+        } catch (e) {
+            setTeamOverrides((prev) => {
+                const copy = { ...prev }
+                if (prevOverride) copy[id] = prevOverride
+                else delete copy[id]
+                return copy
+            })
+            const { toast } = await import("@/components/ui/toaster")
+            toast.error(
+                "Échec de la modification de l'équipe : " + (e instanceof Error ? e.message : "Erreur")
+            )
+        }
     }
 
     return (
@@ -260,12 +311,7 @@ export function DossierTable({ dossiers, pageSize = 10 }: DossierTableProps) {
                                         <TeamPickerCompact
                                             responsableId={getTeam(d).responsableId}
                                             equipeIds={getTeam(d).equipeIds}
-                                            onChange={(next) =>
-                                                setTeamOverrides((prev) => ({
-                                                    ...prev,
-                                                    [d.id]: next,
-                                                }))
-                                            }
+                                            onChange={(next) => patchTeam(d.id, next)}
                                             title="Modifier l'équipe du dossier"
                                             size="xs"
                                         />
@@ -293,7 +339,10 @@ export function DossierTable({ dossiers, pageSize = 10 }: DossierTableProps) {
                                                 console.info(`Dupliquer ${d.numero}`)
                                             }
                                             onArchive={() =>
-                                                patchDossier(d.id, { statut: "ARCHIVE" })
+                                                patchDossier(d.id, {
+                                                    statut: "ARCHIVE",
+                                                    dateCloture: new Date().toISOString(),
+                                                })
                                             }
                                             onDelete={async () => {
                                                 const prev = hiddenIds
