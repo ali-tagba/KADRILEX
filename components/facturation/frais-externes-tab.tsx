@@ -358,7 +358,9 @@ export function FraisExternesTab({ factures, onChangeFactures, onSelect, clients
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                         <span className="material-symbols-outlined text-[56px] text-outline-variant mb-3">inbox</span>
                         <p className="font-body-md text-body-md text-on-surface font-medium">
-                            {filter === "EN_ATTENTE" ? "Tout est refacturé" : "Aucun frais externe"}
+                            {filter === "EN_ATTENTE" && recues.length > 0
+                                ? "Tout est refacturé"
+                                : "Aucun frais externe"}
                         </p>
                     </div>
                 ) : (
