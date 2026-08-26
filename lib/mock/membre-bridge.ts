@@ -79,11 +79,13 @@ export function resolveTeam<T extends HasTeam>(
     entity: T,
     parent?: HasTeam | null
 ): { responsableId: string | null; equipeIds: string[] } {
-    if (entity.responsableId !== null || entity.equipeIds.length > 0) {
-        return { responsableId: entity.responsableId, equipeIds: entity.equipeIds }
+    // Certains objets "parent" embarqués par l'API (ex: le client inclus dans
+    // /api/dossiers) n'ont pas de equipeIds calculé — garde défensive obligatoire.
+    if (entity.responsableId !== null || (entity.equipeIds ?? []).length > 0) {
+        return { responsableId: entity.responsableId, equipeIds: entity.equipeIds ?? [] }
     }
     if (parent) {
-        return { responsableId: parent.responsableId, equipeIds: parent.equipeIds }
+        return { responsableId: parent.responsableId, equipeIds: parent.equipeIds ?? [] }
     }
     return { responsableId: null, equipeIds: [] }
 }
