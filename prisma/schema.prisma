@@ -304,7 +304,7 @@ model Membre {
   photoUrl  String?
 
   actif             Boolean          @default(true)
-  dateEmbauche     DateTime
+  dateEmbauche      DateTime
   dateSortie        DateTime?
   motifSortie       String?
   invitationStatut  InvitationStatut @default(INVITE)
@@ -331,11 +331,11 @@ model Membre {
   updatedAt DateTime @updatedAt
 
   // Relations inverses
-  clientsResponsable    Client[]          @relation("ClientResponsable")
-  dossiersResponsable   Dossier[]         @relation("DossierResponsable")
-  audiencesResponsable  Audience[]        @relation("AudienceResponsable")
-  tachesResponsable     Tache[]           @relation("TacheResponsable")
-  diligencesResponsable Diligence[]       @relation("DiligenceResponsable")
+  clientsResponsable    Client[]             @relation("ClientResponsable")
+  dossiersResponsable   Dossier[]            @relation("DossierResponsable")
+  audiencesResponsable  Audience[]           @relation("AudienceResponsable")
+  tachesResponsable     Tache[]              @relation("TacheResponsable")
+  diligencesResponsable Diligence[]          @relation("DiligenceResponsable")
   notesAuteur           DossierNote[]
   bulletins             Bulletin[]
   clientsEquipe         ClientEquipe[]
@@ -343,9 +343,10 @@ model Membre {
   audiencesEquipe       AudienceEquipe[]
   tachesEquipe          TacheEquipe[]
   diligencesEquipe      DiligenceEquipe[]
-  partagesEnvoyes       Partage[]         @relation("PartageFrom")
-  partagesRecus         Partage[]         @relation("PartageTo")
+  partagesEnvoyes       Partage[]            @relation("PartageFrom")
+  partagesRecus         Partage[]            @relation("PartageTo")
   depenses              Depense[]
+  apportsBeneficiaire   ApportBeneficiaire[]
 
   @@index([actif])
   @@index([role])
@@ -367,11 +368,11 @@ enum PartageEntityType {
 }
 
 model Partage {
-  id           String            @id @default(cuid())
+  id           String @id @default(cuid())
   fromMembreId String
-  fromMembre   Membre            @relation("PartageFrom", fields: [fromMembreId], references: [id], onDelete: Cascade)
+  fromMembre   Membre @relation("PartageFrom", fields: [fromMembreId], references: [id], onDelete: Cascade)
   toMembreId   String
-  toMembre     Membre            @relation("PartageTo", fields: [toMembreId], references: [id], onDelete: Cascade)
+  toMembre     Membre @relation("PartageTo", fields: [toMembreId], references: [id], onDelete: Cascade)
 
   entityType   PartageEntityType
   entityId     String
@@ -380,9 +381,9 @@ model Partage {
   /// Titre court de l'entité (ex: "Affaire SONITEL c/ État")
   entityLabel  String?
 
-  message      String?
-  readAt       DateTime?
-  createdAt    DateTime          @default(now())
+  message   String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([toMembreId, readAt])
   @@index([fromMembreId])
@@ -439,13 +440,14 @@ model Client {
   equipe        ClientEquipe[]
 
   // Sub-collections
-  contacts   Contact[]
-  dossiers   Dossier[]
-  taches     Tache[]
-  factures   Facture[]
-  audiences  Audience[]  @relation("AudienceClient")
-  diligences Diligence[]
+  contacts       Contact[]
+  dossiers       Dossier[]
+  taches         Tache[]
+  factures       Facture[]
+  audiences      Audience[]      @relation("AudienceClient")
+  diligences     Diligence[]
   lignesEcriture LigneEcriture[]
+  apports        Apport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -492,8 +494,8 @@ model Dossier {
   kind          DossierKind   @default(CLIENT)
   type          DossierType
   /// Texte libre + datalist NATURES_AFFAIRE
-  nature        String @default("Contentieux")
-  titre         String @default("Sans titre")
+  nature        String        @default("Contentieux")
+  titre         String        @default("Sans titre")
   statut        DossierStatut @default(EN_COURS)
   etatProcedure String?
   juridiction   String?
@@ -504,18 +506,18 @@ model Dossier {
   /// Tableau de noms de parties adverses
   partiesAdverses String[]
 
-  dateOuverture     DateTime
-  dateCloture       DateTime?
-  description       String?
-  
+  dateOuverture DateTime
+  dateCloture   DateTime?
+  description   String?
+
   /// Array d'objets { phase: string, type: "FORFAIT" | "POURCENTAGE", montant: number }
-  honoraires        Json?
-  
+  honoraires Json?
+
   /// Array d'objets { id: string, date: string, montant: number, description: string }
   provisionsVersees Json?
-  
+
   /// Objet { beneficiaire: string, type: "FORFAIT" | "POURCENTAGE", montant: number }
-  retrocession      Json?
+  retrocession Json?
 
   // RBAC
   responsableId String?
@@ -533,6 +535,7 @@ model Dossier {
   diligences Diligence[]
   ecritures  Ecriture[]
   sequestre  CompteSequestre?
+  apports    Apport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -556,9 +559,9 @@ model DossierEquipe {
 }
 
 model DossierFile {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   dossierId String
-  dossier   Dossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
 
   parentId String?
   parent   DossierFile?  @relation("FileTree", fields: [parentId], references: [id], onDelete: Cascade)
@@ -807,9 +810,9 @@ model Document {
   notes  String?
 
   // Fichier
-  fileName String?
-  fileSize Int?
-  fileUrl  String?
+  fileName      String?
+  fileSize      Int?
+  fileUrl       String?
   /// CSV : "Art. 28 AUPSRVE, Art. 90 AUDCG"
   articlesCites String?
 
@@ -856,8 +859,8 @@ model Fournisseur {
   telephone String?
   adresse   String?
 
-  factures Facture[]
-  depenses Depense[]
+  factures       Facture[]
+  depenses       Depense[]
   lignesEcriture LigneEcriture[]
 
   createdAt DateTime @default(now())
@@ -954,6 +957,8 @@ model Paiement {
   preuveUrl String?
   createdAt DateTime     @default(now())
 
+  apports Apport[]
+
   @@index([factureId])
   @@index([date])
 }
@@ -984,8 +989,8 @@ model Depense {
   fournisseur         Fournisseur? @relation(fields: [fournisseurId], references: [id], onDelete: SetNull)
   fournisseurNomLibre String?
 
-  employeId           String?
-  employe             Membre?      @relation(fields: [employeId], references: [id], onDelete: SetNull)
+  employeId String?
+  employe   Membre? @relation(fields: [employeId], references: [id], onDelete: SetNull)
 
   /// Liaison optionnelle à un dossier (frais imputable)
   dossierId String?
@@ -1016,11 +1021,11 @@ model Bulletin {
   annee     Int
   mois      Int // 1..12
 
-  salaireBrut       Int
-  primes            Int @default(0)
-  retenues          Int @default(0)
-  chargesSalariales Int
-  chargesPatronales Int
+  salaireBrut        Int
+  primes             Int @default(0)
+  retenues           Int @default(0)
+  chargesSalariales  Int
+  chargesPatronales  Int
   /// Calculé : brut + primes - retenues - chargesSalariales
   salaireNet         Int
   /// Calculé : brut + primes + chargesPatronales
@@ -1064,22 +1069,21 @@ model LoginAttempt {
   count     Int      @default(1)
   resetAt   DateTime
   updatedAt DateTime @updatedAt
-}
-
+}
 
 // ============================================================
 // COMPTABILITÉ GÉNÉRALE (SYSCOHADA)
 // ============================================================
 
 model ExerciceComptable {
-  id         String     @id @default(cuid())
-  libelle    String     // ex: 'Exercice 2026'
-  dateDebut  DateTime
-  dateFin    DateTime
-  cloture    Boolean    @default(false)
-  ecritures  Ecriture[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id        String     @id @default(cuid())
+  libelle   String // ex: 'Exercice 2026'
+  dateDebut DateTime
+  dateFin   DateTime
+  cloture   Boolean    @default(false)
+  ecritures Ecriture[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@unique([dateDebut, dateFin])
 }
@@ -1088,9 +1092,9 @@ model CompteComptable {
   id             String            @id @default(cuid())
   numero         String            @unique // ex: '411000'
   libelle        String
-  classe         Int               // 1 à 8
-  nature         String            // 'BILAN' ou 'GESTION'
-  sensNormal     String            // 'DEBIT' ou 'CREDIT'
+  classe         Int // 1 à 8
+  nature         String // 'BILAN' ou 'GESTION'
+  sensNormal     String // 'DEBIT' ou 'CREDIT'
   compteParentId String?
   parent         CompteComptable?  @relation("CompteParent", fields: [compteParentId], references: [id], onDelete: Restrict)
   enfants        CompteComptable[] @relation("CompteParent")
@@ -1098,40 +1102,40 @@ model CompteComptable {
   actif          Boolean           @default(true)
   lignes         LigneEcriture[]
 
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model JournalComptable {
   id        String     @id @default(cuid())
   code      String     @unique // ex: 'VE', 'AC', 'BQ'
   libelle   String
-  type      String     // 'VENTE', 'ACHAT', 'BANQUE', 'CAISSE', 'OD'
+  type      String // 'VENTE', 'ACHAT', 'BANQUE', 'CAISSE', 'OD'
   ecritures Ecriture[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
 model Ecriture {
-  id            String            @id @default(cuid())
-  exerciceId    String
-  exercice      ExerciceComptable @relation(fields: [exerciceId], references: [id], onDelete: Restrict)
-  journalId     String
-  journal       JournalComptable  @relation(fields: [journalId], references: [id], onDelete: Restrict)
-  numeroPiece   String
-  dateEcriture  DateTime
-  libelle       String
-  validee       Boolean           @default(false)
-  annule        Boolean           @default(false) // true si contre-écriture d'annulation
+  id           String            @id @default(cuid())
+  exerciceId   String
+  exercice     ExerciceComptable @relation(fields: [exerciceId], references: [id], onDelete: Restrict)
+  journalId    String
+  journal      JournalComptable  @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  numeroPiece  String
+  dateEcriture DateTime
+  libelle      String
+  validee      Boolean           @default(false)
+  annule       Boolean           @default(false) // true si contre-écriture d'annulation
 
   // Rattachement analytique (Optionnel)
-  dossierId     String?
-  dossier       Dossier?          @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  dossierId String?
+  dossier   Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
 
-  lignes        LigneEcriture[]
+  lignes LigneEcriture[]
 
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([journalId, exerciceId])
   @@index([numeroPiece])
@@ -1139,22 +1143,22 @@ model Ecriture {
 }
 
 model LigneEcriture {
-  id          String          @id @default(cuid())
-  ecritureId  String
-  ecriture    Ecriture        @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
-  compteId    String
-  compte      CompteComptable @relation(fields: [compteId], references: [id], onDelete: Restrict)
+  id         String          @id @default(cuid())
+  ecritureId String
+  ecriture   Ecriture        @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+  compteId   String
+  compte     CompteComptable @relation(fields: [compteId], references: [id], onDelete: Restrict)
 
   // Tiers (optionnel)
   clientId      String?
-  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  client        Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   fournisseurId String?
-  fournisseur   Fournisseur?  @relation(fields: [fournisseurId], references: [id], onDelete: SetNull)
+  fournisseur   Fournisseur? @relation(fields: [fournisseurId], references: [id], onDelete: SetNull)
 
-  libelle     String?
-  debit       Int             @default(0) // En centimes/entier FCFA
-  credit      Int             @default(0) // En centimes/entier FCFA
-  lettrage    String?         // Code de lettrage
+  libelle  String?
+  debit    Int     @default(0) // En centimes/entier FCFA
+  credit   Int     @default(0) // En centimes/entier FCFA
+  lettrage String? // Code de lettrage
 
   @@index([ecritureId])
   @@index([compteId])
@@ -1172,4 +1176,67 @@ model CompteSequestre {
   observation    String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+// ============================================================
+// APPORTS DES AVOCATS — rétrocessions d'honoraires (ISB/Société/Rétrocession)
+// ============================================================
+
+model Apport {
+  id String @id @default(cuid())
+
+  annee         Int
+  mois          Int // 1..12
+  dateReglement DateTime?
+
+  dossierId      String?
+  dossier        Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  clientId       String?
+  client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  /// Fallback texte libre si aucun dossier/client formel n'existe encore dans le système
+  referenceLibre String?
+  clientLibre    String?
+
+  /// Pré-remplissage optionnel depuis un règlement Facture existant — non exploité en v1
+  paiementId String?
+  paiement   Paiement? @relation(fields: [paiementId], references: [id], onDelete: SetNull)
+
+  montantHT    Int // Montant réglé HT — saisi manuellement
+  fraisDossier Int @default(0) // "Frais du dossier" — mémo, rarement rempli
+
+  // Calculs figés à la saisie (taux stockés pour ne jamais réécrire l'historique si le barème change)
+  tauxISB                  Int @default(30)
+  montantISB               Int
+  montantNetApresISB       Int
+  tauxSociete              Int @default(20)
+  montantSociete           Int
+  montantRetrocessionTotal Int
+
+  valide Boolean @default(false) // verrouille la ligne (clôture de mois)
+  notes  String?
+
+  beneficiaires ApportBeneficiaire[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([annee, mois])
+  @@index([dossierId])
+  @@index([clientId])
+}
+
+model ApportBeneficiaire {
+  id       String @id @default(cuid())
+  apportId String
+  apport   Apport @relation(fields: [apportId], references: [id], onDelete: Cascade)
+  membreId String
+  membre   Membre @relation(fields: [membreId], references: [id], onDelete: Restrict)
+
+  /// % de montantRetrocessionTotal attribué — édité manuellement au cas par cas (ex: 50, 25, 80)
+  pourcentage Decimal @db.Decimal(5, 2)
+  /// Calculé = montantRetrocessionTotal * pourcentage / 100 (arrondi)
+  montant     Int
+
+  @@unique([apportId, membreId])
+  @@index([membreId])
 }
