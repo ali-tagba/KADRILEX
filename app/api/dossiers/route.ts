@@ -27,12 +27,18 @@ export async function GET(req: NextRequest) {
         const q = getQuery(req.url)
 
         const where: Prisma.DossierWhereInput = {}
+        // Chaque groupe OR est poussé dans AND séparément pour ne jamais mélanger
+        // le OR de recherche texte avec le OR de scope RBAC (sinon un match texte
+        // court-circuite la restriction d'accès "OWN" — cf. bug historique ici).
+        const andConditions: Prisma.DossierWhereInput[] = []
         if (q.search) {
-            where.OR = [
-                { titre: { contains: q.search, mode: "insensitive" } },
-                { numero: { contains: q.search, mode: "insensitive" } },
-                { nature: { contains: q.search, mode: "insensitive" } },
-            ]
+            andConditions.push({
+                OR: [
+                    { titre: { contains: q.search, mode: "insensitive" } },
+                    { numero: { contains: q.search, mode: "insensitive" } },
+                    { nature: { contains: q.search, mode: "insensitive" } },
+                ],
+            })
         }
         if (q.statut) where.statut = q.statut as Prisma.DossierWhereInput["statut"]
         if (q.type) where.type = q.type as Prisma.DossierWhereInput["type"]
@@ -41,12 +47,14 @@ export async function GET(req: NextRequest) {
         if (q.juridiction) where.juridiction = { contains: q.juridiction, mode: "insensitive" }
 
         if (getScope(membre, "dossiers.view") === "OWN") {
-            where.OR = [
-                ...((where.OR as Prisma.DossierWhereInput[]) ?? []),
-                { responsableId: membre.id },
-                { equipe: { some: { membreId: membre.id } } },
-            ]
+            andConditions.push({
+                OR: [
+                    { responsableId: membre.id },
+                    { equipe: { some: { membreId: membre.id } } },
+                ],
+            })
         }
+        if (andConditions.length > 0) where.AND = andConditions
 
         const dossiers = await prisma.dossier.findMany({
             where,

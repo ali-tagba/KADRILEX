@@ -142,7 +142,7 @@ function PartiesSection({
         if (!nom) return
         setSavingParty(true)
         try {
-            const nouvelles = [...dossier.partiesAdverses, nom]
+            const nouvelles = [...(dossier.partiesAdverses ?? []), nom]
             const r = await fetch(`/api/dossiers/${dossier.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -165,7 +165,7 @@ function PartiesSection({
     async function removeParty(name: string) {
         if (!confirm(`Retirer « ${name} » des parties adverses ?`)) return
         try {
-            const nouvelles = dossier.partiesAdverses.filter((p) => p !== name)
+            const nouvelles = (dossier.partiesAdverses ?? []).filter((p) => p !== name)
             const r = await fetch(`/api/dossiers/${dossier.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -216,12 +216,12 @@ function PartiesSection({
                         <span className="material-symbols-outlined text-outline group-hover:text-primary">chevron_right</span>
                     </Link>
                 )}
-                {dossier.partiesAdverses.length === 0 ? (
+                {(dossier.partiesAdverses ?? []).length === 0 ? (
                     <div className="px-4 py-3 font-body-sm text-body-sm text-on-surface-variant">
                         Aucune partie adverse — affaire de conseil
                     </div>
                 ) : (
-                    dossier.partiesAdverses.map((p, i) => {
+                    (dossier.partiesAdverses ?? []).map((p, i) => {
                         const matched = conflits.find((c) => c.partie === p)?.client ?? null
                         return (
                             <div key={`${p}-${i}`} className="group px-4 py-3 flex items-center gap-3">

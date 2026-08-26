@@ -10,6 +10,7 @@ import {
     parseJson,
 } from "@/lib/server/api-helpers"
 import { DossierUpdateSchema } from "@/lib/server/schemas"
+import { AccountingService } from "@/lib/server/accounting"
 import type { Prisma } from "@prisma/client"
 
 function shapeDossier(d: Prisma.DossierGetPayload<{
@@ -295,6 +296,8 @@ export async function DELETE(
             where: { id },
             include: {
                 equipe: true,
+                factures: { select: { id: true } },
+                depenses: { select: { id: true } },
                 _count: {
                     select: {
                         audiences: true,
@@ -316,6 +319,24 @@ export async function DELETE(
         await requirePermission("dossiers.write", resource)
 
         const counts = existing._count
+
+        // Contre-passation des écritures comptables AVANT suppression des factures/dépenses,
+        // comme le font les routes dédiées DELETE /api/invoices/[id] et DELETE /api/depenses/[id].
+        // Sans ça, supprimer un dossier laisse des écritures orphelines dans le grand livre.
+        for (const f of existing.factures) {
+            try {
+                await AccountingService.reverseInvoiceEntries(f.id)
+            } catch (accError) {
+                console.error("Erreur annulation écriture comptable facture:", accError)
+            }
+        }
+        for (const dep of existing.depenses) {
+            try {
+                await AccountingService.reverseExpenseEntries(dep.id)
+            } catch (accError) {
+                console.error("Erreur annulation écriture comptable dépense:", accError)
+            }
+        }
 
         await prisma.$transaction(async (tx) => {
             // Ordre important pour éviter les contraintes FK :

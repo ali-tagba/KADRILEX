@@ -312,7 +312,7 @@ export default function FinancePage() {
                     </div>
                 ) : activeTab === "dashboard" ? (
                     <div className="flex-1 overflow-y-auto scrollbar-thin px-container-margin py-density-medium">
-                        <FinanceDashboard factures={factures} depenses={depenses} bulletins={bulletins} />
+                        <FinanceDashboard factures={factures} depenses={depenses} bulletins={bulletins} employes={employes} />
                     </div>
                 ) : activeTab === "vue-ensemble" ? (
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">

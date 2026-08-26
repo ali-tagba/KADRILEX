@@ -29,7 +29,7 @@ function shapeClient(c: Prisma.ClientGetPayload<{
     // partiesAdverses : aggregation déduplicée depuis tous les dossiers liés
     const partiesSet = new Set<string>()
     for (const d of dossiers) {
-        for (const p of d.partiesAdverses) partiesSet.add(p)
+        for (const p of d.partiesAdverses ?? []) partiesSet.add(p)
     }
     return {
         ...rest,
@@ -39,7 +39,7 @@ function shapeClient(c: Prisma.ClientGetPayload<{
         activity: [],
         partiesAdverses: Array.from(partiesSet).map((nom, i) => ({
             nom,
-            dossierNumero: dossiers.find((d) => d.partiesAdverses.includes(nom))?.numero ?? null,
+            dossierNumero: dossiers.find((d) => (d.partiesAdverses ?? []).includes(nom))?.numero ?? null,
             type: "INCONNU" as const,
         })),
         dossiers: dossiers.map((d) => ({

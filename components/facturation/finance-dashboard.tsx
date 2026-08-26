@@ -19,7 +19,7 @@ import {
 import {
     type MockBulletin,
 } from "@/lib/mock/bulletins"
-import { mockEmployes } from "@/lib/mock/employes"
+import type { MockEmploye } from "@/lib/mock/employes"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { factureClientName } from "@/lib/mock/invoices"
 
@@ -27,6 +27,7 @@ interface FinanceDashboardProps {
     factures: MockFacture[]
     depenses: MockDepense[]
     bulletins: MockBulletin[]
+    employes: MockEmploye[]
 }
 
 /* ============================================================
@@ -70,7 +71,7 @@ function getPeriodRange(preset: PeriodPreset, anchor = new Date()): { start: Dat
    Component principal
    ============================================================ */
 
-export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashboardProps) {
+export function FinanceDashboard({ factures, depenses, bulletins, employes }: FinanceDashboardProps) {
     const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("MONTH")
     const [trendMonths, setTrendMonths] = useState<3 | 6 | 12>(6)
     const period = useMemo(() => getPeriodRange(periodPreset), [periodPreset])
@@ -288,7 +289,7 @@ export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashb
         )
         return monthBulletins
             .map((b) => {
-                const emp = mockEmployes.find((e) => e.id === b.employeId)
+                const emp = employes.find((e) => e.id === b.employeId)
                 let anciennete: string | null = null
                 if (emp?.dateEmbauche) {
                     const embauche = new Date(emp.dateEmbauche)
@@ -310,7 +311,7 @@ export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashb
                 }
             })
             .sort((a, b) => b.cout - a.cout)
-    }, [bulletins])
+    }, [bulletins, employes])
 
     /* Top 5 clients en retard */
     const topRetards = useMemo(() => {
@@ -643,7 +644,7 @@ export function FinanceDashboard({ factures, depenses, bulletins }: FinanceDashb
                     actionHref="/facturation?tab=paie"
                     emptyText="Aucun bulletin en attente"
                     items={bulletinsAValider.slice(0, 5).map((b) => {
-                        const emp = mockEmployes.find((e) => e.id === b.employeId)
+                        const emp = employes.find((e) => e.id === b.employeId)
                         return {
                             id: b.id,
                             primary: emp ? `${emp.prenom} ${emp.nom}` : "Inconnu",

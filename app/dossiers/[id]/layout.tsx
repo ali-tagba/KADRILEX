@@ -122,7 +122,7 @@ export default function DossierLayout({ children, params }: DossierLayoutProps) 
 
     const conflits = useMemo<DossierConflit[]>(() => {
         if (!dossier) return []
-        return dossier.partiesAdverses
+        return (dossier.partiesAdverses ?? [])
             .map((nom) => {
                 const matched = editClients.find(
                     (c) => c.id !== dossier.clientId && clientDisplayName(c) === nom

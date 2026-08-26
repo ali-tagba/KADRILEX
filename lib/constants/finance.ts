@@ -214,7 +214,7 @@ export function deriveStatutFacture(args: {
 }): StatutFactureKey {
     const { statutBrut, montantTTC, montantPaye, dateEcheance } = args
     if (statutBrut === "BROUILLON" || statutBrut === "ANNULEE") return statutBrut
-    if (montantPaye >= montantTTC) return "PAYEE"
+    if (montantPaye >= montantTTC && montantTTC > 0) return "PAYEE"
     if (dateEcheance && new Date(dateEcheance).getTime() < Date.now()) return "EN_RETARD"
     if (montantPaye > 0) return "PARTIELLE"
     return "EMISE"
