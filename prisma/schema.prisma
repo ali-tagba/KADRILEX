@@ -259,6 +259,15 @@ enum CategorieDepense {
   SOUS_TRAITANCE
   HONORAIRES
   AUTRE
+  TVA_RECUPERABLE
+  TELECOM
+  ENTRETIEN_VEHICULE
+  MOBILIER_BUREAU
+  EQUIPEMENT_MATERIAUX
+  PRESTATIONS_SERVICES_VOYAGE
+  PRODUITS_ENTRETIEN
+  DOCUMENTATION
+  SANTE
 }
 
 enum DepenseStatut {
@@ -440,14 +449,15 @@ model Client {
   equipe        ClientEquipe[]
 
   // Sub-collections
-  contacts       Contact[]
-  dossiers       Dossier[]
-  taches         Tache[]
-  factures       Facture[]
-  audiences      Audience[]      @relation("AudienceClient")
-  diligences     Diligence[]
-  lignesEcriture LigneEcriture[]
-  apports        Apport[]
+  contacts              Contact[]
+  dossiers              Dossier[]
+  taches                Tache[]
+  factures              Facture[]
+  audiences             Audience[]            @relation("AudienceClient")
+  diligences            Diligence[]
+  lignesEcriture        LigneEcriture[]
+  apports               Apport[]
+  encaissementsMensuels EncaissementMensuel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1239,4 +1249,43 @@ model ApportBeneficiaire {
 
   @@unique([apportId, membreId])
   @@index([membreId])
+}
+
+// ============================================================
+// BILAN CABINET — encaissements mensuels (reproduit BILAN 2026.xlsx)
+// ============================================================
+
+model EncaissementMensuel {
+  id       String  @id @default(cuid())
+  annee    Int
+  mois     Int // 1..12
+  /// Bloc "Autres" (général) si null, ou bloc dédié à un client majeur (ex: CELTEL NIGER SA)
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  montantHT Int @default(0) // saisi manuellement
+
+  tauxTVA    Int @default(19)
+  montantTVA Int @default(0) // = HT * tauxTVA%
+  montantTTC Int @default(0) // = HT + TVA
+
+  tauxBIC    Int @default(5)
+  montantBIC Int @default(0) // = TTC * tauxBIC%
+
+  /// Retenue BIC réellement appliquée par le client (attestation reçue) — saisie manuelle, pas déductible du HT
+  montantRetenueBIC  Int @default(0)
+  montantBICCollecte Int @default(0) // = BIC - RetenueBIC
+
+  /// TVA retenue à la source par le client (attestation reçue) — saisie manuelle
+  montantTVARetenueSource Int @default(0)
+  montantTVACollectee     Int @default(0) // = TVA - TVARetenueSource
+
+  montantEncaisse Int @default(0) // = TTC - RetenueBIC - TVARetenueSource
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([annee, mois])
+  @@index([clientId])
 }

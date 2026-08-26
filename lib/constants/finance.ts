@@ -93,6 +93,15 @@ export const CATEGORIES_DEPENSE = {
     SOUS_TRAITANCE: { label: "Sous-traitance", icon: "handshake", recurrentParDefaut: false, tvaSuggeree: 19 },
     HONORAIRES: { label: "Honoraires", icon: "gavel", recurrentParDefaut: false, tvaSuggeree: 19 },
     AUTRE: { label: "Autre", icon: "more_horiz", recurrentParDefaut: false, tvaSuggeree: 19 },
+    TVA_RECUPERABLE: { label: "TVA récupérable", icon: "receipt", recurrentParDefaut: false, tvaSuggeree: 0 },
+    TELECOM: { label: "Télécom", icon: "cell_tower", recurrentParDefaut: true, tvaSuggeree: 19 },
+    ENTRETIEN_VEHICULE: { label: "Entretien et réparation véhicule", icon: "directions_car", recurrentParDefaut: false, tvaSuggeree: 19 },
+    MOBILIER_BUREAU: { label: "Mobiliers de bureau", icon: "chair", recurrentParDefaut: false, tvaSuggeree: 19 },
+    EQUIPEMENT_MATERIAUX: { label: "Équipements / matériaux", icon: "construction", recurrentParDefaut: false, tvaSuggeree: 19 },
+    PRESTATIONS_SERVICES_VOYAGE: { label: "Prestations de services / voyage", icon: "work", recurrentParDefaut: false, tvaSuggeree: 19 },
+    PRODUITS_ENTRETIEN: { label: "Produits et matériels d'entretien", icon: "mop", recurrentParDefaut: false, tvaSuggeree: 19 },
+    DOCUMENTATION: { label: "Documentation", icon: "menu_book", recurrentParDefaut: false, tvaSuggeree: 0 },
+    SANTE: { label: "Santé", icon: "health_and_safety", recurrentParDefaut: false, tvaSuggeree: 0 },
 } as const
 
 export type CategorieDepenseKey = keyof typeof CATEGORIES_DEPENSE
