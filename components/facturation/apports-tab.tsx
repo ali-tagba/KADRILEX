@@ -32,13 +32,12 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
     const [editing, setEditing] = useState<ApportFull | null>(null)
     const [yearAutoSelected, setYearAutoSelected] = useState(false)
 
-    // Charge TOUTES les années (filtré seulement par avocat) : le sélecteur d'année
-    // doit lister les années réellement présentes, pas seulement celle affichée.
+    // Charge TOUS les apports visibles (toutes années, tous avocats) : le filtre
+    // avocat se fait ensuite côté client pour permettre la vue comparative globale
+    // (cartes par avocat) sans re-fetch à chaque clic.
     const load = () => {
         setLoading(true)
-        const params = new URLSearchParams()
-        if (membreFiltre) params.set("membreId", membreFiltre)
-        fetch(`/api/apports?${params.toString()}`, { credentials: "include" })
+        fetch(`/api/apports`, { credentials: "include" })
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`)
                 return r.json() as Promise<ApportFull[]>
@@ -60,7 +59,7 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
             .finally(() => setLoading(false))
     }
 
-    useEffect(load, [membreFiltre]) // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const availableYears = useMemo(() => {
         const set = new Set<number>([now.getFullYear()])
@@ -68,18 +67,53 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
         return Array.from(set).sort((a, b) => b - a)
     }, [allApports, now])
 
-    const apports = useMemo(
+    /** Apports de l'année sélectionnée, tous avocats confondus — base de la vue globale. */
+    const apportsAnnee = useMemo(
         () => allApports.filter((a) => a.annee === annee),
         [allApports, annee]
+    )
+
+    /** Comparatif par avocat (vue globale) : total rétrocession + nb de lignes, tous avocats
+     *  apparaissant dans les bénéficiaires de l'année, triés du plus gros au plus petit. */
+    const parAvocat = useMemo(() => {
+        const map = new Map<string, { membreId: string; nom: string; total: number; count: number }>()
+        for (const a of apportsAnnee) {
+            for (const b of a.beneficiaires) {
+                const cur = map.get(b.membreId) ?? {
+                    membreId: b.membreId,
+                    nom: `${b.membre.prenom} ${b.membre.nom}`,
+                    total: 0,
+                    count: 0,
+                }
+                cur.total += b.montant
+                cur.count += 1
+                map.set(b.membreId, cur)
+            }
+        }
+        return Array.from(map.values()).sort((a, b) => b.total - a.total)
+    }, [apportsAnnee])
+
+    const apports = useMemo(
+        () =>
+            membreFiltre
+                ? apportsAnnee.filter((a) => a.beneficiaires.some((b) => b.membreId === membreFiltre))
+                : apportsAnnee,
+        [apportsAnnee, membreFiltre]
     )
 
     const totaux = useMemo(() => {
         const totalHT = apports.reduce((s, a) => s + a.montantHT, 0)
         const totalISB = apports.reduce((s, a) => s + a.montantISB, 0)
         const totalSociete = apports.reduce((s, a) => s + a.montantSociete, 0)
-        const totalRetro = apports.reduce((s, a) => s + a.montantRetrocessionTotal, 0)
+        const totalRetro = membreFiltre
+            ? apports.reduce(
+                  (s, a) =>
+                      s + a.beneficiaires.filter((b) => b.membreId === membreFiltre).reduce((s2, b) => s2 + b.montant, 0),
+                  0
+              )
+            : apports.reduce((s, a) => s + a.montantRetrocessionTotal, 0)
         return { totalHT, totalISB, totalSociete, totalRetro }
-    }, [apports])
+    }, [apports, membreFiltre])
 
     async function handleSave(draft: ApportFormDraft) {
         const { toast } = await import("@/components/ui/toaster")
@@ -142,17 +176,6 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                         ))}
                     </select>
 
-                    <select
-                        value={membreFiltre}
-                        onChange={(e) => setMembreFiltre(e.target.value)}
-                        className="bg-surface border border-outline-variant rounded px-2 py-1 font-body-sm text-[11px] text-on-surface outline-none focus:border-accent max-w-[180px]"
-                    >
-                        <option value="">Tous les avocats</option>
-                        {membres.map((m) => (
-                            <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>
-                        ))}
-                    </select>
-
                     <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto scrollbar-thin">
                         <InlineStat label="HT" value={formatFCFA(totaux.totalHT)} />
                         <InlineStat label="ISB" value={formatFCFA(totaux.totalISB)} />
@@ -182,6 +205,30 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                         </button>
                     )}
                 </header>
+
+                {/* Vue globale comparative : une carte par avocat (clic = filtre), triées par rétrocession décroissante.
+                    "Tous les avocats" reste la première carte pour revenir à la vue globale en un clic. */}
+                {parAvocat.length > 0 && (
+                    <div className="flex items-stretch gap-2 overflow-x-auto scrollbar-thin pb-0.5">
+                        <AvocatCard
+                            label="Tous les avocats"
+                            sublabel={`${apportsAnnee.length} apport${apportsAnnee.length > 1 ? "s" : ""}`}
+                            montant={apportsAnnee.reduce((s, a) => s + a.montantRetrocessionTotal, 0)}
+                            active={membreFiltre === ""}
+                            onClick={() => setMembreFiltre("")}
+                        />
+                        {parAvocat.map((av) => (
+                            <AvocatCard
+                                key={av.membreId}
+                                label={av.nom}
+                                sublabel={`${av.count} ligne${av.count > 1 ? "s" : ""}`}
+                                montant={av.total}
+                                active={membreFiltre === av.membreId}
+                                onClick={() => setMembreFiltre(av.membreId)}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 <div className="flex-1 min-h-0 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden flex flex-col">
                     {loading ? (
@@ -307,6 +354,43 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                 />
             )}
         </>
+    )
+}
+
+function AvocatCard({
+    label,
+    sublabel,
+    montant,
+    active,
+    onClick,
+}: {
+    label: string
+    sublabel: string
+    montant: number
+    active: boolean
+    onClick: () => void
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "flex-none min-w-[150px] text-left px-3 py-2 rounded-lg border transition-colors",
+                active
+                    ? "bg-accent/10 border-accent/50"
+                    : "bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low"
+            )}
+        >
+            <p className={cn(
+                "font-body-sm text-body-sm font-medium truncate",
+                active ? "text-primary-container" : "text-on-surface"
+            )}>
+                {label}
+            </p>
+            <p className="font-mono-num text-mono-num text-[15px] font-semibold tabular-nums text-primary mt-0.5">
+                {formatFCFA(montant)}
+            </p>
+            <p className="font-body-xs text-body-xs text-outline mt-0.5">{sublabel}</p>
+        </button>
     )
 }
 

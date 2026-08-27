@@ -42,6 +42,10 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [formOpen, setFormOpen] = useState(false)
+    /** Catégories actuellement affichées dans le tableau — par défaut, seulement
+     *  celles qui ont des montants sur l'année (comme une feuille Excel qui n'a
+     *  jamais de ligne vide). Le reste reste accessible via le filtre. */
+    const [activeCats, setActiveCats] = useState<Set<string>>(new Set())
 
     const load = () => {
         setLoading(true)
@@ -52,6 +56,7 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
             })
             .then((d) => {
                 setData(d)
+                setActiveCats(new Set(d.depenses.categories.filter((c) => c.total > 0).map((c) => c.categorie)))
                 setError(null)
             })
             .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
@@ -59,6 +64,14 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
     }
 
     useEffect(load, [annee]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const toggleCat = (cat: string) =>
+        setActiveCats((s) => {
+            const next = new Set(s)
+            if (next.has(cat)) next.delete(cat)
+            else next.add(cat)
+            return next
+        })
 
     async function handleSave(draft: EncaissementFormDraft) {
         const { toast } = await import("@/components/ui/toaster")
@@ -144,8 +157,46 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                             </Section>
 
                             <Section title="Tableau des produits et charges" icon="table_chart">
+                                <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+                                    <span className="font-label-caps text-label-caps text-outline uppercase mr-1">Catégories</span>
+                                    {data.depenses.categories.map((c) => {
+                                        const active = activeCats.has(c.categorie)
+                                        const hasData = c.total > 0
+                                        return (
+                                            <button
+                                                key={c.categorie}
+                                                onClick={() => toggleCat(c.categorie)}
+                                                title={hasData ? formatFCFA(c.total) : "Aucune donnée cette année"}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] transition-colors",
+                                                    active
+                                                        ? "bg-accent/10 border-accent/40 text-primary-container"
+                                                        : "bg-surface-container-low border-outline-variant text-outline hover:text-on-surface-variant"
+                                                )}
+                                            >
+                                                <span className={cn(
+                                                    "w-[6px] h-[6px] rounded-full",
+                                                    hasData ? "bg-accent" : "bg-outline-variant"
+                                                )} />
+                                                {c.label}
+                                            </button>
+                                        )
+                                    })}
+                                    {activeCats.size !== data.depenses.categories.filter((c) => c.total > 0).length && (
+                                        <button
+                                            onClick={() =>
+                                                setActiveCats(
+                                                    new Set(data.depenses.categories.filter((c) => c.total > 0).map((c) => c.categorie))
+                                                )
+                                            }
+                                            className="font-body-xs text-body-xs text-primary-container hover:text-accent underline underline-offset-2 ml-1"
+                                        >
+                                            Réinitialiser
+                                        </button>
+                                    )}
+                                </div>
                                 <ChargesTable
-                                    categories={data.depenses.categories}
+                                    categories={data.depenses.categories.filter((c) => activeCats.has(c.categorie))}
                                     retrocessions={data.depenses.retrocessions}
                                     totalParMois={data.depenses.totalChargesParMois}
                                     totalGeneral={data.depenses.totalCharges}
