@@ -97,18 +97,27 @@ export async function GET(req: NextRequest) {
             ...buildBloc(c.rows),
         }))
 
-        // --- Dépenses : 18 catégories réelles x 12 mois (montantTTC), + ligne Rétrocessions dérivée d'Apport ---
-        const categorieOrder: CategorieDepenseKey[] = [
+        // --- Dépenses : TOUTES les catégories x 12 mois (montantTTC), + ligne Rétrocessions dérivée d'Apport ---
+        // Ordre historique (18 catégories du Bilan Excel importé) d'abord, puis le reste de
+        // l'enum ajouté depuis — sinon une dépense créée dans une catégorie plus récente
+        // (Loyer, Internet, Assurance, etc.) disparaissait silencieusement du Bilan et du solde.
+        const categorieOrderHistorique: CategorieDepenseKey[] = [
             "TVA_RECUPERABLE", "EAU", "ELECTRICITE", "CARBURANT", "TELECOM", "ENTRETIEN_VEHICULE",
             "SALAIRES", "HONORAIRES", "AUTRE", "IMPOTS", "TAXES", "FOURNITURES",
             "MOBILIER_BUREAU", "EQUIPEMENT_MATERIAUX", "PRESTATIONS_SERVICES_VOYAGE",
             "PRODUITS_ENTRETIEN", "DOCUMENTATION", "SANTE",
         ]
+        const categorieOrder: CategorieDepenseKey[] = [
+            ...categorieOrderHistorique,
+            ...(Object.keys(CATEGORIES_DEPENSE) as CategorieDepenseKey[]).filter(
+                (k) => !categorieOrderHistorique.includes(k)
+            ),
+        ]
         const parCategorie = new Map<string, number[]>()
         for (const cat of categorieOrder) parCategorie.set(cat, emptyMonths())
         for (const d of depenses) {
             const arr = parCategorie.get(d.categorie)
-            if (!arr) continue // catégorie hors périmètre bilan (ex: LOYER géré ailleurs)
+            if (!arr) continue
             arr[d.date.getMonth()] += d.montantTTC
         }
         const categories = categorieOrder.map((cat) => {

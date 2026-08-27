@@ -44,6 +44,9 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
     const [error, setError] = useState<string | null>(null)
     const [formOpen, setFormOpen] = useState(false)
     const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+    /** Quelle(s) section(s) afficher — évite de faire défiler les 3 blocs
+     *  (encaissements / retenues / produits-charges) quand un seul intéresse. */
+    const [sectionView, setSectionView] = useState<"TOUT" | "ENCAISSEMENTS" | "RETENUES" | "CHARGES">("TOUT")
     /** Catégories actuellement affichées dans le tableau — par défaut, seulement
      *  celles qui ont des montants sur l'année (comme une feuille Excel qui n'a
      *  jamais de ligne vide). Le reste reste accessible via le filtre (tiroir). */
@@ -157,6 +160,32 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                     )}
                 </header>
 
+                {data && (
+                    <div className="inline-flex items-center gap-0.5 border border-outline-variant rounded overflow-hidden self-start">
+                        {(
+                            [
+                                { v: "TOUT" as const, label: "Tout" },
+                                { v: "ENCAISSEMENTS" as const, label: "Encaissements" },
+                                { v: "RETENUES" as const, label: "Retenues" },
+                                { v: "CHARGES" as const, label: "Produits & charges" },
+                            ]
+                        ).map((opt) => (
+                            <button
+                                key={opt.v}
+                                onClick={() => setSectionView(opt.v)}
+                                className={cn(
+                                    "px-2.5 py-1 font-body-sm text-[11px] font-medium transition-colors whitespace-nowrap",
+                                    sectionView === opt.v
+                                        ? "bg-primary text-white"
+                                        : "bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low"
+                                )}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-density-medium pb-4">
                     {loading ? (
                         <div className="flex items-center justify-center py-16 font-body-sm text-on-surface-variant">Chargement…</div>
@@ -164,20 +193,25 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                         <div className="flex items-center justify-center py-16 font-body-sm text-error">{error}</div>
                     ) : data ? (
                         <>
-                            <Section title="Bilan des encaissements" icon="payments">
-                                <EncaissementsTable bloc={data.encaissements.autres} titre="Autres encaissements" />
-                                {data.encaissements.parClient.map((c) => (
-                                    <EncaissementsTable key={c.clientId} bloc={c} titre={`Encaissements — ${c.nom}`} />
-                                ))}
-                            </Section>
+                            {(sectionView === "TOUT" || sectionView === "ENCAISSEMENTS") && (
+                                <Section title="Bilan des encaissements" icon="payments">
+                                    <EncaissementsTable bloc={data.encaissements.autres} titre="Autres encaissements" />
+                                    {data.encaissements.parClient.map((c) => (
+                                        <EncaissementsTable key={c.clientId} bloc={c} titre={`Encaissements — ${c.nom}`} />
+                                    ))}
+                                </Section>
+                            )}
 
-                            <Section title="Retenues sur produits (ISB 30% / Société 20%)" icon="account_balance">
-                                <RetenuesTable bloc={data.encaissements.autres} titre="Autres" />
-                                {data.encaissements.parClient.map((c) => (
-                                    <RetenuesTable key={c.clientId} bloc={c} titre={c.nom} />
-                                ))}
-                            </Section>
+                            {(sectionView === "TOUT" || sectionView === "RETENUES") && (
+                                <Section title="Retenues sur produits (ISB 30% / Société 20%)" icon="account_balance">
+                                    <RetenuesTable bloc={data.encaissements.autres} titre="Autres" />
+                                    {data.encaissements.parClient.map((c) => (
+                                        <RetenuesTable key={c.clientId} bloc={c} titre={c.nom} />
+                                    ))}
+                                </Section>
+                            )}
 
+                            {(sectionView === "TOUT" || sectionView === "CHARGES") && (
                             <Section title="Tableau des produits et charges" icon="table_chart">
                                 {activeFilterCount > 0 && (
                                     <p className="font-body-xs text-body-xs text-outline mb-2 flex items-center gap-1.5">
@@ -203,6 +237,7 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                                     </p>
                                 )}
                             </Section>
+                            )}
                         </>
                     ) : null}
                 </div>
