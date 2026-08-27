@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { MockDossier, DossierHonoraire, DossierRetrocession } from "@/lib/mock/dossiers"
+import { getClientForDossier } from "@/lib/mock/dossiers"
 import type { MockFacture } from "@/lib/mock/invoices"
 import { FacturationTab } from "@/components/facturation/facturation-tab"
 import { syncCollection, facturePostBody, facturePatchBody } from "@/lib/api/sync-collection"
+import { ApportFormDialog, type ApportFormDraft } from "@/components/facturation/apport-form-dialog"
+import type { ApportFull } from "@/components/facturation/apports-tab"
+import type { Membre } from "@prisma/client"
 
 /**
  * Section Finance d'un dossier.
@@ -41,6 +45,18 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     const [factures, setFactures] = useState<MockFacture[]>([])
     const [sequestre, setSequestre] = useState<{ montantRecu: number, montantReverse: number } | null>(null)
     const [loading, setLoading] = useState(true)
+    const [apports, setApports] = useState<ApportFull[]>([])
+    const [membres, setMembres] = useState<Membre[]>([])
+    const [apportFormOpen, setApportFormOpen] = useState(false)
+
+    const client = getClientForDossier(dossier)
+
+    const loadApports = () => {
+        fetch(`/api/apports?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<ApportFull[]>) : []))
+            .then(setApports)
+            .catch(() => setApports([]))
+    }
 
     useEffect(() => {
         let alive = true
@@ -53,7 +69,7 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .catch(() => {
                 if (alive) setFactures([])
             })
-            
+
         fetch(`/api/comptabilite/sequestre?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
             .then((r) => r.ok ? r.json() : null)
             .then((data) => {
@@ -63,10 +79,40 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .finally(() => {
                 if (alive) setLoading(false)
             })
+
+        fetch(`/api/employes`, { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : []))
+            .then((list) => {
+                if (alive) setMembres(list)
+            })
+            .catch(() => {})
+
+        loadApports()
         return () => {
             alive = false
         }
     }, [dossier.id])
+
+    async function handleSaveApport(draft: ApportFormDraft) {
+        const { toast } = await import("@/components/ui/toaster")
+        try {
+            const r = await fetch("/api/apports", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(draft),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+            toast.success("Apport enregistré.")
+            setApportFormOpen(false)
+            loadApports()
+        } catch (e) {
+            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
+        }
+    }
 
     /** Sync local → API (mêmes endpoints que la page Finance). */
     const syncFactures = (next: MockFacture[]) => {
@@ -161,6 +207,7 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     }, [dossier.honoraires, dossier.provisionsVersees, dossier.retrocession, factures])
 
     return (
+        <>
         <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
             <header className="bg-surface-container px-4 py-3 border-b border-outline-variant flex justify-between items-center gap-3">
                 <div className="flex items-center gap-2">
@@ -349,6 +396,45 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 </div>
             )}
 
+            {/* Apports avocats liés à ce dossier — même saisie, visible ici ET dans
+                Apports avocats / la fiche de l'avocat concerné (Équipe). */}
+            <div className="px-4 py-3 border-b border-outline-variant">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-on-surface-variant">
+                        <span className="material-symbols-outlined text-[18px]">handshake</span>
+                        <span className="font-label-caps text-label-caps text-on-surface">
+                            Apports avocats — {formatFCFA(apports.reduce((s, a) => s + a.montantRetrocessionTotal, 0))}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => setApportFormOpen(true)}
+                        className="text-primary-container hover:text-accent inline-flex items-center gap-1 font-body-sm text-body-sm font-medium"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">add</span>
+                        Nouvel apport
+                    </button>
+                </div>
+                {apports.length === 0 ? (
+                    <p className="text-sm text-outline italic">Aucun apport enregistré pour ce dossier.</p>
+                ) : (
+                    <ul className="space-y-1">
+                        {apports.map((a) => (
+                            <li key={a.id} className="flex justify-between items-center text-sm py-1 border-t border-outline-variant/30 first:border-0">
+                                <span className="text-on-surface-variant">
+                                    <span className="font-mono-num text-[11px] text-outline mr-2">
+                                        {String(a.mois).padStart(2, "0")}/{a.annee}
+                                    </span>
+                                    {a.beneficiaires.map((b) => `${b.membre.prenom} ${b.membre.nom}`).join(", ")}
+                                </span>
+                                <span className="font-mono-num font-medium text-primary-container">
+                                    {formatFCFA(a.montantRetrocessionTotal)}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
             {/* Module Facturation complet, pré-filtré sur le dossier */}
             <div className="p-density-medium">
                 {loading ? (
@@ -367,6 +453,27 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 )}
             </div>
         </section>
+
+        {apportFormOpen && (
+            <ApportFormDialog
+                apport={null}
+                membres={membres}
+                dossiers={[{
+                    id: dossier.id,
+                    numero: dossier.numero,
+                    titre: dossier.titre,
+                    clientId: dossier.clientId,
+                    client: client ? { raisonSociale: client.raisonSociale ?? null, nom: client.nom ?? null } : null,
+                }]}
+                defaultAnnee={new Date().getFullYear()}
+                defaultMois={new Date().getMonth() + 1}
+                lockedDossierId={dossier.id}
+                defaultBeneficiaireId={dossier.responsableId}
+                onSave={handleSaveApport}
+                onClose={() => setApportFormOpen(false)}
+            />
+        )}
+        </>
     )
 }
 

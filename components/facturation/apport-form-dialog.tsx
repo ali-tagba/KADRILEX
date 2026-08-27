@@ -22,14 +22,32 @@ export interface ApportFormDraft {
     beneficiaires: { membreId: string; pourcentage: number }[]
 }
 
+export interface ApportDossierOption {
+    id: string
+    numero: string
+    titre: string
+    clientId: string | null
+    client?: { raisonSociale: string | null; nom: string | null } | null
+}
+
+function dossierClientLabel(d: ApportDossierOption | undefined | null): string {
+    if (!d?.client) return ""
+    return d.client.raisonSociale ?? d.client.nom ?? ""
+}
+
 interface ApportFormDialogProps {
     apport: ApportFull | null // null = création
     membres: Membre[]
-    dossiers: { id: string; numero: string; titre: string }[]
+    dossiers: ApportDossierOption[]
     defaultAnnee: number
     defaultMois: number
     onSave: (draft: ApportFormDraft) => Promise<void> | void
     onClose: () => void
+    /** Ouvre le formulaire pré-rattaché à ce dossier (depuis la fiche Dossier) —
+     *  dossier + client ne sont alors plus modifiables, évite de les ressaisir. */
+    lockedDossierId?: string
+    /** Bénéficiaire suggéré par défaut (ex. responsable du dossier) — reste modifiable. */
+    defaultBeneficiaireId?: string | null
 }
 
 const MOIS_LABELS = [
@@ -45,11 +63,17 @@ export function ApportFormDialog({
     defaultMois,
     onSave,
     onClose,
+    lockedDossierId,
+    defaultBeneficiaireId,
 }: ApportFormDialogProps) {
     const [annee, setAnnee] = useState(apport?.annee ?? defaultAnnee)
     const [mois, setMois] = useState(apport?.mois ?? defaultMois)
-    const [dossierId, setDossierId] = useState(apport?.dossierId ?? "")
-    const [clientLibre, setClientLibre] = useState(apport?.clientLibre ?? apport?.client?.raisonSociale ?? apport?.client?.nom ?? "")
+    const [dossierId, setDossierId] = useState(apport?.dossierId ?? lockedDossierId ?? "")
+    const selectedDossier = dossiers.find((d) => d.id === dossierId)
+    const clientDeDossier = dossierClientLabel(selectedDossier)
+    const [clientLibre, setClientLibre] = useState(
+        apport?.clientLibre ?? apport?.client?.raisonSociale ?? apport?.client?.nom ?? clientDeDossier
+    )
     const [referenceLibre, setReferenceLibre] = useState(apport?.referenceLibre ?? "")
     const [montantHT, setMontantHT] = useState(apport?.montantHT ?? 0)
     const [fraisDossier, setFraisDossier] = useState(apport?.fraisDossier ?? 0)
@@ -57,9 +81,17 @@ export function ApportFormDialog({
     const [tauxSociete, setTauxSociete] = useState(apport?.tauxSociete ?? TAUX_SOCIETE_DEFAUT)
     const [notes, setNotes] = useState(apport?.notes ?? "")
     const [beneficiaires, setBeneficiaires] = useState<{ membreId: string; pourcentage: number }[]>(
-        apport?.beneficiaires.map((b) => ({ membreId: b.membreId, pourcentage: Number(b.pourcentage) })) ?? []
+        apport?.beneficiaires.map((b) => ({ membreId: b.membreId, pourcentage: Number(b.pourcentage) })) ??
+            (defaultBeneficiaireId ? [{ membreId: defaultBeneficiaireId, pourcentage: 100 }] : [])
     )
     const [saving, setSaving] = useState(false)
+
+    /* Client dérivé automatiquement du dossier choisi — sinon, le cabinet devrait
+       retaper un nom qu'il vient de sélectionner via son dossier. Reste modifiable
+       si le dossier n'a pas de client formel rattaché (référence libre). */
+    useEffect(() => {
+        if (clientDeDossier) setClientLibre(clientDeDossier)
+    }, [clientDeDossier])
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -104,7 +136,7 @@ export function ApportFormDialog({
                 annee,
                 mois,
                 dossierId: dossierId || null,
-                clientId: null,
+                clientId: selectedDossier?.clientId ?? null,
                 referenceLibre: referenceLibre.trim() || null,
                 clientLibre: clientLibre.trim() || null,
                 montantHT,
@@ -161,35 +193,55 @@ export function ApportFormDialog({
                         </Field>
                     </div>
 
-                    <Field label="Client" required={!dossierId}>
+                    {lockedDossierId && selectedDossier ? (
+                        <div className="bg-accent/10 border border-accent/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px] text-primary-container">folder</span>
+                            <div className="min-w-0">
+                                <p className="font-body-sm text-body-sm font-medium text-on-surface truncate">
+                                    {selectedDossier.numero} · {selectedDossier.titre}
+                                </p>
+                                {clientDeDossier && (
+                                    <p className="font-body-xs text-body-xs text-outline">Client : {clientDeDossier}</p>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Dossier lié (optionnel)">
+                                <select value={dossierId} onChange={(e) => setDossierId(e.target.value)} className={inputCls}>
+                                    <option value="">— Aucun —</option>
+                                    {dossiers.map((d) => (
+                                        <option key={d.id} value={d.id}>{d.numero} · {d.titre.slice(0, 40)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <Field label="Client" required={!dossierId}>
+                                {clientDeDossier ? (
+                                    <div className={cn(inputCls, "bg-surface-container-low text-on-surface-variant flex items-center")} title="Dérivé du dossier sélectionné">
+                                        {clientDeDossier}
+                                    </div>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={clientLibre}
+                                        onChange={(e) => setClientLibre(e.target.value)}
+                                        placeholder="Nom du client"
+                                        className={inputCls}
+                                    />
+                                )}
+                            </Field>
+                        </div>
+                    )}
+
+                    <Field label="Référence (facture…)">
                         <input
                             type="text"
-                            value={clientLibre}
-                            onChange={(e) => setClientLibre(e.target.value)}
-                            placeholder="Nom du client"
+                            value={referenceLibre}
+                            onChange={(e) => setReferenceLibre(e.target.value)}
+                            placeholder="ex : FACTURE N°FV-2026-01/00012"
                             className={inputCls}
                         />
                     </Field>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field label="Dossier lié (optionnel)">
-                            <select value={dossierId} onChange={(e) => setDossierId(e.target.value)} className={inputCls}>
-                                <option value="">— Aucun —</option>
-                                {dossiers.map((d) => (
-                                    <option key={d.id} value={d.id}>{d.numero} · {d.titre.slice(0, 40)}</option>
-                                ))}
-                            </select>
-                        </Field>
-                        <Field label="Référence (facture, dossier…)">
-                            <input
-                                type="text"
-                                value={referenceLibre}
-                                onChange={(e) => setReferenceLibre(e.target.value)}
-                                placeholder="ex : FACTURE N°FV-2026-01/00012"
-                                className={inputCls}
-                            />
-                        </Field>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <Field label="Montant réglé HT" required>

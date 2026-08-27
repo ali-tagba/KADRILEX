@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { formatFCFA, formatMoisLong } from "@/lib/constants/finance"
 import type { Membre, Prisma } from "@prisma/client"
-import { ApportFormDialog, type ApportFormDraft } from "./apport-form-dialog"
+import { ApportFormDialog, type ApportFormDraft, type ApportDossierOption } from "./apport-form-dialog"
 import { StatusDot } from "@/components/ui/status-dot"
 
 export type ApportFull = Prisma.ApportGetPayload<{
@@ -17,7 +17,7 @@ export type ApportFull = Prisma.ApportGetPayload<{
 
 interface ApportsTabProps {
     membres: Membre[]
-    dossiers: { id: string; numero: string; titre: string }[]
+    dossiers: ApportDossierOption[]
     canWrite: boolean
     presetMembreId?: string | null
 }
