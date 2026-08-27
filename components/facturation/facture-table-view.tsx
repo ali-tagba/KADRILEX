@@ -342,7 +342,7 @@ export function FactureTableView({
                                                 (f.statut === "EMISE" || f.statut === "EN_RETARD" || f.statut === "PARTIELLE")
                                             }
                                             canCancel={f.statut !== "ANNULEE" && f.statut !== "PAYEE"}
-                                            canDelete={!!onDelete}
+                                            canDelete={!!onDelete && f.montantPaye === 0 && f.statut !== "PAYEE"}
                                         />
                                     </td>
                                 </tr>

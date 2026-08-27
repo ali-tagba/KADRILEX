@@ -107,10 +107,12 @@ export async function PATCH(
 /**
  * Suppression DÉFINITIVE de la facture (hard delete).
  *
- * Aucun garde-fou compta : la suppression est autorisée même si PAYEE ou avec paiements.
+ * Garde-fou : refusée si la facture a déjà un paiement enregistré (montantPaye > 0)
+ * ou si son statut est PAYEE — supprimer effacerait l'historique d'encaissement réel.
  * Cascade Prisma : FactureLigne ET Paiement sont supprimés automatiquement
- * (onDelete: Cascade dans le schéma).
- * Pour annuler sans supprimer (conserver historique), utiliser PATCH { statut: "ANNULEE" }.
+ * (onDelete: Cascade dans le schéma) pour les factures sans paiement.
+ * Pour retirer une facture déjà payée du suivi actif sans perdre l'historique,
+ * utiliser PATCH { statut: "ANNULEE" }.
  */
 export async function DELETE(
     _req: NextRequest,
@@ -122,6 +124,12 @@ export async function DELETE(
 
         const facture = await prisma.facture.findUnique({ where: { id } })
         if (!facture) throw new HttpError(404, "Facture introuvable")
+        if (facture.montantPaye > 0 || facture.statut === "PAYEE") {
+            throw new HttpError(
+                400,
+                "Cette facture a déjà un paiement enregistré — utilisez « Annuler » (statut Annulée) pour la retirer du suivi sans perdre l'historique."
+            )
+        }
 
         await prisma.facture.delete({ where: { id } })
         return Response.json({ ok: true, deleted: id })

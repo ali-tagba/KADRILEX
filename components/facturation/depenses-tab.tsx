@@ -117,7 +117,6 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
             }
 
             if (editingDepense) {
-                // Mise à jour — PATCH /api/depenses/:id (écriture comptable mise à jour aussi)
                 const res = await fetch(`/api/depenses/${editingDepense.id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -128,7 +127,6 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                     throw new Error(err.error || "Erreur lors de la mise à jour")
                 }
             } else {
-                // Création — POST /api/depenses (écriture comptable générée automatiquement)
                 const res = await fetch("/api/depenses", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -202,19 +200,11 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
     }
 
     const handleChangeStatut = (id: string, statut: "A_PAYER" | "PAYEE") => {
-        // Also fire API update in a real app, but here we just update state, handleSave does the creation.
-        // Wait, for inline edits in this mockup, we only update state. The API will need a PATCH.
         onChangeDepenses(
             depenses.map((d) =>
                 d.id === id ? { ...d, statut, updatedAt: new Date().toISOString() } : d
             )
         )
-        // Optimistic fetch for the inline edit
-        fetch(`/api/depenses/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ statut })
-        }).catch(console.error)
     }
 
     /* Mutations inline rapides */

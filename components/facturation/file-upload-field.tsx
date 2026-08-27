@@ -48,9 +48,7 @@ function iconForMime(mime: string): string {
 
 /**
  * Champ d'upload de pièce jointe — pattern trombone Notion-like.
- *
- * Aujourd'hui : mode mock (URL.createObjectURL + nom du fichier conservés).
- * Demain : POST vers `/api/upload` qui retourne une signed URL R2/S3.
+ * Upload réel via URL signée (POST /api/storage/upload-url puis PUT direct au storage).
  */
 export function FileUploadField({
     value,
