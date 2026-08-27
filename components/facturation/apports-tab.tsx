@@ -221,30 +221,6 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                     )}
                 </header>
 
-                {/* Vue globale comparative : une carte par avocat (clic = filtre), triées par rétrocession décroissante.
-                    "Tous les avocats" reste la première carte pour revenir à la vue globale en un clic. */}
-                {parAvocat.length > 0 && (
-                    <div className="flex items-stretch gap-2 overflow-x-auto scrollbar-thin pb-0.5">
-                        <AvocatCard
-                            label="Tous les avocats"
-                            sublabel={`${apportsAnnee.length} apport${apportsAnnee.length > 1 ? "s" : ""}`}
-                            montant={apportsAnnee.reduce((s, a) => s + a.montantRetrocessionTotal, 0)}
-                            active={membreFiltre === ""}
-                            onClick={() => setMembreFiltre("")}
-                        />
-                        {parAvocat.map((av) => (
-                            <AvocatCard
-                                key={av.membreId}
-                                label={av.nom}
-                                sublabel={`${av.count} ligne${av.count > 1 ? "s" : ""}`}
-                                montant={av.total}
-                                active={membreFiltre === av.membreId}
-                                onClick={() => setMembreFiltre(av.membreId)}
-                            />
-                        ))}
-                    </div>
-                )}
-
                 <div className="flex-1 min-h-0 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden flex flex-col">
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center font-body-sm text-on-surface-variant">
@@ -368,43 +344,6 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                 />
             )}
         </>
-    )
-}
-
-function AvocatCard({
-    label,
-    sublabel,
-    montant,
-    active,
-    onClick,
-}: {
-    label: string
-    sublabel: string
-    montant: number
-    active: boolean
-    onClick: () => void
-}) {
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex-none min-w-[150px] text-left px-3 py-2 rounded-lg border transition-colors",
-                active
-                    ? "bg-accent/10 border-accent/50"
-                    : "bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low"
-            )}
-        >
-            <p className={cn(
-                "font-body-sm text-body-sm font-medium truncate",
-                active ? "text-primary-container" : "text-on-surface"
-            )}>
-                {label}
-            </p>
-            <p className="font-mono-num text-mono-num text-[15px] font-semibold tabular-nums text-primary mt-0.5">
-                {formatFCFA(montant)}
-            </p>
-            <p className="font-body-xs text-body-xs text-outline mt-0.5">{sublabel}</p>
-        </button>
     )
 }
 

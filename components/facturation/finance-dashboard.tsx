@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { formatFCFA, formatMoisLong, formatDateLongue } from "@/lib/constants/finance"
 
@@ -173,6 +174,17 @@ export function FinanceDashboard() {
                                 </span>
                                 <span className="font-body-md text-body-md font-semibold text-on-surface-variant">FCFA</span>
                             </div>
+                            <div className="mt-4 font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2 flex-wrap">
+                                <span>{formatFCFA(encaisseValue)} encaissé</span>
+                                <span className="text-outline-variant">·</span>
+                                <span>{formatFCFA(chargesValue)} de charges</span>
+                                {apportsTotal > 0 && (
+                                    <>
+                                        <span className="text-outline-variant">·</span>
+                                        <span>{formatFCFA(apportsTotal)} de rétrocessions versées</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                         <div className="lg:border-l border-outline-variant lg:pl-10">
                             <KpiRow label="Encaissé (HT)" value={formatFCFA(encaisseValue)} />
@@ -200,7 +212,12 @@ export function FinanceDashboard() {
                         <div>
                             <h3 className="font-h3 text-h3 text-on-surface">Principales charges — {periodeLabel}</h3>
                             {topCharges.length === 0 ? (
-                                <p className="font-body-sm text-body-sm text-outline italic py-4">Aucune charge enregistrée pour {periodeLabel.toLowerCase()}</p>
+                                <EmptyListCard
+                                    icon="account_balance_wallet"
+                                    text={`Aucune charge enregistrée pour ${periodeLabel.toLowerCase()}.`}
+                                    linkLabel="Ajouter une dépense"
+                                    linkHref="/facturation?tab=depenses"
+                                />
                             ) : (
                                 <div className="mt-1">
                                     {topCharges.map((c) => (
@@ -218,9 +235,12 @@ export function FinanceDashboard() {
                         <div>
                             <h3 className="font-h3 text-h3 text-on-surface">Rétrocessions par avocat — {periodeLabel}</h3>
                             {parAvocat.length === 0 ? (
-                                <p className="font-body-sm text-body-sm text-outline italic py-4">
-                                    Aucun apport enregistré pour {periodeLabel.toLowerCase()} — à saisir dans l&apos;onglet &quot;Apports avocats&quot;.
-                                </p>
+                                <EmptyListCard
+                                    icon="handshake"
+                                    text={`Aucun apport enregistré pour ${periodeLabel.toLowerCase()}.`}
+                                    linkLabel="Saisir un apport"
+                                    linkHref="/facturation?tab=apports"
+                                />
                             ) : (
                                 <div className="mt-1">
                                     {parAvocat.map((av) => (
@@ -257,6 +277,35 @@ function PeriodPill({ active, onClick, children }: { active: boolean; onClick: (
         >
             {children}
         </button>
+    )
+}
+
+/** État vide en carte (comme le bloc "Paie" de la maquette) plutôt qu'une simple
+ *  ligne de texte — évite qu'une colonne vide paraisse cassée à côté d'une liste
+ *  remplie, et donne une action directe plutôt qu'un constat. */
+function EmptyListCard({
+    icon,
+    text,
+    linkLabel,
+    linkHref,
+}: {
+    icon: string
+    text: string
+    linkLabel: string
+    linkHref: string
+}) {
+    return (
+        <div className="mt-1 border border-outline-variant rounded-lg p-density-medium flex flex-col items-start gap-2">
+            <span className="material-symbols-outlined text-[22px] text-outline-variant">{icon}</span>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">{text}</p>
+            <Link
+                href={linkHref}
+                className="font-body-sm text-body-sm text-primary-container hover:text-accent inline-flex items-center gap-1 transition-colors"
+            >
+                {linkLabel}
+                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </Link>
+        </div>
     )
 }
 
