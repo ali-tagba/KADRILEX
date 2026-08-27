@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { formatFCFA, formatMoisLong } from "@/lib/constants/finance"
 import type { Membre, Prisma } from "@prisma/client"
 import { ApportFormDialog, type ApportFormDraft } from "./apport-form-dialog"
+import { StatusDot } from "@/components/ui/status-dot"
 
 export type ApportFull = Prisma.ApportGetPayload<{
     include: {
@@ -302,12 +303,11 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                                                 {formatFCFA(a.montantRetrocessionTotal)}
                                             </td>
                                             <td className="py-2 px-3 text-center">
-                                                <span className={cn(
-                                                    "inline-flex items-center px-1.5 py-0.5 rounded font-label-caps text-[9px] uppercase",
-                                                    a.valide ? "bg-[#e8f5e9] text-[#166534]" : "bg-surface-container-high text-on-surface-variant"
-                                                )}>
-                                                    {a.valide ? "Validé" : "Brouillon"}
-                                                </span>
+                                                <StatusDot
+                                                    tone={a.valide ? "success" : "neutral"}
+                                                    label={a.valide ? "Validé" : "Brouillon"}
+                                                    className="justify-center"
+                                                />
                                             </td>
                                             {canWrite && (
                                                 <td className="py-2 px-3 text-center">

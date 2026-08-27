@@ -14,6 +14,7 @@ import type { MockDepense } from "@/lib/mock/depenses"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
+import { StatusDot, type StatusTone } from "@/components/ui/status-dot"
 
 /* ============================================================
    Types : ligne unifiée du registre
@@ -40,41 +41,49 @@ interface FluxLine {
     /** Montant signé : positif = entrée d'argent, négatif = sortie */
     montant: number
     statut: string
-    statutChip: string
+    statutTone: StatusTone
     mode: string | null
 }
 
-const KIND_META: Record<FluxKind, { label: string; icon: string; chipClass: string; sign: 1 | -1 }> = {
+const KIND_META: Record<FluxKind, { label: string; icon: string; tone: StatusTone; sign: 1 | -1 }> = {
     FACTURE_EMISE: {
         label: "Facture émise",
         icon: "north_east",
-        chipClass: "bg-primary-fixed text-primary",
+        tone: "accent",
         sign: 1,
     },
     PAIEMENT_RECU: {
         label: "Paiement reçu",
         icon: "savings",
-        chipClass: "bg-[#e8f5e9] text-[#166534]",
+        tone: "success",
         sign: 1,
     },
     ENCAISSEMENT: {
         label: "Encaissement mensuel",
         icon: "payments",
-        chipClass: "bg-[#e8f5e9] text-[#166534]",
+        tone: "success",
         sign: 1,
     },
     FACTURE_RECUE: {
         label: "Facture reçue",
         icon: "south_west",
-        chipClass: "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant",
+        tone: "warning",
         sign: -1,
     },
     DEPENSE_INTERNE: {
         label: "Dépense interne",
         icon: "account_balance_wallet",
-        chipClass: "bg-secondary-fixed text-on-secondary-fixed-variant",
+        tone: "neutral",
         sign: -1,
     },
+}
+
+const TONE_DOT_CLASS: Record<StatusTone, string> = {
+    success: "bg-success",
+    warning: "bg-secondary",
+    error: "bg-error",
+    accent: "bg-accent",
+    neutral: "bg-outline",
 }
 
 /* ============================================================
@@ -148,7 +157,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                     dossierNumero: dossier?.numero ?? null,
                     montant: f.montantTTC,
                     statut: stat.label,
-                    statutChip: stat.chip,
+                    statutTone: stat.tone,
                     mode: null,
                 })
                 /* Paiements reçus (si la facture a été partiellement ou totalement encaissée) */
@@ -163,7 +172,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                         dossierNumero: dossier?.numero ?? null,
                         montant: p.montant,
                         statut: "Encaissé",
-                        statutChip: "bg-[#e8f5e9] text-[#166534]",
+                        statutTone: "success",
                         mode: MODES_PAIEMENT[p.mode]?.label ?? p.mode,
                     })
                 }
@@ -180,7 +189,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                     dossierNumero: dossier?.numero ?? null,
                     montant: f.montantTTC,
                     statut: stat.label,
-                    statutChip: stat.chip,
+                    statutTone: stat.tone,
                     mode: null,
                 })
             }
@@ -198,10 +207,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                 dossierNumero: null,
                 montant: d.montantTTC,
                 statut: d.statut === "PAYEE" ? "Payée" : "À payer",
-                statutChip:
-                    d.statut === "PAYEE"
-                        ? "bg-[#e8f5e9] text-[#166534]"
-                        : "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant",
+                statutTone: d.statut === "PAYEE" ? "success" : "warning",
                 mode: MODES_PAIEMENT[d.mode]?.label ?? d.mode,
             })
         }
@@ -220,7 +226,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                 dossierNumero: null,
                 montant: e.montantEncaisse,
                 statut: "Encaissé",
-                statutChip: "bg-[#e8f5e9] text-[#166534]",
+                statutTone: "success",
                 mode: null,
             })
         }
@@ -427,7 +433,6 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                         <table className="w-full text-left border-collapse min-w-[1100px]">
                             <thead className="sticky top-0 z-10 bg-surface-container-low">
                                 <tr className="border-b border-outline-variant">
-                                    <Th width="32px" />
                                     <Th width="100px">Date</Th>
                                     <Th width="140px">Type</Th>
                                     <Th width="110px">N°</Th>
@@ -448,27 +453,12 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                                             key={l.id}
                                             className="hover:bg-surface-container-low/40 transition-colors h-11"
                                         >
-                                            <td className="py-1.5 px-3">
-                                                <span
-                                                    className={cn(
-                                                        "material-symbols-outlined text-[14px]",
-                                                        isEntree ? "text-[#166534]" : "text-secondary"
-                                                    )}
-                                                    title={meta.label}
-                                                >
-                                                    {meta.icon}
-                                                </span>
-                                            </td>
                                             <td className="py-1.5 px-3 font-mono-num text-mono-num text-[11px] text-on-surface-variant whitespace-nowrap tabular-nums">
                                                 {formatDateCourte(l.date)}
                                             </td>
                                             <td className="py-1.5 px-3">
-                                                <span
-                                                    className={cn(
-                                                        "inline-flex items-center px-1.5 py-0.5 rounded font-label-caps text-[9px] uppercase tracking-wider whitespace-nowrap",
-                                                        meta.chipClass
-                                                    )}
-                                                >
+                                                <span className="inline-flex items-center gap-1.5 text-[12px] text-on-surface-variant whitespace-nowrap">
+                                                    <span className={cn("w-[6px] h-[6px] rounded-full flex-none", TONE_DOT_CLASS[meta.tone])} />
                                                     {meta.label}
                                                 </span>
                                             </td>
@@ -489,7 +479,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                                                     className={cn(
                                                         "font-mono-num text-mono-num font-semibold tabular-nums whitespace-nowrap",
                                                         isEntree
-                                                            ? "text-[#166534]"
+                                                            ? "text-success"
                                                             : "text-on-surface"
                                                     )}
                                                 >
@@ -497,14 +487,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                                                 </span>
                                             </td>
                                             <td className="py-1.5 px-3">
-                                                <span
-                                                    className={cn(
-                                                        "inline-flex items-center px-1.5 py-0.5 rounded font-label-caps text-[9px] uppercase tracking-wider whitespace-nowrap",
-                                                        l.statutChip
-                                                    )}
-                                                >
-                                                    {l.statut}
-                                                </span>
+                                                <StatusDot tone={l.statutTone} label={l.statut} />
                                             </td>
                                             <td className="py-1.5 px-3 text-[11px] text-outline whitespace-nowrap">
                                                 {l.mode ?? "—"}
@@ -532,7 +515,7 @@ function InlineStat({
 }) {
     const valueClass =
         tone === "success"
-            ? "text-[#166534]"
+            ? "text-success"
             : tone === "error"
             ? "text-error"
             : tone === "warning"

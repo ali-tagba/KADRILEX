@@ -85,7 +85,7 @@ export function PaiementDialog({ facture, onSave, onClose }: PaiementDialogProps
                         </div>
                         <div className="flex justify-between text-on-surface-variant">
                             <span>Déjà encaissé</span>
-                            <span className="tabular-nums text-[#166534]">
+                            <span className="tabular-nums text-success">
                                 {formatFCFA(facture.montantPaye)}
                             </span>
                         </div>

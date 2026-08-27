@@ -14,6 +14,7 @@ import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
 import { FactureActionsMenu } from "./facture-actions-menu"
 import { InlineDateCell, InlineSelectCell, type InlineOption } from "./inline-cell-editor"
+import { StatusDot } from "@/components/ui/status-dot"
 
 interface FactureGroupedViewProps {
     factures: MockFacture[]
@@ -153,16 +154,7 @@ const statutOptions: InlineOption<StatutFactureKey>[] = (Object.entries(STATUTS_
 ][]).map(([key, meta]) => ({
     value: key,
     label: meta.label,
-    preview: (
-        <span
-            className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded font-label-caps text-[10px] uppercase whitespace-nowrap",
-                meta.chip
-            )}
-        >
-            {meta.label}
-        </span>
-    ),
+    preview: <StatusDot tone={meta.tone} label={meta.label} />,
 }))
 
 /* ============================================================
@@ -535,13 +527,8 @@ function FactureRow({
                 {onChangeStatut ? (
                     <InlineSelectCell<StatutFactureKey>
                         trigger={
-                            <span
-                                className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-caps text-[10px] uppercase whitespace-nowrap",
-                                    statutMeta.chip
-                                )}
-                            >
-                                {statutMeta.label}
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                <StatusDot tone={statutMeta.tone} label={statutMeta.label} />
                                 <span className="material-symbols-outlined text-[10px] opacity-60">
                                     expand_more
                                 </span>
@@ -555,14 +542,7 @@ function FactureRow({
                         align="start"
                     />
                 ) : (
-                    <span
-                        className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded font-label-caps text-[10px] uppercase whitespace-nowrap",
-                            statutMeta.chip
-                        )}
-                    >
-                        {statutMeta.label}
-                    </span>
+                    <StatusDot tone={statutMeta.tone} label={statutMeta.label} />
                 )}
             </td>
             <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>

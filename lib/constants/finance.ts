@@ -10,13 +10,13 @@ import { safeDict } from "./safe-dict"
    ============================================================ */
 
 export const STATUTS_FACTURE = {
-    BROUILLON: { label: "Brouillon", chip: "bg-surface-container-high text-on-surface-variant" },
-    EMISE: { label: "Émise", chip: "bg-primary-fixed text-primary" },
-    PARTIELLE: { label: "Partielle", chip: "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant" },
-    PAYEE: { label: "Payée", chip: "bg-[#e8f5e9] text-[#166534]" },
-    EN_RETARD: { label: "En retard", chip: "bg-error-container text-on-error-container" },
-    ANNULEE: { label: "Annulée", chip: "bg-surface-container text-outline line-through" },
-} as const
+    BROUILLON: { label: "Brouillon", chip: "bg-surface-container-high text-on-surface-variant", tone: "neutral" },
+    EMISE: { label: "Émise", chip: "bg-primary-fixed text-primary", tone: "accent" },
+    PARTIELLE: { label: "Partielle", chip: "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant", tone: "warning" },
+    PAYEE: { label: "Payée", chip: "bg-[#e8f5e9] text-[#166534]", tone: "success" },
+    EN_RETARD: { label: "En retard", chip: "bg-error-container text-on-error-container", tone: "error" },
+    ANNULEE: { label: "Annulée", chip: "bg-surface-container text-outline line-through", tone: "neutral" },
+} as const satisfies Record<string, { label: string; chip: string; tone: "success" | "warning" | "error" | "accent" | "neutral" }>
 
 export type StatutFactureKey = keyof typeof STATUTS_FACTURE
 

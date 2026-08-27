@@ -16,6 +16,7 @@ import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { computeFinance, mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
 import { FilePreviewModal } from "@/components/shared/file-preview-modal"
+import { StatusDot } from "@/components/ui/status-dot"
 
 interface FactureDetailPanelProps {
     facture: MockFacture | null
@@ -143,18 +144,11 @@ export function FactureDetailPanel({
             className="w-[480px] bg-surface-container-lowest border-l border-outline-variant flex flex-col h-full shadow-[-4px_0_15px_rgba(31,26,20,0.05)] z-20 overflow-hidden shrink-0"
         >
             {/* Header */}
-            <header className="px-6 py-4 bg-[#FBF7F0] border-b border-outline-variant flex justify-between items-start shrink-0">
+            <header className="px-6 py-4 bg-surface-container-low border-b border-outline-variant flex justify-between items-start shrink-0">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-h2 text-h2 text-primary-container truncate">{facture.numero}</span>
-                        <span
-                            className={cn(
-                                "inline-flex items-center px-2 py-0.5 rounded font-label-caps text-[10px] uppercase",
-                                stat.chip
-                            )}
-                        >
-                            {stat.label}
-                        </span>
+                        <StatusDot tone={stat.tone} label={stat.label} />
                     </div>
                     <p className="font-body-sm text-[12px] text-on-surface-variant flex items-center gap-1.5 flex-wrap">
                         <span
@@ -270,7 +264,7 @@ export function FactureDetailPanel({
                                         <span
                                             className={cn(
                                                 "tabular-nums",
-                                                resteFacturer > 0 ? "text-primary" : "text-[#166534]"
+                                                resteFacturer > 0 ? "text-primary" : "text-success"
                                             )}
                                         >
                                             {formatFCFA(resteFacturer)}
@@ -282,7 +276,7 @@ export function FactureDetailPanel({
                                             <div
                                                 className={cn(
                                                     "h-full rounded-full transition-all",
-                                                    tauxFact >= 1 ? "bg-[#166534]" : "bg-accent"
+                                                    tauxFact >= 1 ? "bg-success" : "bg-accent"
                                                 )}
                                                 style={{ width: `${Math.round(tauxFact * 100)}%` }}
                                             />
@@ -332,7 +326,7 @@ export function FactureDetailPanel({
                         <Line
                             label="Encaissé"
                             value={formatFCFA(facture.montantPaye)}
-                            valueClass={facture.montantPaye > 0 ? "text-[#166534]" : "text-outline"}
+                            valueClass={facture.montantPaye > 0 ? "text-success" : "text-outline"}
                         />
                         <div className="pt-2 border-t border-error-container/60 flex justify-between font-medium">
                             <span className="text-on-surface">Reste à payer</span>
@@ -425,7 +419,7 @@ export function FactureDetailPanel({
                                                         {p.reference && ` · Réf : ${p.reference}`}
                                                     </p>
                                                 </div>
-                                                <span className="font-mono-num text-mono-num text-[#166534] font-medium tabular-nums whitespace-nowrap">
+                                                <span className="font-mono-num text-mono-num text-success font-medium tabular-nums whitespace-nowrap">
                                                     +{formatFCFA(p.montant)}
                                                 </span>
                                                 {onDeletePaiement && (

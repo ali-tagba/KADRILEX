@@ -22,6 +22,13 @@ import {
 } from "./depense-filter-drawer"
 import { DepenseActionsMenu } from "./depense-actions-menu"
 import { InlineSelectCell, InlineDateCell, InlineTextCell, type InlineOption } from "./inline-cell-editor"
+import { StatusDot } from "@/components/ui/status-dot"
+
+/** Import ponctuel Bilan (totaux mensuels sans détail) — distingué visuellement
+ *  des saisies faites au cabinet (cf. vue-ensemble-tab.tsx pour le même critère). */
+function isDepenseImportBilan(d: MockDepense): boolean {
+    return (d.notes ?? "").startsWith("Import initial Bilan")
+}
 
 interface DepensesTabProps {
     depenses: MockDepense[]
@@ -351,12 +358,19 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                     />
                                                 </td>
                                                 <td className="py-2 px-3">
-                                                    <InlineTextCell
-                                                        value={d.libelle}
-                                                        onChange={(v) => handleChangeLibelle(d.id, v)}
-                                                        title="Cliquer pour renommer"
-                                                        displayClassName="font-medium text-on-surface block truncate w-full"
-                                                    />
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        {isDepenseImportBilan(d) && (
+                                                            <span className="flex-none border border-outline-variant rounded-sm bg-surface-container-high text-on-surface-variant text-[9px] font-bold uppercase tracking-wider px-1 py-px">
+                                                                Historique
+                                                            </span>
+                                                        )}
+                                                        <InlineTextCell
+                                                            value={d.libelle}
+                                                            onChange={(v) => handleChangeLibelle(d.id, v)}
+                                                            title="Cliquer pour renommer"
+                                                            displayClassName="font-medium text-on-surface block truncate w-full"
+                                                        />
+                                                    </div>
                                                     {d.fournisseurNomLibre && (
                                                         <p className="text-[11px] text-outline truncate mt-0.5">
                                                             {d.fournisseurNomLibre}
@@ -368,8 +382,7 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                     {/* Inline catégorie picker (portalisé) */}
                                                     <InlineSelectCell<CategorieDepenseKey>
                                                         trigger={
-                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-caps text-[10px]">
-                                                                <span className="material-symbols-outlined text-[12px]">{cat.icon}</span>
+                                                            <span className="inline-flex items-center gap-1 text-[12px] text-on-surface-variant">
                                                                 {cat.label}
                                                                 <span className="material-symbols-outlined text-[10px] opacity-60">expand_more</span>
                                                             </span>
@@ -384,12 +397,11 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                 <td className="py-2 px-3">
                                                     <InlineSelectCell<"A_PAYER" | "PAYEE">
                                                         trigger={
-                                                            <span className={cn(
-                                                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-label-caps text-[10px]",
-                                                                d.statut === "PAYEE" ? "bg-accent/10 text-accent" : "bg-error/10 text-error"
-                                                            )}>
-                                                                <span className="material-symbols-outlined text-[12px]">{d.statut === "PAYEE" ? "check_circle" : "pending"}</span>
-                                                                {d.statut === "PAYEE" ? "Payée" : "À Payer"}
+                                                            <span className="inline-flex items-center gap-1">
+                                                                <StatusDot
+                                                                    tone={d.statut === "PAYEE" ? "success" : "warning"}
+                                                                    label={d.statut === "PAYEE" ? "Payée" : "À payer"}
+                                                                />
                                                                 <span className="material-symbols-outlined text-[10px] opacity-60">expand_more</span>
                                                             </span>
                                                         }
@@ -407,9 +419,6 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                     <InlineSelectCell<ModePaiementKey>
                                                         trigger={
                                                             <span className="inline-flex items-center gap-1 text-[12px] text-on-surface-variant">
-                                                                <span className="material-symbols-outlined text-[14px] text-outline">
-                                                                    {mode.icon}
-                                                                </span>
                                                                 {mode.label.split(" ")[0]}
                                                                 <span className="material-symbols-outlined text-[10px] opacity-60">expand_more</span>
                                                             </span>
@@ -423,9 +432,8 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                                                 </td>
                                                 <td className="py-2 px-3 text-center">
                                                     {d.recurrent ? (
-                                                        <span className="inline-flex items-center gap-1 text-on-tertiary-fixed-variant" title={`Récurrent ${freq?.label ?? ""}`}>
-                                                            <span className="material-symbols-outlined text-[16px]">event_repeat</span>
-                                                            <span className="text-[10px]">{freq?.label.slice(0, 4)}</span>
+                                                        <span className="text-[11px] text-on-surface-variant" title={`Récurrent ${freq?.label ?? ""}`}>
+                                                            {freq?.label.slice(0, 4)}
                                                         </span>
                                                     ) : (
                                                         <span className="text-outline-variant text-xs">—</span>

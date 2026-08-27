@@ -14,6 +14,7 @@ import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
 import { FactureActionsMenu } from "./facture-actions-menu"
 import { InlineDateCell, InlineSelectCell, type InlineOption } from "./inline-cell-editor"
+import { StatusDot } from "@/components/ui/status-dot"
 
 interface FactureTableViewProps {
     factures: MockFacture[]
@@ -83,11 +84,11 @@ export function FactureTableView({
     onChangeStatut,
 }: FactureTableViewProps) {
     const statutOptions: InlineOption<StatutFactureKey>[] = (
-        Object.entries(STATUTS_FACTURE) as [StatutFactureKey, { label: string; chip: string }][]
+        Object.entries(STATUTS_FACTURE) as [StatutFactureKey, (typeof STATUTS_FACTURE)[StatutFactureKey]][]
     ).map(([k, m]) => ({
         value: k,
         label: m.label,
-        preview: <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded font-label-caps text-[9px] uppercase", m.chip)}>{m.label}</span>,
+        preview: <StatusDot tone={m.tone} label={m.label} />,
     }))
     if (factures.length === 0) {
         return (
@@ -105,7 +106,7 @@ export function FactureTableView({
         <div className="bg-surface-container-lowest border-r border-outline-variant h-full flex flex-col overflow-hidden">
             <div className="flex-1 overflow-auto scrollbar-thin">
                 <table className="w-full text-left border-collapse min-w-[1100px]">
-                    <thead className="sticky top-0 z-10 bg-[#FBF7F0] shadow-sm">
+                    <thead className="sticky top-0 z-10 bg-surface-container-low shadow-sm">
                         <tr className="border-b border-outline-variant">
                             <Th width="40px" align="center">
                                 <span className="sr-only">Direction</span>
@@ -135,11 +136,11 @@ export function FactureTableView({
                                     key={f.id}
                                     onClick={() => onSelect(f)}
                                     className={cn(
-                                        "h-10 border-b border-[#E8DCC8] hover:bg-surface-container-low transition-colors cursor-pointer group relative",
-                                        isSelected && "bg-[#E8B27D]/10 hover:bg-[#E8B27D]/15"
+                                        "h-10 border-b border-outline-variant hover:bg-surface-container-low transition-colors cursor-pointer group relative",
+                                        isSelected && "bg-accent-soft/10 hover:bg-accent-soft/15"
                                     )}
                                 >
-                                    {isSelected && <td className="absolute left-0 top-0 bottom-0 w-1 bg-[#C8772F]"></td>}
+                                    {isSelected && <td className="absolute left-0 top-0 bottom-0 w-1 bg-accent"></td>}
                                     {/* Direction icon */}
                                     <td className="py-2 px-3 text-center">
                                         <span
@@ -242,7 +243,7 @@ export function FactureTableView({
                                     <td
                                         className={cn(
                                             "py-2 px-3 font-mono-num text-mono-num text-right tabular-nums",
-                                            f.montantPaye > 0 ? "text-[#166534]" : "text-outline-variant"
+                                            f.montantPaye > 0 ? "text-success" : "text-outline-variant"
                                         )}
                                     >
                                         {f.montantPaye > 0 ? formatFCFA(f.montantPaye) : "—"}
@@ -263,8 +264,8 @@ export function FactureTableView({
                                         {onChangeStatut ? (
                                             <InlineSelectCell<StatutFactureKey>
                                                 trigger={
-                                                    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-caps text-[10px] uppercase whitespace-nowrap", stat.chip)}>
-                                                        {stat.label}
+                                                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                        <StatusDot tone={stat.tone} label={stat.label} />
                                                         <span className="material-symbols-outlined text-[10px] opacity-60">expand_more</span>
                                                     </span>
                                                 }
@@ -276,9 +277,7 @@ export function FactureTableView({
                                                 align="end"
                                             />
                                         ) : (
-                                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded font-label-caps text-[10px] uppercase whitespace-nowrap", stat.chip)}>
-                                                {stat.label}
-                                            </span>
+                                            <StatusDot tone={stat.tone} label={stat.label} className="justify-center" />
                                         )}
                                     </td>
 
@@ -368,7 +367,7 @@ function Th({
     return (
         <th
             className={cn(
-                "py-3 px-4 font-label-caps text-label-caps text-[#9C8B73] border-b border-outline-variant font-semibold uppercase whitespace-nowrap",
+                "py-3 px-4 font-label-caps text-label-caps text-outline border-b border-outline-variant font-semibold uppercase whitespace-nowrap",
                 align === "right" && "text-right",
                 align === "center" && "text-center"
             )}
