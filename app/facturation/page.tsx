@@ -254,18 +254,17 @@ export default function FinancePage() {
     return (
         <PageGate perm="finance.view" moduleName="Finance">
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Header compact : titre + onglets sur la même ligne sticky */}
-            <div className="flex-none px-container-margin pt-container-margin flex items-center gap-density-loose flex-wrap">
-                <div className="flex items-baseline gap-3 min-w-0 flex-shrink-0">
-                    <h1 className="font-h2 text-h2 text-primary-container leading-none">Finance</h1>
-                    <span className="h-3.5 w-px bg-outline-variant hidden sm:inline-block" />
-                    <span className="font-body-sm text-body-sm text-on-surface-variant hidden sm:inline whitespace-nowrap">
-                        {membre.prenom} {membre.nom}
-                    </span>
+            {/* Header : bandeau titre + méta (comme la maquette), puis les onglets en dessous */}
+            <div className="flex-none px-container-margin pt-container-margin pb-2 flex items-baseline justify-between gap-density-loose flex-wrap border-b border-outline-variant">
+                <h1 className="font-h2 text-h2 text-primary-container leading-none flex-shrink-0">Finance</h1>
+                <div className="flex items-baseline gap-2.5 font-body-sm text-body-sm text-on-surface-variant whitespace-nowrap">
+                    <span>Exercice {new Date().getFullYear()}</span>
+                    <span className="h-3.5 w-px bg-outline-variant inline-block" />
+                    <span>{membre.prenom} {membre.nom}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                    <FinanceTabs active={activeTab} onChange={handleTabChange} counters={tabCounters} />
-                </div>
+            </div>
+            <div className="flex-none px-container-margin">
+                <FinanceTabs active={activeTab} onChange={handleTabChange} counters={tabCounters} />
             </div>
 
             {/* Contenu — scroll vertical pour Dashboard, full-height pour autres tabs */}
