@@ -15,6 +15,7 @@ import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
 import { StatusDot, type StatusTone } from "@/components/ui/status-dot"
+import { Section, CheckboxGroup } from "./depense-filter-drawer"
 
 /* ============================================================
    Types : ligne unifiée du registre
@@ -25,6 +26,7 @@ type FluxKind =
     | "FACTURE_RECUE"
     | "DEPENSE_INTERNE"
     | "PAIEMENT_RECU"
+    | "PAIEMENT_ENVOYE"
     | "ENCAISSEMENT"
 
 interface FluxLine {
@@ -68,6 +70,12 @@ const KIND_META: Record<FluxKind, { label: string; icon: string; tone: StatusTon
         label: "Facture reçue",
         icon: "south_west",
         tone: "warning",
+        sign: -1,
+    },
+    PAIEMENT_ENVOYE: {
+        label: "Paiement envoyé",
+        icon: "output",
+        tone: "neutral",
         sign: -1,
     },
     DEPENSE_INTERNE: {
@@ -119,21 +127,15 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
             .then(setEncaissements)
             .catch(() => {})
     }, [])
+    const allKindsCount = Object.keys(KIND_META).length
     const [activeKinds, setActiveKinds] = useState<Set<FluxKind>>(
         new Set(Object.keys(KIND_META) as FluxKind[])
     )
+    const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
     const [periodPreset, setPeriodPreset] = useState<"30" | "90" | "365" | "ALL">("ALL")
     const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "montant_desc">(
         "date_desc"
     )
-
-    const toggleKind = (k: FluxKind) =>
-        setActiveKinds((s) => {
-            const next = new Set(s)
-            if (next.has(k)) next.delete(k)
-            else next.add(k)
-            return next
-        })
 
     /* === Construction de la liste unifiée === */
     const allLines = useMemo<FluxLine[]>(() => {
@@ -177,7 +179,11 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                     })
                 }
             } else {
-                /* RECUE — facture d'un fournisseur du cabinet */
+                /* RECUE — facture d'un fournisseur du cabinet. Affichée pour le suivi
+                   (comme FACTURE_EMISE), mais exclue des totaux Entrées/Sorties : seul
+                   l'argent réellement sorti (paiements ci-dessous) compte en trésorerie —
+                   sinon une facture reçue non encore payée gonflerait les sorties avant
+                   même qu'un franc n'ait quitté le cabinet. */
                 const fournisseur = f.fournisseur
                 lines.push({
                     id: `inv-${f.id}`,
@@ -192,6 +198,21 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                     statutTone: stat.tone,
                     mode: null,
                 })
+                for (const p of f.paiements) {
+                    lines.push({
+                        id: `pai-${p.id}`,
+                        kind: "PAIEMENT_ENVOYE",
+                        date: p.date,
+                        numero: p.reference ?? f.numero,
+                        libelle: `Paiement ${f.numero}`,
+                        tiers: fournisseur?.nom ?? f.fournisseurNomLibre ?? "Fournisseur",
+                        dossierNumero: dossier?.numero ?? null,
+                        montant: p.montant,
+                        statut: "Payé",
+                        statutTone: "neutral",
+                        mode: MODES_PAIEMENT[p.mode]?.label ?? p.mode,
+                    })
+                }
             }
         }
 
@@ -274,6 +295,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
             FACTURE_EMISE: { count: 0, montant: 0 },
             PAIEMENT_RECU: { count: 0, montant: 0 },
             FACTURE_RECUE: { count: 0, montant: 0 },
+            PAIEMENT_ENVOYE: { count: 0, montant: 0 },
             DEPENSE_INTERNE: { count: 0, montant: 0 },
             ENCAISSEMENT: { count: 0, montant: 0 },
         }
@@ -281,14 +303,16 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
             byKind[l.kind].count += 1
             byKind[l.kind].montant += l.montant
         }
+        /* Entrées/Sorties en trésorerie réelle uniquement : les factures (émises ou
+           reçues) sont des créances/dettes, pas du cash — seuls les paiements et
+           encaissements effectifs comptent ici. */
         const entrees = byKind.PAIEMENT_RECU.montant + byKind.ENCAISSEMENT.montant
-        const sorties =
-            byKind.FACTURE_RECUE.montant +
-            byKind.DEPENSE_INTERNE.montant
+        const sorties = byKind.PAIEMENT_ENVOYE.montant + byKind.DEPENSE_INTERNE.montant
         return { byKind, entrees, sorties, solde: entrees - sorties, count: filtered.length }
     }, [filtered])
 
     return (
+        <>
         <div className="flex flex-col gap-density-tight h-full">
             {/* Header compact + stats */}
             <header className="flex items-center gap-3 flex-wrap bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5">
@@ -363,43 +387,23 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
 
                 <div className="h-6 w-px bg-outline-variant" />
 
-                {/* Chips catégories */}
-                <div className="flex items-center gap-1 flex-wrap">
-                    {(Object.entries(KIND_META) as [FluxKind, typeof KIND_META[FluxKind]][]).map(
-                        ([k, meta]) => {
-                            const active = activeKinds.has(k)
-                            const count = totaux.byKind[k].count
-                            return (
-                                <button
-                                    key={k}
-                                    onClick={() => toggleKind(k)}
-                                    className={cn(
-                                        "inline-flex items-center gap-1 px-2 py-1 rounded font-body-sm text-[11px] border transition-all whitespace-nowrap",
-                                        active
-                                            ? "border-accent/40 bg-accent/5 text-on-surface"
-                                            : "border-outline-variant text-outline hover:bg-surface-container-low"
-                                    )}
-                                    title={`${active ? "Masquer" : "Afficher"} les ${meta.label.toLowerCase()}`}
-                                >
-                                    <span className="material-symbols-outlined text-[12px]">
-                                        {meta.icon}
-                                    </span>
-                                    {meta.label}
-                                    {count > 0 && (
-                                        <span
-                                            className={cn(
-                                                "ml-0.5 font-mono-num text-[10px] tabular-nums",
-                                                active ? "text-on-surface" : "text-outline"
-                                            )}
-                                        >
-                                            {count}
-                                        </span>
-                                    )}
-                                </button>
-                            )
-                        }
+                <button
+                    onClick={() => setFilterDrawerOpen(true)}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded font-body-sm text-body-sm font-medium transition-colors",
+                        activeKinds.size < allKindsCount
+                            ? "bg-accent/10 text-primary border border-accent/30 hover:bg-accent/15"
+                            : "text-on-surface-variant hover:bg-surface-container-low border border-transparent"
                     )}
-                </div>
+                >
+                    <span className="material-symbols-outlined text-[18px]">tune</span>
+                    Filtres
+                    {activeKinds.size < allKindsCount && (
+                        <span className="font-mono-num text-mono-num text-[11px] px-1.5 py-0.5 rounded bg-accent text-white leading-none">
+                            {allKindsCount - activeKinds.size}
+                        </span>
+                    )}
+                </button>
 
                 <div className="h-6 w-px bg-outline-variant" />
 
@@ -501,6 +505,108 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                 )}
             </div>
         </div>
+
+        {filterDrawerOpen && (
+            <VueEnsembleFilterDrawer
+                open={filterDrawerOpen}
+                onClose={() => setFilterDrawerOpen(false)}
+                activeKinds={activeKinds}
+                onChange={setActiveKinds}
+                counts={totaux.byKind}
+            />
+        )}
+        </>
+    )
+}
+
+/** Tiroir de filtre Type — cohérent avec le pattern tune+tiroir utilisé partout
+ *  ailleurs (jamais de pastilles toujours visibles, cf. depense-filter-drawer.tsx). */
+function VueEnsembleFilterDrawer({
+    open,
+    onClose,
+    activeKinds,
+    onChange,
+    counts,
+}: {
+    open: boolean
+    onClose: () => void
+    activeKinds: Set<FluxKind>
+    onChange: (next: Set<FluxKind>) => void
+    counts: Record<FluxKind, { count: number; montant: number }>
+}) {
+    useEffect(() => {
+        if (!open) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose()
+        }
+        document.addEventListener("keydown", onKey)
+        return () => document.removeEventListener("keydown", onKey)
+    }, [open, onClose])
+
+    const toggle = (k: string) => {
+        const next = new Set(activeKinds)
+        if (next.has(k as FluxKind)) next.delete(k as FluxKind)
+        else next.add(k as FluxKind)
+        onChange(next)
+    }
+
+    return (
+        <>
+            <div
+                onClick={onClose}
+                className={cn(
+                    "fixed inset-0 z-40 bg-inverse-surface/30 transition-opacity duration-200",
+                    open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                )}
+            />
+            <aside
+                role="dialog"
+                aria-modal="true"
+                className={cn(
+                    "fixed top-0 right-0 z-50 h-full w-full max-w-[380px] bg-surface-container-lowest border-l border-outline-variant shadow-2xl flex flex-col transition-transform duration-300 ease-out",
+                    open ? "translate-x-0" : "translate-x-full"
+                )}
+            >
+                <header className="flex-none flex items-center justify-between px-density-loose py-density-medium border-b border-outline-variant bg-surface-container">
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[22px]">tune</span>
+                        <h2 className="font-h2 text-h2 text-primary">Filtres</h2>
+                    </div>
+                    <button onClick={onClose} className="p-1 rounded hover:bg-surface-container-low text-outline hover:text-on-surface transition-colors">
+                        <span className="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </header>
+
+                <div className="flex-1 overflow-y-auto scrollbar-thin px-density-loose py-density-medium">
+                    <Section title="Type de mouvement" icon="category">
+                        <CheckboxGroup
+                            options={(Object.entries(KIND_META) as [FluxKind, typeof KIND_META[FluxKind]][]).map(([k, meta]) => ({
+                                value: k,
+                                label: `${meta.label} (${counts[k].count})`,
+                                icon: meta.icon,
+                            }))}
+                            selected={Array.from(activeKinds)}
+                            onToggle={toggle}
+                        />
+                    </Section>
+                </div>
+
+                <footer className="flex-none flex items-center justify-between gap-3 px-density-loose py-density-medium border-t border-outline-variant bg-surface-container">
+                    <button
+                        onClick={() => onChange(new Set(Object.keys(KIND_META) as FluxKind[]))}
+                        className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline-offset-2 hover:underline transition-colors"
+                    >
+                        Réinitialiser
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 rounded bg-accent text-white font-body-sm text-body-sm font-medium hover:bg-opacity-90 transition-colors active:scale-[0.98]"
+                    >
+                        Voir les résultats
+                    </button>
+                </footer>
+            </aside>
+        </>
     )
 }
 
