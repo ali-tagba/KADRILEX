@@ -103,8 +103,9 @@ export function FinanceDashboard() {
                 <div className="flex items-center justify-center py-16 font-body-sm text-error">{error}</div>
             ) : bilan ? (
                 <>
-                    {/* Héro : solde provisoire + liste de KPI */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-14 items-end pt-6 pb-8 border-b border-outline-variant">
+                    {/* Héro : solde provisoire + liste de KPI (items-start : les deux colonnes
+                        démarrent en haut, pas d'espace vide si une colonne est plus courte) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-14 items-start pt-6 pb-8 border-b border-outline-variant">
                         <div>
                             <div className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
                                 Solde provisoire — {annee}
@@ -125,7 +126,17 @@ export function FinanceDashboard() {
                         <div className="lg:border-l border-outline-variant lg:pl-10">
                             <KpiRow label="Encaissé (HT)" value={formatFCFA(bilan.encaissements.totalEncaissementHT)} />
                             <KpiRow label="Charges" value={formatFCFA(bilan.depenses.totalCharges)} tone="warning" />
-                            <KpiRow label="Rétrocessions versées" value={formatFCFA(apportsTotal)} last />
+                            <KpiRow
+                                label="Rétrocessions versées"
+                                value={apportsTotal > 0 ? formatFCFA(apportsTotal) : "—"}
+                                last
+                            />
+                            {apportsTotal === 0 && (
+                                <p className="font-body-xs text-body-xs text-secondary mt-2 flex items-start gap-1.5">
+                                    <span className="material-symbols-outlined text-[14px] flex-none">info</span>
+                                    Aucun apport {annee} saisi pour l&apos;instant dans &quot;Apports avocats&quot;.
+                                </p>
+                            )}
                             <p className="font-body-xs text-body-xs text-outline mt-3 leading-relaxed text-pretty">
                                 Détail mois par mois dans <span className="text-primary-container font-medium">Bilan</span>. Répartition par avocat dans{" "}
                                 <span className="text-primary-container font-medium">Apports avocats</span>.
@@ -156,7 +167,9 @@ export function FinanceDashboard() {
                         <div>
                             <h3 className="font-h3 text-h3 text-on-surface">Rétrocessions par avocat — {annee}</h3>
                             {parAvocat.length === 0 ? (
-                                <p className="font-body-sm text-body-sm text-outline italic py-4">Aucun apport enregistré pour {annee}</p>
+                                <p className="font-body-sm text-body-sm text-outline italic py-4">
+                                    Aucun apport enregistré pour {annee} — à saisir dans l&apos;onglet &quot;Apports avocats&quot;.
+                                </p>
                             ) : (
                                 <div className="mt-1">
                                     {parAvocat.map((av) => (

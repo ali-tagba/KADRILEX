@@ -28,7 +28,7 @@ const VALID_TABS: FinanceTabKey[] = [
 export default function FinancePage() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { hasAccess } = useCurrentUser()
+    const { hasAccess, membre } = useCurrentUser()
 
     const tabParam = searchParams.get("tab") as FinanceTabKey | null
     const initialTab: FinanceTabKey = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dashboard"
@@ -256,10 +256,11 @@ export default function FinancePage() {
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header compact : titre + onglets sur la même ligne sticky */}
             <div className="flex-none px-container-margin pt-container-margin flex items-center gap-density-loose flex-wrap">
-                <div className="flex items-baseline gap-2 min-w-0 flex-shrink-0">
+                <div className="flex items-baseline gap-3 min-w-0 flex-shrink-0">
                     <h1 className="font-h2 text-h2 text-primary-container leading-none">Finance</h1>
-                    <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider hidden sm:inline">
-                        Comptabilité
+                    <span className="h-3.5 w-px bg-outline-variant hidden sm:inline-block" />
+                    <span className="font-body-sm text-body-sm text-on-surface-variant hidden sm:inline whitespace-nowrap">
+                        {membre.prenom} {membre.nom}
                     </span>
                 </div>
                 <div className="flex-1 min-w-0">

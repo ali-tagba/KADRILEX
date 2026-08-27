@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { formatFCFA } from "@/lib/constants/finance"
 import { EncaissementFormDialog, type EncaissementFormDraft } from "./encaissement-form-dialog"
+import { BilanFilterDrawer } from "./bilan-filter-drawer"
 
 const MOIS_COURTS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
 
@@ -42,9 +43,10 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [formOpen, setFormOpen] = useState(false)
+    const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
     /** Catégories actuellement affichées dans le tableau — par défaut, seulement
      *  celles qui ont des montants sur l'année (comme une feuille Excel qui n'a
-     *  jamais de ligne vide). Le reste reste accessible via le filtre. */
+     *  jamais de ligne vide). Le reste reste accessible via le filtre (tiroir). */
     const [activeCats, setActiveCats] = useState<Set<string>>(new Set())
 
     const load = () => {
@@ -65,13 +67,13 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
 
     useEffect(load, [annee]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const toggleCat = (cat: string) =>
-        setActiveCats((s) => {
-            const next = new Set(s)
-            if (next.has(cat)) next.delete(cat)
-            else next.add(cat)
-            return next
-        })
+    const defaultCats = useMemo(
+        () => new Set(data?.depenses.categories.filter((c) => c.total > 0).map((c) => c.categorie) ?? []),
+        [data]
+    )
+    const activeFilterCount = data
+        ? data.depenses.categories.filter((c) => activeCats.has(c.categorie) !== defaultCats.has(c.categorie)).length
+        : 0
 
     async function handleSave(draft: EncaissementFormDraft) {
         const { toast } = await import("@/components/ui/toaster")
@@ -124,6 +126,26 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                         </div>
                     )}
 
+                    {data && (
+                        <button
+                            onClick={() => setFilterDrawerOpen(true)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded font-body-sm text-body-sm font-medium transition-colors",
+                                activeFilterCount > 0
+                                    ? "bg-accent/10 text-primary border border-accent/30 hover:bg-accent/15"
+                                    : "text-on-surface-variant hover:bg-surface-container-low border border-transparent"
+                            )}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">tune</span>
+                            Filtres
+                            {activeFilterCount > 0 && (
+                                <span className="font-mono-num text-mono-num text-[11px] px-1.5 py-0.5 rounded bg-accent text-white leading-none">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
+
                     {canWrite && (
                         <button
                             onClick={() => setFormOpen(true)}
@@ -157,44 +179,15 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                             </Section>
 
                             <Section title="Tableau des produits et charges" icon="table_chart">
-                                <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
-                                    <span className="font-label-caps text-label-caps text-outline uppercase mr-1">Catégories</span>
-                                    {data.depenses.categories.map((c) => {
-                                        const active = activeCats.has(c.categorie)
-                                        const hasData = c.total > 0
-                                        return (
-                                            <button
-                                                key={c.categorie}
-                                                onClick={() => toggleCat(c.categorie)}
-                                                title={hasData ? formatFCFA(c.total) : "Aucune donnée cette année"}
-                                                className={cn(
-                                                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] transition-colors",
-                                                    active
-                                                        ? "bg-accent/10 border-accent/40 text-primary-container"
-                                                        : "bg-surface-container-low border-outline-variant text-outline hover:text-on-surface-variant"
-                                                )}
-                                            >
-                                                <span className={cn(
-                                                    "w-[6px] h-[6px] rounded-full",
-                                                    hasData ? "bg-accent" : "bg-outline-variant"
-                                                )} />
-                                                {c.label}
-                                            </button>
-                                        )
-                                    })}
-                                    {activeCats.size !== data.depenses.categories.filter((c) => c.total > 0).length && (
-                                        <button
-                                            onClick={() =>
-                                                setActiveCats(
-                                                    new Set(data.depenses.categories.filter((c) => c.total > 0).map((c) => c.categorie))
-                                                )
-                                            }
-                                            className="font-body-xs text-body-xs text-primary-container hover:text-accent underline underline-offset-2 ml-1"
-                                        >
-                                            Réinitialiser
+                                {activeFilterCount > 0 && (
+                                    <p className="font-body-xs text-body-xs text-outline mb-2 flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[14px]">filter_alt</span>
+                                        {activeCats.size} catégorie{activeCats.size > 1 ? "s" : ""} affichée{activeCats.size > 1 ? "s" : ""} sur {data.depenses.categories.length} —{" "}
+                                        <button onClick={() => setFilterDrawerOpen(true)} className="text-primary-container hover:text-accent underline underline-offset-2">
+                                            ajuster
                                         </button>
-                                    )}
-                                </div>
+                                    </p>
+                                )}
                                 <ChargesTable
                                     categories={data.depenses.categories.filter((c) => activeCats.has(c.categorie))}
                                     retrocessions={data.depenses.retrocessions}
@@ -206,7 +199,7 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                                 {data.depenses.retrocessions.total === 0 && (
                                     <p className="mt-2 font-body-sm text-body-sm text-secondary flex items-center gap-1.5">
                                         <span className="material-symbols-outlined text-[16px]">info</span>
-                                        Rétrocessions à 0 : aucun apport {annee} saisi dans l'onglet "Apports avocats" pour l'instant — cette ligne se remplit automatiquement au fur et à mesure.
+                                        Rétrocessions à 0 : aucun apport {annee} saisi dans l&apos;onglet &quot;Apports avocats&quot; pour l&apos;instant — cette ligne se remplit automatiquement au fur et à mesure.
                                     </p>
                                 )}
                             </Section>
@@ -222,6 +215,17 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                     clients={clients}
                     onSave={handleSave}
                     onClose={() => setFormOpen(false)}
+                />
+            )}
+
+            {data && (
+                <BilanFilterDrawer
+                    open={filterDrawerOpen}
+                    onClose={() => setFilterDrawerOpen(false)}
+                    categories={data.depenses.categories}
+                    activeCats={activeCats}
+                    onChange={setActiveCats}
+                    defaultCats={defaultCats}
                 />
             )}
         </>

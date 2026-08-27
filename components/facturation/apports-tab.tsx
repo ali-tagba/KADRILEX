@@ -177,6 +177,20 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
                         ))}
                     </select>
 
+                    {/* Filtre avocat : select plutôt qu'une liste figée — reste utilisable
+                        quel que soit le nombre d'avocats au cabinet (dérivé des vraies données,
+                        pas d'une liste codée en dur). Synchronisé avec les cartes ci-dessous. */}
+                    <select
+                        value={membreFiltre}
+                        onChange={(e) => setMembreFiltre(e.target.value)}
+                        className="bg-surface border border-outline-variant rounded px-2 py-1 font-body-sm text-[11px] text-on-surface outline-none focus:border-accent max-w-[180px]"
+                    >
+                        <option value="">Tous les avocats</option>
+                        {parAvocat.map((av) => (
+                            <option key={av.membreId} value={av.membreId}>{av.nom}</option>
+                        ))}
+                    </select>
+
                     <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto scrollbar-thin">
                         <InlineStat label="HT" value={formatFCFA(totaux.totalHT)} />
                         <InlineStat label="ISB" value={formatFCFA(totaux.totalISB)} />
