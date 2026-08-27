@@ -289,9 +289,9 @@ export default function MembreFichePage({ params }: PageProps) {
                         </KV>
                     </Section>
 
-                    {/* Paie — visible si gérant ou si c'est sa propre fiche */}
+                    {/* Rémunération — visible si gérant ou si c'est sa propre fiche */}
                     {canSeeFinancialInfo && (
-                    <Section title="Paie" icon="payments">
+                    <Section title="Rémunération" icon="payments">
                         <KV label="Salaire de base brut">
                             <span className="font-mono-num text-on-surface font-semibold">
                                 {formatFCFA(membre.salaireBaseBrut)}
@@ -313,14 +313,6 @@ export default function MembreFichePage({ params }: PageProps) {
                             </KV>
                         )}
                         <div className="pt-2 mt-2 border-t border-outline-variant/40 space-y-1.5">
-                            <Link
-                                href={`/facturation?tab=paie`}
-                                className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">receipt_long</span>
-                                Voir les bulletins de paie
-                                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                            </Link>
                             <Link
                                 href={`/facturation?tab=apports&membreId=${membre.id}`}
                                 className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"

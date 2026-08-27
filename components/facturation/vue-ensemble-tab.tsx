@@ -11,12 +11,9 @@ import {
 } from "@/lib/constants/finance"
 import type { MockFacture } from "@/lib/mock/invoices"
 import type { MockDepense } from "@/lib/mock/depenses"
-import type { MockBulletin } from "@/lib/mock/bulletins"
 import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
-import { mockMembres } from "@/lib/mock/employes"
-import { fullName } from "@/lib/constants/team"
 
 /* ============================================================
    Types : ligne unifiée du registre
@@ -27,13 +24,12 @@ type FluxKind =
     | "FACTURE_RECUE"
     | "DEPENSE_INTERNE"
     | "PAIEMENT_RECU"
-    | "BULLETIN_PAIE"
     | "ENCAISSEMENT"
 
 interface FluxLine {
     id: string
     kind: FluxKind
-    /** Date principale (émission, paiement, mois bulletin) */
+    /** Date principale (émission, paiement, mois encaissement) */
     date: string // ISO
     numero: string
     libelle: string
@@ -79,12 +75,6 @@ const KIND_META: Record<FluxKind, { label: string; icon: string; chipClass: stri
         chipClass: "bg-secondary-fixed text-on-secondary-fixed-variant",
         sign: -1,
     },
-    BULLETIN_PAIE: {
-        label: "Salaire",
-        icon: "groups",
-        chipClass: "bg-surface-container-high text-on-surface-variant",
-        sign: -1,
-    },
 }
 
 /* ============================================================
@@ -94,7 +84,6 @@ const KIND_META: Record<FluxKind, { label: string; icon: string; chipClass: stri
 interface VueEnsembleTabProps {
     factures: MockFacture[]
     depenses: MockDepense[]
-    bulletins: MockBulletin[]
 }
 
 interface EncaissementRow {
@@ -111,7 +100,7 @@ function isDepenseImportBilan(d: MockDepense): boolean {
     return (d.notes ?? "").startsWith("Import initial Bilan")
 }
 
-export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTabProps) {
+export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
     const [search, setSearch] = useState("")
     const [encaissements, setEncaissements] = useState<EncaissementRow[]>([])
 
@@ -217,28 +206,6 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
             })
         }
 
-        for (const b of bulletins) {
-            if (b.statut === "BROUILLON") continue
-            const emp = mockMembres.find((m) => m.id === b.employeId) ?? null
-            const date = new Date(b.annee, b.mois - 1, 28).toISOString()
-            lines.push({
-                id: `bul-${b.id}`,
-                kind: "BULLETIN_PAIE",
-                date,
-                numero: `${b.annee}-${String(b.mois).padStart(2, "0")}`,
-                libelle: `Salaire ${new Date(b.annee, b.mois - 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`,
-                tiers: emp ? fullName(emp) : "Employé inconnu",
-                dossierNumero: null,
-                montant: b.coutTotalEmployeur,
-                statut: b.statut === "VERSE" ? "Versé" : "Validé",
-                statutChip:
-                    b.statut === "VERSE"
-                        ? "bg-[#e8f5e9] text-[#166534]"
-                        : "bg-primary-fixed text-primary",
-                mode: b.modeVersement ? MODES_PAIEMENT[b.modeVersement]?.label ?? b.modeVersement : null,
-            })
-        }
-
         for (const e of encaissements) {
             if (e.montantEncaisse <= 0) continue
             lines.push({
@@ -259,7 +226,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
         }
 
         return lines
-    }, [factures, depenses, bulletins, encaissements])
+    }, [factures, depenses, encaissements])
 
     /* `now` figé au mount (lazy useState) — évite l'appel impur Date.now() en render */
     const [now] = useState(() => Date.now())
@@ -302,7 +269,6 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
             PAIEMENT_RECU: { count: 0, montant: 0 },
             FACTURE_RECUE: { count: 0, montant: 0 },
             DEPENSE_INTERNE: { count: 0, montant: 0 },
-            BULLETIN_PAIE: { count: 0, montant: 0 },
             ENCAISSEMENT: { count: 0, montant: 0 },
         }
         for (const l of filtered) {
@@ -312,8 +278,7 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
         const entrees = byKind.PAIEMENT_RECU.montant + byKind.ENCAISSEMENT.montant
         const sorties =
             byKind.FACTURE_RECUE.montant +
-            byKind.DEPENSE_INTERNE.montant +
-            byKind.BULLETIN_PAIE.montant
+            byKind.DEPENSE_INTERNE.montant
         return { byKind, entrees, sorties, solde: entrees - sorties, count: filtered.length }
     }, [filtered])
 

@@ -12,7 +12,6 @@ export type ShareEntityType =
     | "TACHE"
     | "DOCUMENT"
     | "FACTURE"
-    | "BULLETIN"
     | "DEPENSE"
 
 interface Membre {
@@ -40,7 +39,6 @@ const ENTITY_LABELS: Record<ShareEntityType, string> = {
     TACHE: "la tâche",
     DOCUMENT: "le document",
     FACTURE: "la facture",
-    BULLETIN: "le bulletin",
     DEPENSE: "la dépense",
 }
 

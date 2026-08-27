@@ -282,19 +282,6 @@ enum FrequenceRecurrence {
   ANNUEL
 }
 
-enum BulletinStatut {
-  BROUILLON
-  VALIDE
-  VERSE
-}
-
-enum TypeLigneBulletin {
-  GAIN
-  RETENUE
-  CHARGE_SALARIALE
-  CHARGE_PATRONALE
-}
-
 // ============================================================
 // MEMBRE — équipe du cabinet (remplace User)
 // ============================================================
@@ -346,7 +333,6 @@ model Membre {
   tachesResponsable     Tache[]              @relation("TacheResponsable")
   diligencesResponsable Diligence[]          @relation("DiligenceResponsable")
   notesAuteur           DossierNote[]
-  bulletins             Bulletin[]
   clientsEquipe         ClientEquipe[]
   dossiersEquipe        DossierEquipe[]
   audiencesEquipe       AudienceEquipe[]
@@ -372,7 +358,6 @@ enum PartageEntityType {
   TACHE
   DOCUMENT
   FACTURE
-  BULLETIN
   DEPENSE
 }
 
@@ -1013,56 +998,6 @@ model Depense {
   @@index([statut])
   @@index([recurrent])
   @@index([dossierId])
-}
-
-// ============================================================
-// PAIE
-// ============================================================
-
-model Bulletin {
-  id        String @id @default(cuid())
-  employeId String
-  employe   Membre @relation(fields: [employeId], references: [id], onDelete: Cascade)
-  annee     Int
-  mois      Int // 1..12
-
-  salaireBrut        Int
-  primes             Int @default(0)
-  retenues           Int @default(0)
-  chargesSalariales  Int
-  chargesPatronales  Int
-  /// Calculé : brut + primes - retenues - chargesSalariales
-  salaireNet         Int
-  /// Calculé : brut + primes + chargesPatronales
-  coutTotalEmployeur Int
-
-  statut        BulletinStatut @default(BROUILLON)
-  dateVersement DateTime?
-  modeVersement ModePaiement?
-  reference     String?
-
-  pdfUrl String?
-  notes  String?
-
-  lignes BulletinLigne[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([employeId, annee, mois])
-  @@index([statut])
-  @@index([annee, mois])
-}
-
-model BulletinLigne {
-  id         String            @id @default(cuid())
-  bulletinId String
-  bulletin   Bulletin          @relation(fields: [bulletinId], references: [id], onDelete: Cascade)
-  libelle    String
-  type       TypeLigneBulletin
-  montant    Int
-
-  @@index([bulletinId])
 }
 
 // ============================================================

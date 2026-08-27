@@ -9,7 +9,6 @@
  *   - 20 Tâches (Kanban A_FAIRE/EN_COURS/FAIT)
  *   - 15 Factures (10 émises + 5 reçues) + paiements
  *   - 8 Dépenses internes
- *   - 5 Bulletins (mois courant pour membres salariés)
  *   - 20 Documents bibliothèque
  *
  * Les codes d'accès en clair sont AFFICHÉS à la fin → à copier pour se connecter.
@@ -60,8 +59,6 @@ async function main() {
     console.log("🧹 Nettoyage des tables...")
 
     // Ordre : tables de jointure et feuilles avant racines
-    await prisma.bulletinLigne.deleteMany()
-    await prisma.bulletin.deleteMany()
     await prisma.paiement.deleteMany()
     await prisma.factureLigne.deleteMany()
     await prisma.facture.deleteMany()
@@ -622,50 +619,6 @@ async function main() {
     }
 
     /* ========================================================
-       BULLETINS — 5 (mois courant pour les 5 salariés)
-       ======================================================== */
-    console.log("📑 Création des bulletins de paie...")
-    const TAUX_CNSS_SALARIE = 5.25
-    const TAUX_CNSS_EMPLOYEUR = 16.5
-    const now = new Date()
-    const annee2 = now.getFullYear()
-    const mois2 = now.getMonth() + 1
-
-    const salaries = membres.filter((m) => m.statutContrat !== "ASSOCIE" && m.salaireBaseBrut > 0)
-    for (const m of salaries) {
-        const brut = m.salaireBaseBrut
-        const primes = 0
-        const retenues = 0
-        const chargesSal = Math.round((brut * TAUX_CNSS_SALARIE) / 100)
-        const chargesPat = Math.round((brut * TAUX_CNSS_EMPLOYEUR) / 100)
-        const net = brut + primes - retenues - chargesSal
-        const coutTotal = brut + primes + chargesPat
-        await prisma.bulletin.create({
-            data: {
-                employeId: m.id,
-                annee: annee2,
-                mois: mois2,
-                salaireBrut: brut,
-                primes,
-                retenues,
-                chargesSalariales: chargesSal,
-                chargesPatronales: chargesPat,
-                salaireNet: net,
-                coutTotalEmployeur: coutTotal,
-                statut: "BROUILLON",
-                modeVersement: m.modeVersementParDefaut,
-                lignes: {
-                    create: [
-                        { libelle: "Salaire de base", type: "GAIN", montant: brut },
-                        { libelle: "CNSS salariale", type: "CHARGE_SALARIALE", montant: chargesSal },
-                        { libelle: "CNSS patronale", type: "CHARGE_PATRONALE", montant: chargesPat },
-                    ],
-                },
-            },
-        })
-    }
-
-    /* ========================================================
        DOCUMENTS — 20
        ======================================================== */
     console.log("📚 Création des documents bibliothèque...")
@@ -725,7 +678,6 @@ async function main() {
         taches: await prisma.tache.count(),
         factures: await prisma.facture.count(),
         depenses: await prisma.depense.count(),
-        bulletins: await prisma.bulletin.count(),
         documents: await prisma.document.count(),
     }
 

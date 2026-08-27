@@ -21,7 +21,6 @@ interface Share {
         | "TACHE"
         | "DOCUMENT"
         | "FACTURE"
-        | "BULLETIN"
         | "DEPENSE"
     entityId: string
     entityNumero: string | null
@@ -38,7 +37,6 @@ const ENTITY_HREF: Record<Share["entityType"], (id: string) => string> = {
     TACHE: () => `/taches`,
     DOCUMENT: () => `/bibliotheque`,
     FACTURE: () => `/facturation?tab=facturation`,
-    BULLETIN: () => `/facturation?tab=paie`,
     DEPENSE: () => `/facturation?tab=depenses`,
 }
 
@@ -49,7 +47,6 @@ const ENTITY_LABEL: Record<Share["entityType"], string> = {
     TACHE: "Tâche",
     DOCUMENT: "Document",
     FACTURE: "Facture",
-    BULLETIN: "Bulletin",
     DEPENSE: "Dépense",
 }
 
@@ -60,7 +57,6 @@ const ENTITY_ICON: Record<Share["entityType"], string> = {
     TACHE: "task_alt",
     DOCUMENT: "library_books",
     FACTURE: "receipt_long",
-    BULLETIN: "payments",
     DEPENSE: "account_balance_wallet",
 }
 

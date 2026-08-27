@@ -68,8 +68,6 @@ const PERMISSION_GROUPS: Array<{
         perms: [
             { key: "finance.view", label: "Voir la finance", hint: "Factures, paiements, dépenses" },
             { key: "finance.write", label: "Modifier la finance", hint: "Créer factures, enregistrer paiements" },
-            { key: "paie.view", label: "Voir la paie", hint: "Bulletins de salaire" },
-            { key: "paie.write", label: "Modifier la paie", hint: "Générer, valider, verser" },
         ],
     },
     {

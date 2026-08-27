@@ -204,7 +204,7 @@ function MenuPanel({
             ) : confirming === "delete" ? (
                 <div className="p-3">
                     <p className="font-body-sm text-body-sm text-on-surface mb-2">
-                        Supprimer définitivement ? Les bulletins de paie historiques resteront.
+                        Supprimer définitivement ce membre ?
                     </p>
                     <div className="flex gap-2">
                         <button

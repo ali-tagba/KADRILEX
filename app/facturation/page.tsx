@@ -7,14 +7,12 @@ import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { patchEntity, postEntity, deleteEntity, showApiError } from "@/lib/api/patch"
 import type { MockFacture } from "@/lib/mock/invoices"
 import type { MockDepense } from "@/lib/mock/depenses"
-import type { MockBulletin } from "@/lib/mock/bulletins"
 import type { Membre } from "@prisma/client"
 import { FinanceTabs, type FinanceTabKey } from "@/components/facturation/finance-tabs"
 import { FinanceDashboard } from "@/components/facturation/finance-dashboard"
 import { VueEnsembleTab } from "@/components/facturation/vue-ensemble-tab"
 import { FacturationTab } from "@/components/facturation/facturation-tab"
 import { DepensesTab } from "@/components/facturation/depenses-tab"
-import { PaieTab } from "@/components/facturation/paie-tab"
 import { ApportsTab } from "@/components/facturation/apports-tab"
 import { BilanTab } from "@/components/facturation/bilan-tab"
 
@@ -23,7 +21,6 @@ const VALID_TABS: FinanceTabKey[] = [
     "vue-ensemble",
     "facturation",
     "depenses",
-    "paie",
     "apports",
     "bilan",
 ]
@@ -50,7 +47,6 @@ export default function FinancePage() {
 
     const [factures, setFactures] = useState<MockFacture[]>([])
     const [depenses, setDepenses] = useState<MockDepense[]>([])
-    const [bulletins, setBulletins] = useState<MockBulletin[]>([])
     const [employes, setEmployes] = useState<Membre[]>([])
     const [clients, setClients] = useState<any[]>([])
     const [dossiers, setDossiers] = useState<any[]>([])
@@ -119,37 +115,6 @@ export default function FinancePage() {
                 deleteEntity(`${endpoint}/${item.id}`).catch(showApiError("Suppression"))
             }
         }
-    }
-
-    const syncBulletins = (next: MockBulletin[]) => {
-        setBulletins(next)
-        void syncCollection(
-            bulletins,
-            next,
-            "/api/bulletins",
-            (b) => ({
-                employeId: b.employeId,
-                annee: b.annee,
-                mois: b.mois,
-                salaireBrut: b.salaireBrut,
-                primes: b.primes,
-                retenues: b.retenues,
-                statut: b.statut,
-                notes: b.notes,
-            }),
-            (b) => ({
-                salaireBrut: b.salaireBrut,
-                primes: b.primes,
-                retenues: b.retenues,
-                statut: b.statut,
-                dateVersement: b.dateVersement,
-                modeVersement: b.modeVersement,
-                reference: b.reference,
-                notes: b.notes,
-            }),
-            setBulletins,
-            (id) => id.startsWith("bul-local-")
-        )
     }
 
     const syncFactures = (next: MockFacture[]) => {
@@ -250,16 +215,14 @@ export default function FinancePage() {
         Promise.all([
             fetch("/api/invoices").then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : [])).catch(() => []),
             fetch("/api/depenses").then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : [])).catch(() => []),
-            fetch("/api/bulletins").then((r) => (r.ok ? (r.json() as Promise<MockBulletin[]>) : [])).catch(() => []),
             fetch("/api/employes").then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : [])).catch(() => []),
             fetch("/api/clients").then((r) => (r.ok ? (r.json() as Promise<any[]>) : [])).catch(() => []),
             fetch("/api/dossiers").then((r) => (r.ok ? (r.json() as Promise<any[]>) : [])).catch(() => []),
         ])
-            .then(([fac, dep, bul, emp, cli, dos]) => {
+            .then(([fac, dep, emp, cli, dos]) => {
                 if (!alive) return
                 setFactures(fac)
                 setDepenses(dep)
-                setBulletins(bul)
                 setEmployes(emp)
                 setClients(cli)
                 setDossiers(dos)
@@ -280,15 +243,13 @@ export default function FinancePage() {
         const facturesEnRetard = factures.filter(
             (f) => f.direction === "EMISE" && f.statut === "EN_RETARD"
         ).length
-        const bulletinsBrouillons = bulletins.filter((b) => b.statut === "BROUILLON").length
         return {
             dashboard: undefined,
             "vue-ensemble": undefined,
             facturation: facturesEnRetard > 0 ? facturesEnRetard : undefined,
             depenses: undefined,
-            paie: bulletinsBrouillons > 0 ? bulletinsBrouillons : undefined,
         }
-    }, [factures, bulletins])
+    }, [factures])
 
     return (
         <PageGate perm="finance.view" moduleName="Finance">
@@ -327,7 +288,6 @@ export default function FinancePage() {
                         <VueEnsembleTab
                             factures={factures}
                             depenses={depenses}
-                            bulletins={bulletins}
                         />
                     </div>
                 ) : activeTab === "facturation" ? (
@@ -344,10 +304,6 @@ export default function FinancePage() {
                 ) : activeTab === "depenses" ? (
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">
                         <DepensesTab depenses={depenses} onChangeDepenses={syncDepenses} />
-                    </div>
-                ) : activeTab === "paie" ? (
-                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
-                        <PaieTab employes={employes} bulletins={bulletins} onChangeBulletins={syncBulletins} />
                     </div>
                 ) : activeTab === "apports" ? (
                     <div className="flex-1 min-h-0 px-container-margin py-density-medium">

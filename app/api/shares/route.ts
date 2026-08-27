@@ -84,13 +84,11 @@ async function assertCanShareEntity(
         }
         case "DOCUMENT":
         case "FACTURE":
-        case "BULLETIN":
         case "DEPENSE": {
             // Modules sans tableau équipe : permission RBAC simple
             const permMap: Record<string, Parameters<typeof can>[1]> = {
                 DOCUMENT: "bibliotheque.view",
                 FACTURE: "finance.view",
-                BULLETIN: "paie.view",
                 DEPENSE: "finance.view",
             }
             const perm = permMap[entityType]
@@ -204,7 +202,7 @@ export async function POST(req: NextRequest) {
                         })
                         .catch(() => undefined)
                     break
-                // DOCUMENT / FACTURE / BULLETIN / DEPENSE : pas de table équipe — RBAC global suffisant
+                // DOCUMENT / FACTURE / DEPENSE : pas de table équipe — RBAC global suffisant
             }
 
             return tx.partage.create({

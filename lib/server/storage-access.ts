@@ -4,7 +4,7 @@
  *
  * Sans ce contrôle, un utilisateur authentifié pourrait passer n'importe quel
  * `path` à /api/storage/file ou /api/storage/download-url et accéder à des
- * fichiers de dossiers/factures/bulletins d'autres membres (IDOR critique).
+ * fichiers de dossiers/factures d'autres membres (IDOR critique).
  *
  * Stratégie : on cherche le chemin dans toutes les colonnes DB qui référencent
  * un fichier Storage, puis on applique la matrice RBAC de l'entité parente.

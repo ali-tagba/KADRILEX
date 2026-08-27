@@ -11,7 +11,6 @@
  *   - Documents (bibliothèque) + liaisons DocumentDossier
  *   - Factures, FactureLignes, Paiements
  *   - Dépenses
- *   - Bulletins (toute la paie est wipée)
  *   - Fournisseurs
  *   - Toutes les tables de jointure (équipes)
  *
@@ -29,8 +28,6 @@ async function main() {
 
     // Ordre : feuilles d'abord pour éviter les contraintes FK
     const ops = [
-        ["BulletinLigne", () => prisma.bulletinLigne.deleteMany()],
-        ["Bulletin", () => prisma.bulletin.deleteMany()],
         ["Paiement", () => prisma.paiement.deleteMany()],
         ["FactureLigne", () => prisma.factureLigne.deleteMany()],
         ["Facture", () => prisma.facture.deleteMany()],

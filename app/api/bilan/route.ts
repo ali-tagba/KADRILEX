@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
         const q = getQuery(req.url)
         const annee = q.annee ? Number(q.annee) : new Date().getFullYear()
 
-        const [encaissements, depenses, apports, bulletins] = await Promise.all([
+        const [encaissements, depenses, apports] = await Promise.all([
             prisma.encaissementMensuel.findMany({
                 where: { annee },
                 include: { client: true },
@@ -28,10 +28,6 @@ export async function GET(req: NextRequest) {
             prisma.apport.findMany({
                 where: { annee },
                 select: { mois: true, montantRetrocessionTotal: true },
-            }),
-            prisma.bulletin.findMany({
-                where: { annee, statut: { not: "BROUILLON" } },
-                select: { mois: true, coutTotalEmployeur: true },
             }),
         ])
 
@@ -115,14 +111,6 @@ export async function GET(req: NextRequest) {
             if (!arr) continue // catégorie hors périmètre bilan (ex: LOYER géré ailleurs)
             arr[d.date.getMonth()] += d.montantTTC
         }
-        // Salaires : depenses saisies manuellement (historique importe) + bulletins de paie
-        // generes via l'onglet Paie (hors brouillon) -- meme principe que les Rétrocessions,
-        // pour ne jamais dependre d'une double saisie manuelle une fois les bulletins en place.
-        const salairesArr = parCategorie.get("SALAIRES")
-        if (salairesArr) {
-            for (const b of bulletins) salairesArr[b.mois - 1] += b.coutTotalEmployeur
-        }
-
         const categories = categorieOrder.map((cat) => {
             const parMois = parCategorie.get(cat)!
             return {

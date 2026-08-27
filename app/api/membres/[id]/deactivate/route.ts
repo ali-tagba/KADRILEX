@@ -13,7 +13,6 @@ import { MembreDeactivateSchema } from "@/lib/server/schemas"
 /**
  * Désactive un membre en transférant atomiquement toutes ses entités
  * (Client, Dossier, Audience, Tâche) vers un autre membre.
- * Les bulletins de paie historiques sont préservés (conformité légale Niger).
  */
 export async function POST(
     req: NextRequest,

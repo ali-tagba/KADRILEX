@@ -447,34 +447,6 @@ export const DepenseCreateSchema = z.object({
 export const DepenseUpdateSchema = DepenseCreateSchema.partial()
 
 /* ============================================================
-   BULLETIN
-   ============================================================ */
-
-const BulletinStatutEnum = z.enum(["BROUILLON", "VALIDE", "VERSE"])
-
-export const BulletinCreateSchema = z.object({
-    employeId: z.string(),
-    annee: z.number().int().min(2000).max(2100),
-    mois: z.number().int().min(1).max(12),
-    salaireBrut: z.number().int().nonnegative(),
-    primes: z.number().int().nonnegative().default(0),
-    retenues: z.number().int().nonnegative().default(0),
-    statut: BulletinStatutEnum.default("BROUILLON"),
-    notes: z.string().optional().nullable(),
-})
-
-export const BulletinUpdateSchema = z.object({
-    salaireBrut: z.number().int().nonnegative(),
-    primes: z.number().int().nonnegative(),
-    retenues: z.number().int().nonnegative(),
-    statut: BulletinStatutEnum,
-    dateVersement: z.string().datetime().nullable(),
-    modeVersement: z.enum(["VIREMENT", "MOBILE_MONEY", "ESPECES", "CHEQUE", "CARTE", "PRELEVEMENT", "AUTRE"]).nullable(),
-    reference: z.string().max(100).nullable(),
-    notes: z.string().nullable(),
-}).partial()
-
-/* ============================================================
    APPORTS DES AVOCATS
    ============================================================ */
 
@@ -529,7 +501,7 @@ export const PartageCreateSchema = z.object({
     toMembreId: z.string().min(1),
     entityType: z.enum([
         "CLIENT", "DOSSIER", "AUDIENCE", "TACHE",
-        "DOCUMENT", "FACTURE", "BULLETIN", "DEPENSE",
+        "DOCUMENT", "FACTURE", "DEPENSE",
     ]),
     entityId: z.string().min(1),
     entityNumero: z.string().max(50).optional().nullable(),

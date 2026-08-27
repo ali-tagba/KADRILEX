@@ -120,16 +120,8 @@ export const FREQUENCES_RECURRENCE = {
 export type FrequenceRecurrenceKey = keyof typeof FREQUENCES_RECURRENCE
 
 /* ============================================================
-   PAIE — Statut bulletin + types de contrat + lignes
+   ÉQUIPE — types de contrat
    ============================================================ */
-
-export const STATUTS_BULLETIN = {
-    BROUILLON: { label: "Brouillon", chip: "bg-surface-container-high text-on-surface-variant" },
-    VALIDE: { label: "Validé", chip: "bg-primary-fixed text-primary" },
-    VERSE: { label: "Versé", chip: "bg-[#e8f5e9] text-[#166534]" },
-} as const
-
-export type StatutBulletinKey = keyof typeof STATUTS_BULLETIN
 
 export const STATUTS_CONTRAT = {
     ASSOCIE: { label: "Associé", icon: "stars" },
@@ -142,25 +134,12 @@ export const STATUTS_CONTRAT = {
 
 export type StatutContratKey = keyof typeof STATUTS_CONTRAT
 
-export const TYPES_LIGNE_BULLETIN = {
-    GAIN: { label: "Gain", signe: 1 },
-    RETENUE: { label: "Retenue", signe: -1 },
-    CHARGE_SALARIALE: { label: "Charge salariale", signe: -1 },
-    CHARGE_PATRONALE: { label: "Charge patronale", signe: 0 }, // n'impacte pas le net
-} as const
-
-export type TypeLigneBulletinKey = keyof typeof TYPES_LIGNE_BULLETIN
-
 /* ============================================================
    TAUX (paramétrables — Niger)
    ============================================================ */
 
 /** TVA standard au Niger */
 export const TVA_NIGER = 19
-
-/** Charges sociales CNSS Niger (taux indicatifs — à confirmer avec le cabinet) */
-export const TAUX_CNSS_SALARIE = 5.25 // % du brut retenu sur le salarié
-export const TAUX_CNSS_EMPLOYEUR = 16.5 // % du brut payé par l'employeur en sus
 
 /* ============================================================
    FORMATTERS — FCFA + dates

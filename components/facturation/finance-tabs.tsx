@@ -7,7 +7,6 @@ export type FinanceTabKey =
     | "vue-ensemble"
     | "facturation"
     | "depenses"
-    | "paie"
     | "apports"
     | "bilan"
 
@@ -23,7 +22,6 @@ const TABS: { key: FinanceTabKey; label: string; icon: string }[] = [
     { key: "vue-ensemble", label: "Vue d'ensemble", icon: "dataset" },
     { key: "facturation", label: "Facturation", icon: "receipt_long" },
     { key: "depenses", label: "Dépenses internes", icon: "account_balance_wallet" },
-    { key: "paie", label: "Paie", icon: "groups" },
     { key: "apports", label: "Apports avocats", icon: "handshake" },
     { key: "bilan", label: "Bilan", icon: "summarize" },
 ]

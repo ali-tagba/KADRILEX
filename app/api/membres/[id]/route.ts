@@ -65,9 +65,8 @@ export async function PATCH(
 /**
  * Suppression définitive d'un membre.
  *
- * Garde-fous (conformité légale Niger sur l'historique paie) :
- *  - Refuse si le membre est encore actif (doit passer par /deactivate qui transfère les entités)
- *  - Refuse si le membre a des bulletins de paie (historique obligatoire)
+ * Garde-fou : refuse si le membre est encore actif (doit passer par /deactivate
+ * qui transfère les entités).
  *
  * Effets en cascade automatiques (via schema Prisma) :
  *  - responsableId sur Client/Dossier/Audience/Tache → SetNull
@@ -82,22 +81,13 @@ export async function DELETE(
         await requirePermission("equipe.write")
         const { id } = await params
 
-        const membre = await prisma.membre.findUnique({
-            where: { id },
-            include: { _count: { select: { bulletins: true } } },
-        })
+        const membre = await prisma.membre.findUnique({ where: { id } })
         if (!membre) throw new HttpError(404, "Membre introuvable")
 
         if (membre.actif) {
             throw new HttpError(
                 400,
                 "Désactive d'abord le membre (transfert des entités) avant de pouvoir le supprimer."
-            )
-        }
-        if (membre._count.bulletins > 0) {
-            throw new HttpError(
-                400,
-                `Impossible de supprimer : ce membre a ${membre._count.bulletins} bulletin(s) de paie. L'historique paie doit être conservé (loi Niger). Préfère le garder désactivé.`
             )
         }
 

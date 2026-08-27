@@ -19,7 +19,6 @@ import { mockAudiences, mockTaches } from "@/lib/mock/audiences"
 import { mockDocuments } from "@/lib/mock/documents"
 import { mockFactures } from "@/lib/mock/invoices"
 import { mockDepenses } from "@/lib/mock/depenses"
-import { mockBulletins } from "@/lib/mock/bulletins"
 
 const DataSyncContext = createContext<{ synced: boolean; refresh: () => void }>({
     synced: false,
@@ -56,7 +55,7 @@ export function DataSyncProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let alive = true
         const run = async () => {
-            const [clients, dossiers, audiences, taches, documents, membres, factures, depenses, bulletins] =
+            const [clients, dossiers, audiences, taches, documents, membres, factures, depenses] =
                 await Promise.all([
                     fetchSafe<unknown>("/api/clients"),
                     fetchSafe<unknown>("/api/dossiers"),
@@ -66,7 +65,6 @@ export function DataSyncProvider({ children }: { children: ReactNode }) {
                     fetchSafe<unknown>("/api/membres"),
                     fetchSafe<unknown>("/api/invoices"),
                     fetchSafe<unknown>("/api/depenses"),
-                    fetchSafe<unknown>("/api/bulletins"),
                 ])
             if (!alive) return
             // Cast nécessaire car les shapes API matchent largement les mocks
@@ -78,7 +76,6 @@ export function DataSyncProvider({ children }: { children: ReactNode }) {
             hydrate(mockMembres as unknown[], membres)
             hydrate(mockFactures as unknown[], factures)
             hydrate(mockDepenses as unknown[], depenses)
-            hydrate(mockBulletins as unknown[], bulletins)
             setSynced(true)
         }
         run()

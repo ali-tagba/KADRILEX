@@ -92,8 +92,6 @@ export type PermissionKey =
     | "bibliotheque.write"
     | "finance.view"
     | "finance.write"
-    | "paie.view"
-    | "paie.write"
     | "apports.view"
     | "apports.write"
     | "equipe.view"
@@ -116,8 +114,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "ALL",
         "finance.view": "ALL",
         "finance.write": "ALL",
-        "paie.view": "ALL",
-        "paie.write": "ALL",
         "apports.view": "ALL",
         "apports.write": "ALL",
         "equipe.view": "ALL",
@@ -139,8 +135,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "ALL",
         "finance.view": "ALL",
         "finance.write": "OWN",
-        "paie.view": "OWN",
-        "paie.write": "NONE",
         "apports.view": "OWN",
         "apports.write": "NONE",
         "equipe.view": "ALL",
@@ -162,8 +156,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "ALL",
         "finance.view": "NONE",
         "finance.write": "NONE",
-        "paie.view": "OWN",
-        "paie.write": "NONE",
         "apports.view": "OWN",
         "apports.write": "NONE",
         "equipe.view": "ALL",
@@ -185,8 +177,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "ALL",
         "finance.view": "NONE",
         "finance.write": "NONE",
-        "paie.view": "OWN",
-        "paie.write": "NONE",
         "apports.view": "OWN",
         "apports.write": "NONE",
         "equipe.view": "ALL",
@@ -208,8 +198,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "NONE",
         "finance.view": "NONE",
         "finance.write": "NONE",
-        "paie.view": "OWN",
-        "paie.write": "NONE",
         "apports.view": "OWN",
         "apports.write": "NONE",
         "equipe.view": "ALL",
@@ -231,8 +219,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Record<PermissionKey, PermissionS
         "bibliotheque.write": "ALL",
         "finance.view": "NONE",
         "finance.write": "NONE",
-        "paie.view": "OWN",
-        "paie.write": "NONE",
         "apports.view": "OWN",
         "apports.write": "NONE",
         "equipe.view": "ALL",
