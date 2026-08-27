@@ -137,8 +137,6 @@ function shapeDossier(d: Prisma.DossierGetPayload<{
         statut: f.statut,
         description: f.description ?? "",
         fournisseur: f.fournisseur?.nom ?? f.fournisseurNomLibre ?? null,
-        refacturable: f.refacturable,
-        refactureeViaInvoiceId: f.refactureeViaFactureId ?? null,
     }))
 
     return {

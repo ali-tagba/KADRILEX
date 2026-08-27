@@ -40,7 +40,6 @@ interface DossierGroup {
     factures: MockFacture[]
     totalEmis: number
     totalRecu: number
-    totalRecuRefacturable: number
     encaisse: number
     soldeDu: number
 }
@@ -98,7 +97,6 @@ function aggregate(factures: MockFacture[]): ClientGroup[] {
                 factures: [],
                 totalEmis: 0,
                 totalRecu: 0,
-                totalRecuRefacturable: 0,
                 encaisse: 0,
                 soldeDu: 0,
             }
@@ -120,9 +118,6 @@ function aggregate(factures: MockFacture[]): ClientGroup[] {
             if (f.statut !== "BROUILLON" && f.statut !== "ANNULEE") {
                 dg.totalRecu += f.montantTTC
                 cg.totalRecu += f.montantTTC
-                if (f.refacturable && !f.refactureeViaFactureId) {
-                    dg.totalRecuRefacturable += f.montantTTC
-                }
             }
         }
     }
@@ -321,17 +316,6 @@ export function FactureGroupedView({
                                                                 Émis{" "}
                                                                 <span className="font-mono-num font-medium">
                                                                     {formatFCFA(dg.totalEmis)}
-                                                                </span>
-                                                            </span>
-                                                        )}
-                                                        {dg.totalRecuRefacturable > 0 && (
-                                                            <span
-                                                                className="text-warning"
-                                                                title="Frais avancés à refacturer"
-                                                            >
-                                                                À refact.{" "}
-                                                                <span className="font-mono-num font-medium">
-                                                                    {formatFCFA(dg.totalRecuRefacturable)}
                                                                 </span>
                                                             </span>
                                                         )}

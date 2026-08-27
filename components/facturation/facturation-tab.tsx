@@ -125,7 +125,6 @@ export function FacturationTab({
                 lignes: draft.lignes,
                 description: draft.description,
                 notes: draft.notes,
-                refacturable: draft.refacturable,
                 statut: draft.saveAs,
                 updatedAt: new Date().toISOString(),
             }
@@ -163,8 +162,6 @@ export function FacturationTab({
                 description: draft.description,
                 notes: draft.notes,
                 attachmentUrl: draft.attachment?.url ?? null,
-                refacturable: draft.refacturable,
-                refactureeViaFactureId: null,
                 createdAt: now,
                 updatedAt: now,
             }

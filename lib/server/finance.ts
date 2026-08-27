@@ -102,7 +102,6 @@ export interface DossierFinanceComputed {
     montantPaye: number
     montantImpaye: number
     fraisEngages: number
-    fraisRefacturablesEnAttente: number
 }
 
 export function computeDossierFinance(factures: Facture[]): DossierFinanceComputed {
@@ -113,9 +112,6 @@ export function computeDossierFinance(factures: Facture[]): DossierFinanceComput
     const montantFactureTTC = emises.reduce((s, f) => s + f.montantTTC, 0)
     const montantPaye = emises.reduce((s, f) => s + f.montantPaye, 0)
     const fraisEngages = recues.reduce((s, f) => s + f.montantTTC, 0)
-    const fraisRefacturablesEnAttente = recues
-        .filter((f) => f.refacturable && !f.refactureeViaFactureId)
-        .reduce((s, f) => s + f.montantTTC, 0)
 
     return {
         facturesEmisesCount: emises.length,
@@ -125,7 +121,6 @@ export function computeDossierFinance(factures: Facture[]): DossierFinanceComput
         montantPaye,
         montantImpaye: montantFactureTTC - montantPaye,
         fraisEngages,
-        fraisRefacturablesEnAttente,
     }
 }
 

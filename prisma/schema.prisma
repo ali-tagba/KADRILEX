@@ -922,10 +922,6 @@ model Facture {
   /// Date de dernière génération — sert à savoir si la facture a été modifiée depuis
   generatedPdfAt  DateTime?
 
-  // Refacturation (pour factures reçues)
-  refacturable           Boolean @default(false)
-  refactureeViaFactureId String?
-
   lignes    FactureLigne[]
   paiements Paiement[]
 
@@ -938,7 +934,6 @@ model Facture {
   @@index([dossierId])
   @@index([fournisseurId])
   @@index([date])
-  @@index([refacturable])
 }
 
 model FactureLigne {

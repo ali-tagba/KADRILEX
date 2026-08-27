@@ -13,7 +13,6 @@ import { FinanceTabs, type FinanceTabKey } from "@/components/facturation/financ
 import { FinanceDashboard } from "@/components/facturation/finance-dashboard"
 import { VueEnsembleTab } from "@/components/facturation/vue-ensemble-tab"
 import { FacturationTab } from "@/components/facturation/facturation-tab"
-import { FraisExternesTab } from "@/components/facturation/frais-externes-tab"
 import { DepensesTab } from "@/components/facturation/depenses-tab"
 import { PaieTab } from "@/components/facturation/paie-tab"
 import { ApportsTab } from "@/components/facturation/apports-tab"
@@ -23,7 +22,6 @@ const VALID_TABS: FinanceTabKey[] = [
     "dashboard",
     "vue-ensemble",
     "facturation",
-    "frais-externes",
     "depenses",
     "paie",
     "apports",
@@ -173,7 +171,6 @@ export default function FinancePage() {
                 statut: f.statut,
                 description: f.description,
                 notes: f.notes,
-                refacturable: f.refacturable,
                 attachmentUrl: f.attachmentUrl,
                 // CRITIQUE : les lignes doivent être envoyées pour être persistées
                 lignes: (f.lignes ?? []).map((l) => ({
@@ -192,7 +189,6 @@ export default function FinancePage() {
                 statut: f.statut,
                 description: f.description,
                 notes: f.notes,
-                refacturable: f.refacturable,
                 attachmentUrl: f.attachmentUrl,
                 // Lignes incluses au PATCH : l'endpoint les remplace si présent
                 lignes: (f.lignes ?? []).map((l) => ({
@@ -284,15 +280,11 @@ export default function FinancePage() {
         const facturesEnRetard = factures.filter(
             (f) => f.direction === "EMISE" && f.statut === "EN_RETARD"
         ).length
-        const fraisAEnAttente = factures.filter(
-            (f) => f.direction === "RECUE" && f.refacturable && !f.refactureeViaFactureId
-        ).length
         const bulletinsBrouillons = bulletins.filter((b) => b.statut === "BROUILLON").length
         return {
             dashboard: undefined,
             "vue-ensemble": undefined,
             facturation: facturesEnRetard > 0 ? facturesEnRetard : undefined,
-            "frais-externes": fraisAEnAttente > 0 ? fraisAEnAttente : undefined,
             depenses: undefined,
             paie: bulletinsBrouillons > 0 ? bulletinsBrouillons : undefined,
         }
@@ -347,20 +339,6 @@ export default function FinancePage() {
                             presetDossierId={presetDossierId}
                             clients={clients}
                             dossiers={dossiers}
-                        />
-                    </div>
-                ) : activeTab === "frais-externes" ? (
-                    <div className="flex-1 min-h-0 px-container-margin py-density-medium">
-                        <FraisExternesTab
-                            factures={factures}
-                            onChangeFactures={syncFactures}
-                            clients={clients}
-                            dossiers={dossiers}
-                            onSelect={(f) => {
-                                /* On bascule vers la tab Facturation avec la facture sélectionnée */
-                                handleTabChange("facturation")
-                                /* La sélection sera gérée via URL — pour l'instant on bascule juste */
-                            }}
                         />
                     </div>
                 ) : activeTab === "depenses" ? (

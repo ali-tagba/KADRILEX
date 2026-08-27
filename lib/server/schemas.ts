@@ -395,7 +395,6 @@ export const FactureCreateSchema = z.object({
     description: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
     statut: FactureStatutEnum.default("EMISE"),
-    refacturable: z.boolean().default(false),
     lignes: z.array(FactureLigneSchema).default([]),
     /** Path Supabase Storage de la pièce jointe (PDF facture, devis…) */
     attachmentUrl: z.string().optional().nullable(),
@@ -411,16 +410,6 @@ export const PaiementCreateSchema = z.object({
     notes: z.string().optional().nullable(),
     /** Preuve uploadée (path Supabase Storage) — optionnel */
     preuveUrl: z.string().optional().nullable(),
-})
-
-export const RefactureBatchSchema = z.object({
-    /** Liste de Factures RECUE avec refacturable=true et pas encore refacturées. */
-    factureIds: z.array(z.string()).min(1),
-    /** Client cible (souvent celui du dossier). */
-    clientId: z.string(),
-    /** Dossier cible — optionnel mais habituel. */
-    dossierId: z.string().optional().nullable(),
-    description: z.string().optional().nullable(),
 })
 
 /* ============================================================

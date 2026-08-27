@@ -575,7 +575,6 @@ async function main() {
                 ...m,
                 montantPaye: m.montantTTC,
                 statut: "PAYEE",
-                refacturable: true,
             },
         })
     }

@@ -43,7 +43,6 @@ export interface FactureFiltersState {
     /** Visibilité */
     inclureBrouillons: boolean
     inclureAnnulees: boolean
-    refacturablesOnly: boolean
     viewMode: ViewMode
 }
 
@@ -62,7 +61,6 @@ export const INITIAL_FACTURE_FILTERS: FactureFiltersState = {
     montantMax: null,
     inclureBrouillons: false,
     inclureAnnulees: false,
-    refacturablesOnly: false,
     viewMode: "table",
 }
 
@@ -78,7 +76,6 @@ export function countActiveFactureFilters(s: FactureFiltersState): number {
     if (s.montantMin !== null || s.montantMax !== null) n += 1
     if (s.inclureBrouillons) n += 1
     if (s.inclureAnnulees) n += 1
-    if (s.refacturablesOnly) n += 1
     return n
 }
 
@@ -155,7 +152,6 @@ export function applyFactureFilters(
         if (!matchesDate(f.date, s)) return false
         if (s.montantMin !== null && f.montantTTC < s.montantMin) return false
         if (s.montantMax !== null && f.montantTTC > s.montantMax) return false
-        if (s.refacturablesOnly && !(f.refacturable && !f.refactureeViaFactureId)) return false
         if (q) {
             const haystack = [
                 f.numero,

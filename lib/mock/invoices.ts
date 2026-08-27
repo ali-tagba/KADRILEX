@@ -92,10 +92,6 @@ export interface MockFacture {
     /** Date de la dernière génération PDF — sert à savoir si à jour */
     generatedPdfAt?: string | null
 
-    /** Refacturation (pour reçues uniquement) */
-    refacturable: boolean
-    refactureeViaFactureId: string | null
-
     createdAt: string
     updatedAt: string
 
@@ -175,7 +171,7 @@ export function recomputeFacture(f: MockFacture): MockFacture {
 }
 
 /* ============================================================
-   Calculs dérivés — getClientFinance / getDossierFinance / getCabinetFinance
+   Calculs dérivés — getClientFinance
    ============================================================ */
 
 export interface ClientFinance {
@@ -216,80 +212,3 @@ export function getClientFinance(clientId: string): ClientFinance {
     }
 }
 
-export interface DossierFinanceCalc {
-    facturesEmises: number
-    facturesRecues: number
-    montantFactureHT: number
-    montantFactureTTC: number
-    montantPaye: number
-    montantImpaye: number
-    fraisEngages: number
-    fraisRefacturablesEnAttente: number
-}
-
-export function getDossierFinanceFromInvoices(dossierId: string): DossierFinanceCalc {
-    const liees = mockFactures.filter(
-        (f) => f.dossierId === dossierId && f.statut !== "ANNULEE" && f.statut !== "BROUILLON"
-    )
-    const emises = liees.filter((f) => f.direction === "EMISE")
-    const recues = liees.filter((f) => f.direction === "RECUE")
-    const montantFactureHT = emises.reduce((s, f) => s + f.montantHT, 0)
-    const montantFactureTTC = emises.reduce((s, f) => s + f.montantTTC, 0)
-    const montantPaye = emises.reduce((s, f) => s + f.montantPaye, 0)
-    const fraisEngages = recues.reduce((s, f) => s + f.montantTTC, 0)
-    const fraisRefacturablesEnAttente = recues
-        .filter((f) => f.refacturable && !f.refactureeViaFactureId)
-        .reduce((s, f) => s + f.montantTTC, 0)
-    return {
-        facturesEmises: emises.length,
-        facturesRecues: recues.length,
-        montantFactureHT,
-        montantFactureTTC,
-        montantPaye,
-        montantImpaye: montantFactureTTC - montantPaye,
-        fraisEngages,
-        fraisRefacturablesEnAttente,
-    }
-}
-
-export interface CabinetFinance {
-    /** Total TTC factures émises validées (toutes confondues) */
-    chiffreAffaires: number
-    /** Encaissé total */
-    encaisse: number
-    /** Reste dû par les clients */
-    enAttenteEncaissement: number
-    /** Nombre factures en retard côté clients */
-    enRetardClients: number
-    /** Nombre factures reçues en retard (à payer) */
-    enRetardFournisseurs: number
-    /** Frais avancés à refacturer */
-    fraisAvancesARefacturer: number
-    /** Frais reçus non encore payés (dette fournisseurs) */
-    detteFournisseurs: number
-}
-
-export function getCabinetFinance(): CabinetFinance {
-    const emises = mockFactures.filter(
-        (f) => f.direction === "EMISE" && f.statut !== "BROUILLON" && f.statut !== "ANNULEE"
-    )
-    const recues = mockFactures.filter((f) => f.direction === "RECUE" && f.statut !== "ANNULEE")
-    const chiffreAffaires = emises.reduce((s, f) => s + f.montantTTC, 0)
-    const encaisse = emises.reduce((s, f) => s + f.montantPaye, 0)
-    const enAttenteEncaissement = chiffreAffaires - encaisse
-    const enRetardClients = emises.filter((f) => f.statut === "EN_RETARD").length
-    const enRetardFournisseurs = recues.filter((f) => f.statut === "EN_RETARD").length
-    const fraisAvancesARefacturer = recues
-        .filter((f) => f.refacturable && !f.refactureeViaFactureId)
-        .reduce((s, f) => s + f.montantTTC, 0)
-    const detteFournisseurs = recues.reduce((s, f) => s + (f.montantTTC - f.montantPaye), 0)
-    return {
-        chiffreAffaires,
-        encaisse,
-        enAttenteEncaissement,
-        enRetardClients,
-        enRetardFournisseurs,
-        fraisAvancesARefacturer,
-        detteFournisseurs,
-    }
-}

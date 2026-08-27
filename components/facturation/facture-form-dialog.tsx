@@ -31,7 +31,6 @@ export interface FactureFormDraft {
     lignes: MockLigneFacture[]
     description: string | null
     notes: string | null
-    refacturable: boolean
     /** PDF / image de la facture (signed URL en mock) */
     attachment: AttachmentInfo | null
     /** Action finale */
@@ -125,7 +124,6 @@ export function FactureFormDialog({
                 : [{ id: "lig-new-0", libelle: "", quantite: 1, prixUnitaire: 0, total: 0 }],
             description: initial?.description ?? null,
             notes: initial?.notes ?? null,
-            refacturable: initial?.refacturable ?? false,
             attachment: null,
             saveAs: "EMISE",
         }
@@ -382,17 +380,6 @@ export function FactureFormDialog({
                                         ))}
                                 </select>
                             </Field>
-
-                            <label className="col-span-2 inline-flex items-center gap-2 text-body-sm text-on-surface cursor-pointer px-2 py-2 rounded hover:bg-surface-container-low transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={draft.refacturable}
-                                    onChange={(e) => setDraft((d) => ({ ...d, refacturable: e.target.checked }))}
-                                    className="accent-accent"
-                                />
-                                <span className="material-symbols-outlined text-[16px] text-outline">forward_to_inbox</span>
-                                Refacturable au client (cette facture sera reportée sur une future facture client)
-                            </label>
                         </div>
                     )}
 

@@ -6,7 +6,6 @@ export type FinanceTabKey =
     | "dashboard"
     | "vue-ensemble"
     | "facturation"
-    | "frais-externes"
     | "depenses"
     | "paie"
     | "apports"
@@ -23,7 +22,6 @@ const TABS: { key: FinanceTabKey; label: string; icon: string }[] = [
     { key: "dashboard", label: "Tableau de bord", icon: "dashboard" },
     { key: "vue-ensemble", label: "Vue d'ensemble", icon: "dataset" },
     { key: "facturation", label: "Facturation", icon: "receipt_long" },
-    { key: "frais-externes", label: "Frais externes", icon: "inbox" },
     { key: "depenses", label: "Dépenses internes", icon: "account_balance_wallet" },
     { key: "paie", label: "Paie", icon: "groups" },
     { key: "apports", label: "Apports avocats", icon: "handshake" },

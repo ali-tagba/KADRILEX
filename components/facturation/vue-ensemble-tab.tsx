@@ -25,7 +25,6 @@ import { fullName } from "@/lib/constants/team"
 type FluxKind =
     | "FACTURE_EMISE"
     | "FACTURE_RECUE"
-    | "FRAIS_EXTERNE"
     | "DEPENSE_INTERNE"
     | "PAIEMENT_RECU"
     | "BULLETIN_PAIE"
@@ -71,12 +70,6 @@ const KIND_META: Record<FluxKind, { label: string; icon: string; chipClass: stri
     FACTURE_RECUE: {
         label: "Facture reçue",
         icon: "south_west",
-        chipClass: "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant",
-        sign: -1,
-    },
-    FRAIS_EXTERNE: {
-        label: "Frais externe",
-        icon: "inbox",
         chipClass: "bg-tertiary-fixed-dim/60 text-on-tertiary-fixed-variant",
         sign: -1,
     },
@@ -186,12 +179,11 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
                     })
                 }
             } else {
-                /* RECUE — c'est un frais externe ou cabinet */
+                /* RECUE — facture d'un fournisseur du cabinet */
                 const fournisseur = f.fournisseur
-                const isFraisExterne = f.refacturable || (dossier !== null && f.clientId !== null)
                 lines.push({
                     id: `inv-${f.id}`,
-                    kind: isFraisExterne ? "FRAIS_EXTERNE" : "FACTURE_RECUE",
+                    kind: "FACTURE_RECUE",
                     date: f.date,
                     numero: f.numero,
                     libelle: f.description ?? f.lignes[0]?.libelle ?? "Frais",
@@ -309,7 +301,6 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
             FACTURE_EMISE: { count: 0, montant: 0 },
             PAIEMENT_RECU: { count: 0, montant: 0 },
             FACTURE_RECUE: { count: 0, montant: 0 },
-            FRAIS_EXTERNE: { count: 0, montant: 0 },
             DEPENSE_INTERNE: { count: 0, montant: 0 },
             BULLETIN_PAIE: { count: 0, montant: 0 },
             ENCAISSEMENT: { count: 0, montant: 0 },
@@ -321,7 +312,6 @@ export function VueEnsembleTab({ factures, depenses, bulletins }: VueEnsembleTab
         const entrees = byKind.PAIEMENT_RECU.montant + byKind.ENCAISSEMENT.montant
         const sorties =
             byKind.FACTURE_RECUE.montant +
-            byKind.FRAIS_EXTERNE.montant +
             byKind.DEPENSE_INTERNE.montant +
             byKind.BULLETIN_PAIE.montant
         return { byKind, entrees, sorties, solde: entrees - sorties, count: filtered.length }

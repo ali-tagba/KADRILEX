@@ -1,6 +1,6 @@
 /**
  * Source de vérité unique des dépenses internes du cabinet (charges de fonctionnement).
- * Distinct des factures reçues refacturables (qui sont dans invoices.ts avec direction=RECUE).
+ * Distinct des factures reçues (qui sont dans invoices.ts avec direction=RECUE).
  */
 
 import type {

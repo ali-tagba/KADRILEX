@@ -262,7 +262,6 @@ export function FacturationFilterDrawer({
                     <FilterSection title="Visibilité" icon="visibility">
                         <ToggleRow checked={filters.inclureBrouillons} onChange={(b) => update({ inclureBrouillons: b })} label="Inclure les brouillons" />
                         <ToggleRow checked={filters.inclureAnnulees} onChange={(b) => update({ inclureAnnulees: b })} label="Inclure les annulées" />
-                        <ToggleRow checked={filters.refacturablesOnly} onChange={(b) => update({ refacturablesOnly: b })} label="Refacturables uniquement (reçues)" />
                     </FilterSection>
                 </div>
 

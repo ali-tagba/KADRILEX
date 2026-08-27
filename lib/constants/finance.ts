@@ -63,7 +63,7 @@ export const TYPES_FOURNISSEUR = {
 export type TypeFournisseurKey = keyof typeof TYPES_FOURNISSEUR
 
 /* ============================================================
-   CATÉGORIES DE DÉPENSES INTERNES (cabinet pures, non refacturables)
+   CATÉGORIES DE DÉPENSES INTERNES (charges de fonctionnement du cabinet)
    ============================================================ */
 
 export const CATEGORIES_DEPENSE = {

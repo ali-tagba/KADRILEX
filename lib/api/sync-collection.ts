@@ -68,7 +68,6 @@ export function facturePostBody(f: {
     statut: string
     description: string | null
     notes: string | null
-    refacturable: boolean
     attachmentUrl: string | null
     lignes?: { libelle: string; quantite: number; prixUnitaire: number; total: number; audienceId?: string | null }[]
 }): Record<string, unknown> {
@@ -85,7 +84,6 @@ export function facturePostBody(f: {
         statut: f.statut,
         description: f.description,
         notes: f.notes,
-        refacturable: f.refacturable,
         attachmentUrl: f.attachmentUrl,
         lignes: (f.lignes ?? []).map((l) => ({
             libelle: l.libelle,
@@ -105,7 +103,6 @@ export function facturePatchBody(f: {
     statut: string
     description: string | null
     notes: string | null
-    refacturable: boolean
     attachmentUrl: string | null
     lignes?: { libelle: string; quantite: number; prixUnitaire: number; total: number; audienceId?: string | null }[]
 }): Record<string, unknown> {
@@ -117,7 +114,6 @@ export function facturePatchBody(f: {
         statut: f.statut,
         description: f.description,
         notes: f.notes,
-        refacturable: f.refacturable,
         attachmentUrl: f.attachmentUrl,
         lignes: (f.lignes ?? []).map((l) => ({
             libelle: l.libelle,

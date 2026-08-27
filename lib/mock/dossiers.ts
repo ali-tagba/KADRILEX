@@ -28,8 +28,6 @@ export interface DossierFacture {
     montantPaye: number
     statut: "PAYEE" | "PARTIELLE" | "IMPAYEE"
     fournisseur: string | null // pour reçues
-    refacturable: boolean
-    refactureeViaInvoiceId: string | null
     description: string
 }
 
@@ -138,7 +136,6 @@ export interface DossierFinance {
     montantPaye: number
     montantImpaye: number
     fraisEngages: number
-    fraisRefacturablesEnAttente: number
     resteAFacturer: number | null
     tauxFacturation: number | null
     tauxRecouvrement: number
@@ -164,9 +161,6 @@ export function computeFinance(dossier: MockDossier): DossierFinance {
     const montantImpaye = montantFactureTTC - montantPaye
 
     const fraisEngages = recues.reduce((s, f) => s + f.montantTTC, 0)
-    const fraisRefacturablesEnAttente = recues
-        .filter((f) => f.refacturable && !f.refactureeViaInvoiceId)
-        .reduce((s, f) => s + f.montantTTC, 0)
 
     const provisions = Array.isArray(dossier.provisionsVersees) ? dossier.provisionsVersees : []
     const totalProvisionsVersees = provisions.reduce((acc, p) => acc + p.montant, 0)
@@ -201,7 +195,6 @@ export function computeFinance(dossier: MockDossier): DossierFinance {
         montantPaye,
         montantImpaye,
         fraisEngages,
-        fraisRefacturablesEnAttente,
         resteAFacturer,
         tauxFacturation,
         tauxRecouvrement,

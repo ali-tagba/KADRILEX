@@ -91,7 +91,6 @@ export async function POST(req: NextRequest) {
                     statut,
                     description: data.description ?? null,
                     notes: data.notes ?? null,
-                    refacturable: data.refacturable,
                     attachmentUrl: data.attachmentUrl ?? null,
                     lignes: {
                         create: data.lignes.map((l) => ({

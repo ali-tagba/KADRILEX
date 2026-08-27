@@ -115,28 +115,6 @@ export function computeClientActivity(
         }
     }
 
-    /* === Frais externes refacturables (factures reçues liées à un dossier de ce client) === */
-    const fraisRefactures = factures.filter(
-        (f) =>
-            f.direction === "RECUE" &&
-            f.dossierId !== null &&
-            dossierIds.has(f.dossierId) &&
-            f.refacturable &&
-            f.statut !== "BROUILLON" &&
-            f.statut !== "ANNULEE"
-    )
-    for (const f of fraisRefactures) {
-        items.push({
-            id: `act-frais-${f.id}`,
-            label: canSeeFinance
-                ? `Frais externe avancé — ${formatFCFA(f.montantTTC)}`
-                : `Frais externe avancé`,
-            sublabel: f.description ?? f.fournisseurNomLibre ?? "Frais",
-            at: f.date,
-            important: false,
-        })
-    }
-
     /* Tri date desc + cap */
     items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     return items.slice(0, limit)
