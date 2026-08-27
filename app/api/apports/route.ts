@@ -40,9 +40,11 @@ export async function GET(req: NextRequest) {
 
         const scope = getScope(membre, "apports.view")
         if (scope === "OWN") {
+            // Un viewer en scope OWN ne peut filtrer que sur lui-même — sinon `?membreId=<autre>`
+            // laisserait fuiter les montants HT/ISB/Société d'un dossier auquel il n'est pas
+            // rattaché (shapeApport masque bien les `beneficiaires` d'autrui, mais pas la ligne).
             where.beneficiaires = { some: { membreId: membre.id } }
-        }
-        if (q.membreId) {
+        } else if (q.membreId) {
             where.beneficiaires = { some: { membreId: q.membreId } }
         }
 

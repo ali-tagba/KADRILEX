@@ -10,7 +10,6 @@ import {
 } from "@/lib/server/api-helpers"
 import { DepenseUpdateSchema } from "@/lib/server/schemas"
 import { calcTVA, calcTTC } from "@/lib/server/finance"
-import { AccountingService } from "@/lib/server/accounting"
 
 export async function GET(
     _req: NextRequest,
@@ -68,13 +67,6 @@ export async function PATCH(
             data: updateData,
         })
 
-        // Regénérer l'écriture comptable automatiquement après mise à jour
-        try {
-            await AccountingService.generateExpenseEntries(updated.id)
-        } catch (accError) {
-            console.error("Erreur regénération écriture comptable:", accError)
-        }
-
         return Response.json(updated)
     } catch (e) {
         return handleApiError(e)
@@ -88,13 +80,6 @@ export async function DELETE(
     try {
         await requirePermission("finance.write")
         const { id } = await params
-        
-        try {
-            await AccountingService.reverseExpenseEntries(id)
-        } catch (accError) {
-            console.error("Erreur annulation écriture comptable dépense:", accError)
-        }
-        
         await prisma.depense.delete({ where: { id } })
         return Response.json({ ok: true })
     } catch (e) {

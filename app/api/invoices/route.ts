@@ -12,7 +12,6 @@ import {
 import { nextFactureNumber } from "@/lib/server/numbering"
 import { FactureCreateSchema } from "@/lib/server/schemas"
 import { calcTVA, calcTTC, recomputeFactureStatut } from "@/lib/server/finance"
-import { AccountingService } from "@/lib/server/accounting"
 import type { Prisma } from "@prisma/client"
 
 export async function GET(req: NextRequest) {
@@ -109,16 +108,6 @@ export async function POST(req: NextRequest) {
                 include: { client: true, dossier: true, fournisseur: true, paiements: true, lignes: true },
             })
         })
-
-        // ⏩ Si la facture est créée directement en statut EMISE (pas brouillon)
-        // on génère immédiatement l'écriture comptable
-        if (created && statut === "EMISE") {
-            try {
-                await AccountingService.generateInvoiceEntries(created.id)
-            } catch (e) {
-                console.error("Erreur écriture facture (création directe EMISE):", e)
-            }
-        }
 
         return Response.json(created, { status: 201 })
     } catch (e) {

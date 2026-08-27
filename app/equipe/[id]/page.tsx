@@ -13,7 +13,7 @@ import {
     ancienneteLabel,
     fullName,
 } from "@/lib/constants/team"
-import { STATUTS_CONTRAT, formatFCFA, MODES_PAIEMENT } from "@/lib/constants/finance"
+import { STATUTS_CONTRAT, formatFCFA, formatMoisLong, MODES_PAIEMENT } from "@/lib/constants/finance"
 import { TACHE_STATUTS, AUDIENCE_STATUTS } from "@/lib/constants/legal"
 import { MembreAvatar } from "@/components/equipe/membre-avatar"
 import { AccesCodeSection } from "@/components/equipe/acces-code-section"
@@ -34,6 +34,7 @@ export default function MembreFichePage({ params }: PageProps) {
     const [activity, setActivity] = useState<any | null>(null)
     const [loading, setLoading] = useState(true)
     const [notFoundFlag, setNotFoundFlag] = useState(false)
+    const [apports, setApports] = useState<any[]>([])
 
     useEffect(() => {
         let alive = true
@@ -67,6 +68,19 @@ export default function MembreFichePage({ params }: PageProps) {
             .finally(() => {
                 if (alive) setLoading(false)
             })
+        return () => {
+            alive = false
+        }
+    }, [id])
+
+    useEffect(() => {
+        let alive = true
+        fetch(`/api/apports?membreId=${id}`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => {
+                if (alive) setApports(data)
+            })
+            .catch(() => {})
         return () => {
             alive = false
         }
@@ -108,6 +122,16 @@ export default function MembreFichePage({ params }: PageProps) {
     const invit = INVITATION_STATUTS[membre.invitationStatut as InvitationStatutKey]
     const permissions = ROLE_PERMISSIONS[membre.role as RoleKey]
     const annees = ancienneteAnnees(membre.dateEmbauche)
+
+    /** Apports de cet avocat, avec sa part spécifique (un apport peut être partagé
+     *  entre plusieurs avocats) — triés du plus récent au plus ancien. */
+    const mesApports = apports
+        .map((a) => ({
+            ...a,
+            maPart: a.beneficiaires?.find((b: any) => b.membreId === membre.id)?.montant ?? 0,
+        }))
+        .sort((a, b) => b.annee - a.annee || b.mois - a.mois)
+    const totalRetroApports = mesApports.reduce((s, a) => s + a.maPart, 0)
 
     return (
         <PageGate perm="equipe.view" moduleName="Équipe">
@@ -312,17 +336,61 @@ export default function MembreFichePage({ params }: PageProps) {
                                 <span className="font-mono-num">{membre.mobileMoney}</span>
                             </KV>
                         )}
-                        <div className="pt-2 mt-2 border-t border-outline-variant/40 space-y-1.5">
-                            <Link
-                                href={`/facturation?tab=apports&membreId=${membre.id}`}
-                                className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">handshake</span>
-                                Voir ses apports
-                                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                            </Link>
-                        </div>
                     </Section>
+                    )}
+
+                    {/* Apports (rétrocessions) — même visibilité que la Rémunération : gérant ou soi-même */}
+                    {canSeeFinancialInfo && (
+                        <Section
+                            title="Apports (rétrocessions)"
+                            icon="handshake"
+                            id="apports"
+                            count={mesApports.length}
+                        >
+                            {mesApports.length === 0 ? (
+                                <Empty text="Aucun apport enregistré" />
+                            ) : (
+                                <>
+                                    <div className="flex items-baseline justify-between pb-2 mb-2 border-b border-outline-variant/40">
+                                        <span className="font-label-caps text-[10px] text-outline uppercase tracking-wider">
+                                            Total rétrocession
+                                        </span>
+                                        <span className="font-mono-num text-mono-num font-semibold text-primary">
+                                            {formatFCFA(totalRetroApports)}
+                                        </span>
+                                    </div>
+                                    <ul className="divide-y divide-outline-variant/50">
+                                        {mesApports.slice(0, 6).map((a) => (
+                                            <li key={a.id} className="py-1.5">
+                                                <Link
+                                                    href={`/facturation?tab=apports&membreId=${membre.id}`}
+                                                    className="flex items-center gap-2 hover:text-primary-container transition-colors"
+                                                >
+                                                    <span className="font-mono-num text-[10px] text-outline w-[70px] flex-shrink-0">
+                                                        {formatMoisLong(a.annee, a.mois)}
+                                                    </span>
+                                                    <span className="font-body-sm text-body-sm text-on-surface flex-1 truncate">
+                                                        {a.client?.raisonSociale ?? a.client?.nom ?? a.clientLibre ?? "—"}
+                                                    </span>
+                                                    <span className="font-mono-num text-[11px] text-primary font-medium whitespace-nowrap">
+                                                        {formatFCFA(a.maPart)}
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="pt-2 mt-1">
+                                        <Link
+                                            href={`/facturation?tab=apports&membreId=${membre.id}`}
+                                            className="text-primary-container hover:text-accent text-[11px] inline-flex items-center gap-1 transition-colors"
+                                        >
+                                            Voir {mesApports.length > 6 ? "tous ses apports" : "dans Apports avocats"}
+                                            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                        </Link>
+                                    </div>
+                                </>
+                            )}
+                        </Section>
                     )}
 
                     {/* Code d'accès — visible uniquement par le membre lui-même ou un gérant */}

@@ -10,7 +10,6 @@ import {
 } from "@/lib/server/api-helpers"
 import { FactureUpdateSchema } from "@/lib/server/schemas"
 import { calcTVA, calcTTC, recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
-import { AccountingService } from "@/lib/server/accounting"
 
 export async function GET(
     _req: NextRequest,
@@ -99,28 +98,6 @@ export async function PATCH(
             })
         })
 
-        // ⏩ Logique comptable : déclenchement selon la transition de statut
-        const ancienStatut = existing.statut
-        const nouveauStatut = updated.statut
-
-        // Brouillon → Emise : créance client naissante
-        if (ancienStatut === "BROUILLON" && nouveauStatut === "EMISE") {
-            try {
-                await AccountingService.generateInvoiceEntries(updated.id)
-            } catch (e) {
-                console.error("Erreur écriture facture (EMISE):", e)
-            }
-        }
-
-        // Annulation : contre-écriture (uniquement si la facture avait déjà une écriture)
-        if (nouveauStatut === "ANNULEE" && ancienStatut !== "BROUILLON" && ancienStatut !== "ANNULEE") {
-            try {
-                await AccountingService.reverseInvoiceEntries(updated.id)
-            } catch (e) {
-                console.error("Erreur contre-écriture annulation:", e)
-            }
-        }
-
         return Response.json(updated)
     } catch (e) {
         return handleApiError(e)
@@ -145,12 +122,6 @@ export async function DELETE(
 
         const facture = await prisma.facture.findUnique({ where: { id } })
         if (!facture) throw new HttpError(404, "Facture introuvable")
-
-        try {
-            await AccountingService.reverseInvoiceEntries(id)
-        } catch (accError) {
-            console.error("Erreur annulation écriture comptable facture:", accError)
-        }
 
         await prisma.facture.delete({ where: { id } })
         return Response.json({ ok: true, deleted: id })

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { PrismaClient, ModePaiement } from "@prisma/client";
-import { AccountingService } from "@/lib/server/accounting";
 import { requirePermission } from "@/lib/auth/server-permissions";
 
 const prisma = new PrismaClient();
@@ -45,9 +44,6 @@ export async function POST(req: Request) {
         statut: nouveauStatut
       }
     });
-
-    // Générer les écritures comptables
-    await AccountingService.generatePaymentEntries(paiement.id);
 
     return NextResponse.json({ success: true, paiement });
   } catch (error) {

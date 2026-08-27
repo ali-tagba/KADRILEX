@@ -10,7 +10,6 @@ import {
 } from "@/lib/server/api-helpers"
 import { DepenseCreateSchema } from "@/lib/server/schemas"
 import { calcTVA, calcTTC } from "@/lib/server/finance"
-import { AccountingService } from "@/lib/server/accounting"
 import type { Prisma } from "@prisma/client"
 
 export async function GET(req: NextRequest) {
@@ -62,14 +61,6 @@ export async function POST(req: NextRequest) {
                 montantTTC,
             },
         })
-
-        // Synchronisation avec le module Comptabilité
-        try {
-            await AccountingService.generateExpenseEntries(created.id)
-        } catch (accError) {
-            console.error("Erreur génération écriture comptable pour dépense:", accError)
-            // On ne bloque pas la réponse si la synchro compta échoue
-        }
 
         return Response.json(created, { status: 201 })
     } catch (e) {

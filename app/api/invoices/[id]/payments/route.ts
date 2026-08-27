@@ -10,7 +10,6 @@ import {
 } from "@/lib/server/api-helpers"
 import { PaiementCreateSchema } from "@/lib/server/schemas"
 import { recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
-import { AccountingService } from "@/lib/server/accounting"
 
 export async function POST(
     req: NextRequest,
@@ -57,14 +56,6 @@ export async function POST(
             })
             return { paiement: newPaiement, facture: updated }
         })
-
-        // Synchronisation avec le module Comptabilité
-        try {
-            await AccountingService.generatePaymentEntries(result.paiement.id)
-        } catch (accError) {
-            console.error("Erreur génération écriture comptable pour paiement:", accError)
-            // On ne bloque pas la réponse si la synchro compta échoue
-        }
 
         return Response.json(result, { status: 201 })
     } catch (e) {
