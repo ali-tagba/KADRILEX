@@ -7,9 +7,9 @@ import path from "path"
  *
  * Stratégie KadriLex :
  *  - script-src : self uniquement (pas de CDN externe pour JS)
- *  - style-src : self + inline (Tailwind 4 + styled-jsx + Material Symbols)
+ *  - style-src : self + inline (Tailwind 4 + styled-jsx)
  *  - img-src : self + data: (avatars/icons inline) + Supabase Storage (via le proxy /api/storage/file)
- *  - font-src : self + Google Fonts (next/font + Material Symbols)
+ *  - font-src : self (next/font + Material Symbols sont self-hébergées, aucun CDN externe requis)
  *  - frame-src : self + Google Docs Viewer (preview Office) + Supabase Storage (signed URLs PDF)
  *  - connect-src : self + Supabase Storage
  *  - object-src : 'none' (pas de Flash/Java)
@@ -18,15 +18,14 @@ import path from "path"
  *  - frame-ancestors : 'none' (anti clickjacking — pas d'embed externe)
  */
 const SUPABASE_DOMAIN = "https://supabase.37.59.99.86.nip.io"
-const GOOGLE_FONTS = "https://fonts.googleapis.com https://fonts.gstatic.com"
 const GOOGLE_DOCS_VIEWER = "https://docs.google.com"
 
 const ContentSecurityPolicy = [
     `default-src 'self'`,
     `script-src 'self' 'unsafe-inline'`,
-    `style-src 'self' 'unsafe-inline' ${GOOGLE_FONTS}`,
+    `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: ${SUPABASE_DOMAIN}`,
-    `font-src 'self' data: ${GOOGLE_FONTS}`,
+    `font-src 'self' data:`,
     `frame-src 'self' ${SUPABASE_DOMAIN} ${GOOGLE_DOCS_VIEWER}`,
     `media-src 'self' ${SUPABASE_DOMAIN}`,
     `connect-src 'self' ${SUPABASE_DOMAIN}`,

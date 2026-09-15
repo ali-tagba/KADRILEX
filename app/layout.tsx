@@ -39,23 +39,12 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <head>
-        {/* Preconnect pour réduire la latence du CDN Google Fonts */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* display=block : cache pendant ~100ms puis affiche la vraie font,
-            évite le flash des ligatures brutes (ex: "person_outline" en texte) */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
-        />
-        {/* Anti-FOUC : font-feature-settings forcé pour que les ligatures
-            soient prises en compte dès l'application de la font. */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          .material-symbols-outlined {
-            font-feature-settings: 'liga';
-            -webkit-font-feature-settings: 'liga';
-          }
-        `}} />
+        {/* Material Symbols Outlined est self-hébergée (public/fonts/ +
+            @font-face dans globals.css) : plus de dépendance runtime au
+            CDN Google Fonts, qui peut être bloqué/inaccessible sur
+            certains réseaux (ex. réseaux au Niger). font-display: block
+            évite le flash des ligatures brutes (ex: "person_outline" en
+            texte) — voir app/globals.css. */}
         {/* Anti-flash thème sombre : applique data-theme AVANT le premier render
             React. Sans ça, le mode sombre s'affiche en clair pendant ~50 ms au reload. */}
         <script

@@ -345,9 +345,39 @@ html[data-theme="dark"] iframe[src*="docs.google.com"] {
 }
 
 /* ============================================================
-   Material Symbols — alignement vertical et taille de base
+   Material Symbols — self-hébergée (plus de dépendance runtime au
+   CDN Google Fonts, qui peut être bloqué/inaccessible sur certains
+   réseaux). Fichier variable téléchargé une fois depuis
+   fonts.gstatic.com avec les mêmes axes que l'ancien <link> :
+   opsz 20..48, wght 100..700, FILL 0..1, GRAD -50..200.
    ============================================================ */
-.material-symbols-outlined {
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
+/* :where() => spécificité nulle, pour que les classes Tailwind
+   posées sur chaque <span> (text-[18px], text-[20px], text-[22px]...)
+   continuent de gagner sur ces valeurs par défaut, comme avant avec
+   la feuille de style externe de Google. */
+:where(.material-symbols-outlined) {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
