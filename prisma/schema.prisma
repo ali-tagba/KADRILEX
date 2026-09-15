@@ -328,6 +328,7 @@ model Membre {
 
   // Relations inverses
   clientsResponsable    Client[]             @relation("ClientResponsable")
+  clientsApportes       Client[]             @relation("ClientApporteur")
   dossiersResponsable   Dossier[]            @relation("DossierResponsable")
   audiencesResponsable  Audience[]           @relation("AudienceResponsable")
   tachesResponsable     Tache[]              @relation("TacheResponsable")
@@ -433,6 +434,12 @@ model Client {
   responsable   Membre?        @relation("ClientResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
   equipe        ClientEquipe[]
 
+  /// Avocat qui a apporté ce client au cabinet (distinct de responsable/équipe,
+  /// qui traitent ses dossiers) — sert de base par défaut aux apports/rétrocessions
+  /// sur tous les dossiers de ce client.
+  apporteurId String?
+  apporteur   Membre? @relation("ClientApporteur", fields: [apporteurId], references: [id], onDelete: SetNull)
+
   // Sub-collections
   contacts              Contact[]
   dossiers              Dossier[]
@@ -450,6 +457,7 @@ model Client {
   @@index([type])
   @@index([actif])
   @@index([responsableId])
+  @@index([apporteurId])
   @@index([ville])
 }
 

@@ -122,6 +122,7 @@ export default function ClientsPage() {
                     notes: draft.notes || null,
                     actif: draft.actif,
                     honorairesConvenus: draft.honorairesConvenus || null,
+                    apporteurId: draft.apporteurId,
                 }),
             })
             if (!res.ok) {

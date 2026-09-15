@@ -54,6 +54,9 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     const [depenseFormOpen, setDepenseFormOpen] = useState(false)
 
     const client = getClientForDossier(dossier)
+    /** Avocat qui a apporté ce client au cabinet — sert de base par défaut aux
+     *  apports de ce dossier (distinct du responsable, qui traite l'affaire). */
+    const apporteurMembre = client?.apporteurId ? membres.find((m) => m.id === client.apporteurId) ?? null : null
 
     const loadApports = () => {
         fetch(`/api/apports?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
@@ -463,6 +466,11 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                         Nouvel apport
                     </button>
                 </div>
+                {apporteurMembre && (
+                    <p className="text-xs text-outline mb-2">
+                        Client apporté par <span className="font-medium text-on-surface-variant">{apporteurMembre.prenom} {apporteurMembre.nom}</span> — pré-sélectionné comme bénéficiaire par défaut.
+                    </p>
+                )}
                 {apports.length === 0 ? (
                     <p className="text-sm text-outline italic">Aucun apport enregistré pour ce dossier.</p>
                 ) : (
@@ -559,7 +567,7 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 defaultAnnee={new Date().getFullYear()}
                 defaultMois={new Date().getMonth() + 1}
                 lockedDossierId={dossier.id}
-                defaultBeneficiaireId={dossier.responsableId}
+                defaultBeneficiaireId={client?.apporteurId ?? dossier.responsableId}
                 onSave={handleSaveApport}
                 onClose={() => setApportFormOpen(false)}
             />

@@ -55,6 +55,7 @@ const ClientBaseShape = z.object({
     actif: z.boolean().default(true),
     responsableId: z.string().optional().nullable(),
     equipeIds: z.array(z.string()).default([]),
+    apporteurId: z.string().optional().nullable(),
     /** Permet de corriger la date d'entrée du client (ex : correction après import) */
     createdAt: z.string().datetime().optional().nullable(),
 })

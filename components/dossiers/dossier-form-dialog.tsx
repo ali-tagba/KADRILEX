@@ -44,6 +44,10 @@ export interface DossierFormDraft {
     notesObservations: string
     responsableId: string | null
     equipeIds: string[]
+    /** Frais d'ouverture (huissier, etc.) — payés par le cabinet, pas par le
+     *  client : génère une Dépense liée au dossier à la création, distincte des
+     *  provisions versées (argent du client). 0 = aucun frais à ce stade. */
+    fraisOuverture: number
 }
 
 interface DossierFormDialogProps {
@@ -88,6 +92,7 @@ export function DossierFormDialog({
         initial?.responsableId ?? null
     )
     const [equipeIds, setEquipeIds] = useState<string[]>(initial?.equipeIds ?? [])
+    const [fraisOuverture, setFraisOuverture] = useState<number>(0)
 
     /* Recherche client */
     const [clientSearch, setClientSearch] = useState("")
@@ -186,6 +191,7 @@ export function DossierFormDialog({
             notesObservations: notes.trim(),
             responsableId,
             equipeIds,
+            fraisOuverture,
         })
     }
 
@@ -593,6 +599,30 @@ export function DossierFormDialog({
                             </button>
                         </div>
                     </Section>
+
+                    {/* Frais d'ouverture — payés par le cabinet (huissier, etc.), pas par le
+                        client : distinct des Provisions ci-dessus. Uniquement à la création,
+                        pour éviter de recréer une dépense à chaque modification du dossier. */}
+                    {!initial && (
+                        <Section
+                            title="Frais d'ouverture du dossier (optionnel)"
+                            hint="Payés par le cabinet — ex. frais d'huissier. Distinct des provisions du client."
+                        >
+                            <input
+                                type="number"
+                                min={0}
+                                value={fraisOuverture || ""}
+                                onChange={(e) => setFraisOuverture(Number(e.target.value) || 0)}
+                                placeholder="Montant FCFA — laisser vide si aucun"
+                                className={cn(inputCls, "font-mono-num text-right w-full max-w-[220px]")}
+                            />
+                            {fraisOuverture > 0 && (
+                                <p className="text-xs text-outline mt-1.5">
+                                    Une dépense « Frais d&apos;ouverture de dossier » de {fraisOuverture.toLocaleString("fr-FR")} FCFA sera créée et rattachée à ce dossier.
+                                </p>
+                            )}
+                        </Section>
+                    )}
 
                     {/* Rétrocession */}
                     <Section title="Rétrocession d'honoraires">

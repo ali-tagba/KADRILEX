@@ -270,6 +270,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     notes: draft.notes || null,
                     actif: draft.actif,
                     honorairesConvenus: draft.honorairesConvenus || null,
+                    apporteurId: draft.apporteurId,
                 }),
             })
             if (!res.ok) {

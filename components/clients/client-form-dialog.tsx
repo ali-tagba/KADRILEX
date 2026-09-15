@@ -8,6 +8,7 @@ import {
     type HonorairesType,
 } from "@/lib/constants/legal"
 import type { ClientType, MockClient } from "@/lib/mock/clients"
+import type { Membre } from "@prisma/client"
 
 /* ============================================================
    Form draft — exposé pour qu'app/clients/page.tsx puisse créer un MockClient.
@@ -45,6 +46,10 @@ export interface ClientFormDraft {
     avocatEnCharge: AvocatCabinet | ""
     honorairesConvenus: HonorairesType | ""
     createdAt?: string
+    /** Avocat qui a apporté ce client au cabinet — distinct de l'équipe qui traite
+     *  ses dossiers. Sert de base par défaut aux apports/rétrocessions sur tous
+     *  les dossiers de ce client. */
+    apporteurId: string | null
 }
 
 interface ClientFormDialogProps {
@@ -121,6 +126,15 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
     const [createdAt, setCreatedAt] = useState(
         initial?.createdAt ? new Date(initial.createdAt).toISOString().slice(0, 10) : ""
     )
+    const [apporteurId, setApporteurId] = useState<string | null>(initial?.apporteurId ?? null)
+    const [membres, setMembres] = useState<Membre[]>([])
+
+    useEffect(() => {
+        fetch("/api/employes", { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : []))
+            .then(setMembres)
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -184,6 +198,7 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
             avocatEnCharge,
             honorairesConvenus,
             createdAt: createdAt ? new Date(createdAt).toISOString() : undefined,
+            apporteurId,
         })
     }
 
@@ -522,6 +537,23 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
                                     onChange={(e) => setCreatedAt(e.target.value)}
                                     className={inputCls}
                                 />
+                            </Field>
+                            <Field label="Avocat apporteur (Optionnel)">
+                                <select
+                                    value={apporteurId ?? ""}
+                                    onChange={(e) => setApporteurId(e.target.value || null)}
+                                    className={inputCls}
+                                >
+                                    <option value="">— Non renseigné —</option>
+                                    {membres.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                            {m.prenom} {m.nom}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="font-body-xs text-body-xs text-outline mt-1">
+                                    L&apos;avocat qui a apporté ce client au cabinet — distinct de l&apos;équipe qui traite ses dossiers. Sert de base par défaut aux apports/rétrocessions.
+                                </p>
                             </Field>
                         </div>
                     </Section>

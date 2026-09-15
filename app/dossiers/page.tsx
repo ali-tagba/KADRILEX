@@ -134,6 +134,35 @@ export default function DossiersPage() {
             const created: MockDossier = await res.json()
             setDossiers((prev) => [created, ...prev])
             setCreateOpen(false)
+
+            // Frais d'ouverture (huissier, etc.) — payés par le cabinet, pas par le
+            // client : une Dépense liée au dossier, distincte des provisions.
+            if (draft.fraisOuverture > 0) {
+                try {
+                    const depRes = await fetch("/api/depenses", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            libelle: "Frais d'ouverture de dossier",
+                            categorie: "HONORAIRES",
+                            date: new Date().toISOString(),
+                            montantHT: draft.fraisOuverture,
+                            tvaRate: 0,
+                            mode: "VIREMENT",
+                            statut: "A_PAYER",
+                            dossierId: created.id,
+                        }),
+                    })
+                    if (!depRes.ok) throw new Error("Échec création de la dépense")
+                } catch (depErr) {
+                    toast.error(
+                        "Dossier créé, mais échec de l'enregistrement des frais d'ouverture : " +
+                            (depErr instanceof Error ? depErr.message : "Erreur") +
+                            " — ajoutez-la manuellement depuis la fiche du dossier."
+                    )
+                }
+            }
         } catch (e) {
             toast.error("Échec création dossier : " + (e instanceof Error ? e.message : "Erreur"))
         }

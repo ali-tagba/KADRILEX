@@ -102,6 +102,9 @@ export interface MockClient {
      * Le responsable est implicitement inclus dans l'équipe lue (filterByVisibility).
      */
     equipeIds: string[]
+    /** Avocat qui a apporté ce client au cabinet — distinct du responsable/équipe
+     *  (qui traitent ses dossiers). Base par défaut des apports/rétrocessions. */
+    apporteurId?: string | null
     /** Type d'honoraires convenu (issu de la liste contrôlée HONORAIRES_TYPES) */
     honorairesConvenus: HonorairesType | null
     // Sub-collections
