@@ -9,6 +9,8 @@ import { FacturationTab } from "@/components/facturation/facturation-tab"
 import { syncCollection, facturePostBody, facturePatchBody } from "@/lib/api/sync-collection"
 import { ApportFormDialog, type ApportFormDraft } from "@/components/facturation/apport-form-dialog"
 import type { ApportFull } from "@/components/facturation/apports-tab"
+import { DepenseFormDialog, type DepenseFormDraft } from "@/components/facturation/depense-form-dialog"
+import type { MockDepense } from "@/lib/mock/depenses"
 import type { Membre } from "@prisma/client"
 
 /**
@@ -48,6 +50,8 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     const [apports, setApports] = useState<ApportFull[]>([])
     const [membres, setMembres] = useState<Membre[]>([])
     const [apportFormOpen, setApportFormOpen] = useState(false)
+    const [depensesDossier, setDepensesDossier] = useState<MockDepense[]>([])
+    const [depenseFormOpen, setDepenseFormOpen] = useState(false)
 
     const client = getClientForDossier(dossier)
 
@@ -56,6 +60,13 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .then((r) => (r.ok ? (r.json() as Promise<ApportFull[]>) : []))
             .then(setApports)
             .catch(() => setApports([]))
+    }
+
+    const loadDepensesDossier = () => {
+        fetch(`/api/depenses?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : []))
+            .then(setDepensesDossier)
+            .catch(() => setDepensesDossier([]))
     }
 
     useEffect(() => {
@@ -88,6 +99,7 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .catch(() => {})
 
         loadApports()
+        loadDepensesDossier()
         return () => {
             alive = false
         }
@@ -109,6 +121,43 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             toast.success("Apport enregistré.")
             setApportFormOpen(false)
             loadApports()
+        } catch (e) {
+            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
+        }
+    }
+
+    async function handleSaveDepense(draft: DepenseFormDraft) {
+        const { toast } = await import("@/components/ui/toaster")
+        try {
+            const r = await fetch("/api/depenses", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    libelle: draft.libelle,
+                    categorie: draft.categorie,
+                    date: draft.date,
+                    montantHT: draft.montantHT,
+                    tvaRate: draft.tvaRate,
+                    mode: draft.mode,
+                    reference: draft.reference ?? null,
+                    recurrent: draft.recurrent,
+                    recurrenceFrequence: draft.recurrenceFrequence ?? null,
+                    fournisseurNomLibre: draft.fournisseurNomLibre ?? null,
+                    employeId: draft.employeId ?? null,
+                    notes: draft.notes ?? null,
+                    attachmentUrl: draft.attachment?.url ?? null,
+                    statut: draft.statut,
+                    dossierId: draft.dossierId ?? null,
+                }),
+            })
+            if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                throw new Error(body.error ?? `HTTP ${r.status}`)
+            }
+            toast.success("Dépense enregistrée.")
+            setDepenseFormOpen(false)
+            loadDepensesDossier()
         } catch (e) {
             toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
         }
@@ -435,6 +484,48 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 )}
             </div>
 
+            {/* Dépenses imputées à ce dossier — frais d'ouverture, huissier, etc.
+                Charge payée par le cabinet (pas par le client) mais rattachée à
+                l'affaire pour la traçabilité. */}
+            <div className="px-4 py-3 border-b border-outline-variant">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-on-surface-variant">
+                        <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                        <span className="font-label-caps text-label-caps text-on-surface">
+                            Dépenses du dossier — {formatFCFA(depensesDossier.reduce((s, d) => s + d.montantTTC, 0))}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => setDepenseFormOpen(true)}
+                        className="text-primary-container hover:text-accent inline-flex items-center gap-1 font-body-sm text-body-sm font-medium"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">add</span>
+                        Nouvelle dépense
+                    </button>
+                </div>
+                {depensesDossier.length === 0 ? (
+                    <p className="text-sm text-outline italic">
+                        Aucune dépense imputée à ce dossier — ex. frais d&apos;ouverture, frais d&apos;huissier.
+                    </p>
+                ) : (
+                    <ul className="space-y-1">
+                        {depensesDossier.map((d) => (
+                            <li key={d.id} className="flex justify-between items-center text-sm py-1 border-t border-outline-variant/30 first:border-0">
+                                <span className="text-on-surface-variant">
+                                    <span className="font-mono-num text-[11px] text-outline mr-2">
+                                        {new Date(d.date).toLocaleDateString("fr-FR")}
+                                    </span>
+                                    {d.libelle}
+                                </span>
+                                <span className="font-mono-num font-medium text-primary-container">
+                                    {formatFCFA(d.montantTTC)}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
             {/* Module Facturation complet, pré-filtré sur le dossier */}
             <div className="p-density-medium">
                 {loading ? (
@@ -471,6 +562,16 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 defaultBeneficiaireId={dossier.responsableId}
                 onSave={handleSaveApport}
                 onClose={() => setApportFormOpen(false)}
+            />
+        )}
+
+        {depenseFormOpen && (
+            <DepenseFormDialog
+                initial={null}
+                employes={membres}
+                onSave={handleSaveDepense}
+                onClose={() => setDepenseFormOpen(false)}
+                lockedDossier={{ id: dossier.id, numero: dossier.numero, titre: dossier.titre }}
             />
         )}
         </>

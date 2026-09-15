@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
 
         const where: Prisma.DepenseWhereInput = {}
         if (q.categorie) where.categorie = q.categorie as Prisma.DepenseWhereInput["categorie"]
+        if (q.dossierId) where.dossierId = q.dossierId
         if (q.recurrent === "true") where.recurrent = true
         if (q.recurrent === "false") where.recurrent = false
         if (q.from || q.to) {

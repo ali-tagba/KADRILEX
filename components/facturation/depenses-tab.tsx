@@ -94,7 +94,7 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
 
     const activeCount = countActiveDepenseFilters(filters)
 
-    /* Mutations — appels API réels avec génération auto des écritures comptables */
+    /* Mutations — appels API réels */
     const handleSave = async (draft: DepenseFormDraft) => {
         setSaving(true)
         setSaveError(null)
@@ -113,6 +113,7 @@ export function DepensesTab({ depenses, employes = [], onChangeDepenses }: Depen
                 employeId: draft.employeId ?? null,
                 notes: draft.notes ?? null,
                 attachmentUrl: draft.attachment?.url ?? null,
+                dossierId: draft.dossierId ?? null,
                 statut: draft.statut,
             }
 

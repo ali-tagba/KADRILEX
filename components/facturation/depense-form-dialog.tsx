@@ -30,6 +30,7 @@ export interface DepenseFormDraft {
     notes: string | null
     attachment: AttachmentInfo | null
     statut: "A_PAYER" | "PAYEE"
+    dossierId: string | null
 }
 
 interface DepenseFormDialogProps {
@@ -38,6 +39,9 @@ interface DepenseFormDialogProps {
     saving?: boolean
     onSave: (draft: DepenseFormDraft) => void
     onClose: () => void
+    /** Ouvre le formulaire pré-rattaché à ce dossier (depuis sa fiche Finance) —
+     *  ex. frais d'ouverture de dossier, frais d'huissier imputables à l'affaire. */
+    lockedDossier?: { id: string; numero: string; titre: string }
 }
 
 function todayISO(): string {
@@ -49,12 +53,12 @@ function toDateInput(iso: string): string {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export function DepenseFormDialog({ initial, employes = [], saving = false, onSave, onClose }: DepenseFormDialogProps) {
+export function DepenseFormDialog({ initial, employes = [], saving = false, onSave, onClose, lockedDossier }: DepenseFormDialogProps) {
     useEscapeClose(onClose)
 
     const [draft, setDraft] = useState<DepenseFormDraft>(() => ({
-        libelle: initial?.libelle ?? "",
-        categorie: initial?.categorie ?? "FOURNITURES",
+        libelle: initial?.libelle ?? (lockedDossier ? "Frais d'ouverture de dossier" : ""),
+        categorie: initial?.categorie ?? (lockedDossier ? "HONORAIRES" : "FOURNITURES"),
         date: initial?.date ?? todayISO(),
         montantHT: initial?.montantHT ?? 0,
         tvaRate: initial?.tvaRate ?? 19,
@@ -67,6 +71,7 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
         employeId: initial?.employeId ?? null,
         notes: initial?.notes ?? null,
         attachment: null,
+        dossierId: initial?.dossierId ?? lockedDossier?.id ?? null,
     }))
 
     /* Quand on change la catégorie, on suggère la TVA et la récurrence */
@@ -110,6 +115,14 @@ export function DepenseFormDialog({ initial, employes = [], saving = false, onSa
                 </header>
 
                 <div className="flex-1 overflow-y-auto scrollbar-thin px-density-medium py-density-medium space-y-4">
+                    {lockedDossier && (
+                        <div className="bg-accent/10 border border-accent/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px] text-primary-container">folder</span>
+                            <p className="font-body-sm text-body-sm font-medium text-on-surface truncate">
+                                Imputée au dossier {lockedDossier.numero} · {lockedDossier.titre}
+                            </p>
+                        </div>
+                    )}
                     <Field label="Libellé" required>
                         <input
                             type="text"

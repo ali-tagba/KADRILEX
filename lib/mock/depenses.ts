@@ -34,6 +34,9 @@ export interface MockDepense {
     fournisseurId: string | null
     fournisseurNomLibre: string | null
 
+    /** Liaison optionnelle à un dossier (frais imputable — ex. frais d'ouverture, huissier) */
+    dossierId?: string | null
+
     /** Justificatif (PDF/photo reçu) */
     attachmentUrl: string | null
     notes: string | null
