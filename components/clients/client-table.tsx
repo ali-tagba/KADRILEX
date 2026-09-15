@@ -9,6 +9,8 @@ import { clientDisplayName } from "@/lib/mock/clients"
 import { HONORAIRES_TYPES, type HonorairesType } from "@/lib/constants/legal"
 /* HonorairesType est utilisé dans le cast `v as HonorairesType` lors de l'inline select */
 import { TeamPickerCompact } from "@/components/equipe/team-picker"
+import { MembreAvatar } from "@/components/equipe/membre-avatar"
+import { useMembres } from "@/lib/hooks/use-membres"
 import { membreIdFromAvocatKey } from "@/lib/mock/membre-bridge"
 import {
     InlineSelectCell,
@@ -46,6 +48,11 @@ function isoDate(iso: string): string {
 export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
     const router = useRouter()
     const [page, setPage] = useState(1)
+    const membres = useMembres()
+    const apporteurOptions: InlineOption<string>[] = [
+        { value: "", label: "— Non renseigné —" },
+        ...membres.map((m) => ({ value: m.id, label: `${m.prenom} ${m.nom}` })),
+    ]
 
     /* Overrides locaux — toutes les cellules éditées en session.
        Quand l'API sera connectée, ces overrides seront propagés via PATCH /api/clients/[id]. */
@@ -173,6 +180,9 @@ export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
                             </th>
                             <th className="py-3 px-4 font-label-caps text-label-caps text-[#9C8B73] uppercase w-52">
                                 Équipe
+                            </th>
+                            <th className="py-3 px-4 font-label-caps text-label-caps text-[#9C8B73] uppercase w-44">
+                                Apporteur
                             </th>
                             <th className="py-3 px-4 font-label-caps text-label-caps text-[#9C8B73] uppercase w-56">
                                 Honoraires
@@ -305,6 +315,40 @@ export function ClientTable({ clients, pageSize = 10 }: ClientTableProps) {
                                             onChange={(next) => patchTeam(client.id, next)}
                                             title="Modifier l'équipe affectée"
                                         />
+                                    </td>
+
+                                    {/* Avocat apporteur — distinct de l'équipe qui traite les dossiers */}
+                                    <td className="py-2 px-4" onClick={(e) => e.stopPropagation()}>
+                                        {(() => {
+                                            const apporteur = client.apporteurId
+                                                ? membres.find((m) => m.id === client.apporteurId)
+                                                : null
+                                            return (
+                                                <InlineSelectCell
+                                                    trigger={
+                                                        apporteur ? (
+                                                            <span className="inline-flex items-center gap-1.5">
+                                                                <MembreAvatar membre={apporteur} size="xs" />
+                                                                <span className="font-body-sm text-[12px] text-on-surface truncate max-w-[90px]">
+                                                                    {apporteur.prenom} {apporteur.nom}
+                                                                </span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-low text-outline font-body-sm text-[12px] italic">
+                                                                <span className="material-symbols-outlined text-[12px]">person_add</span>
+                                                                Ajouter
+                                                            </span>
+                                                        )
+                                                    }
+                                                    options={apporteurOptions}
+                                                    selected={client.apporteurId ?? ""}
+                                                    onSelect={(v) => patchClient(client.id, { apporteurId: v || null })}
+                                                    title="Modifier l'avocat apporteur"
+                                                    menuHeader="Avocat apporteur"
+                                                    align="start"
+                                                />
+                                            )
+                                        })()}
                                     </td>
 
                                     {/* Honoraires — dropdown */}
