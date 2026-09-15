@@ -34,7 +34,11 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         * - any file under public/ served by extension (fonts, images…) —
+         *   sans ça, une police comme /fonts/material-symbols-outlined.woff2
+         *   se fait rediriger vers /login (HTML) tant qu'aucune session n'existe,
+         *   ce qui casse les icônes sur la page de login elle-même.
          */
-        "/((?!_next/static|_next/image|favicon.ico).*)",
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpe?g|gif|webp|woff2?|ttf|eot|ico)$).*)",
     ],
 }
