@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { MockDossier, DossierHonoraire, DossierRetrocession } from "@/lib/mock/dossiers"
 import { getClientForDossier } from "@/lib/mock/dossiers"
@@ -11,7 +11,8 @@ import { ApportFormDialog, type ApportFormDraft } from "@/components/facturation
 import type { ApportFull } from "@/components/facturation/apports-tab"
 import { DepenseFormDialog, type DepenseFormDraft } from "@/components/facturation/depense-form-dialog"
 import type { MockDepense } from "@/lib/mock/depenses"
-import type { Membre } from "@prisma/client"
+import { formatFCFA, formatFCFACompact as formatCompactFCFA } from "@/lib/constants/finance"
+import { useMembres } from "@/lib/hooks/use-membres"
 
 /**
  * Section Finance d'un dossier.
@@ -29,26 +30,12 @@ interface DossierFinanceSectionProps {
     dossier: MockDossier
 }
 
-function formatFCFA(value: number): string {
-    return new Intl.NumberFormat("fr-FR").format(Math.round(value)) + " FCFA"
-}
-
-function formatCompactFCFA(value: number): string {
-    if (Math.abs(value) >= 1_000_000) {
-        return `${(value / 1_000_000).toFixed(1).replace(".", ",")}M FCFA`
-    }
-    if (Math.abs(value) >= 1_000) {
-        return `${Math.round(value / 1_000)}K FCFA`
-    }
-    return formatFCFA(value)
-}
-
 export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     const [factures, setFactures] = useState<MockFacture[]>([])
     const [sequestre, setSequestre] = useState<{ montantRecu: number, montantReverse: number } | null>(null)
     const [loading, setLoading] = useState(true)
     const [apports, setApports] = useState<ApportFull[]>([])
-    const [membres, setMembres] = useState<Membre[]>([])
+    const membres = useMembres()
     const [apportFormOpen, setApportFormOpen] = useState(false)
     const [depensesDossier, setDepensesDossier] = useState<MockDepense[]>([])
     const [depenseFormOpen, setDepenseFormOpen] = useState(false)
@@ -58,18 +45,34 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
      *  apports de ce dossier (distinct du responsable, qui traite l'affaire). */
     const apporteurMembre = client?.apporteurId ? membres.find((m) => m.id === client.apporteurId) ?? null : null
 
+    /** Toujours l'id de dossier le plus récent affiché — permet à un fetch lancé
+     *  pour un ancien dossier de détecter qu'il est devenu obsolète (navigation
+     *  d'un dossier à l'autre sans démontage du composant) et de s'auto-ignorer. */
+    const dossierIdRef = useRef(dossier.id)
+    dossierIdRef.current = dossier.id
+
     const loadApports = () => {
-        fetch(`/api/apports?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
+        const forId = dossier.id
+        fetch(`/api/apports?dossierId=${encodeURIComponent(forId)}`, { credentials: "include" })
             .then((r) => (r.ok ? (r.json() as Promise<ApportFull[]>) : []))
-            .then(setApports)
-            .catch(() => setApports([]))
+            .then((data) => {
+                if (dossierIdRef.current === forId) setApports(data)
+            })
+            .catch(() => {
+                if (dossierIdRef.current === forId) setApports([])
+            })
     }
 
     const loadDepensesDossier = () => {
-        fetch(`/api/depenses?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
+        const forId = dossier.id
+        fetch(`/api/depenses?dossierId=${encodeURIComponent(forId)}`, { credentials: "include" })
             .then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : []))
-            .then(setDepensesDossier)
-            .catch(() => setDepensesDossier([]))
+            .then((data) => {
+                if (dossierIdRef.current === forId) setDepensesDossier(data)
+            })
+            .catch(() => {
+                if (dossierIdRef.current === forId) setDepensesDossier([])
+            })
     }
 
     useEffect(() => {
@@ -93,13 +96,6 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .finally(() => {
                 if (alive) setLoading(false)
             })
-
-        fetch(`/api/employes`, { credentials: "include" })
-            .then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : []))
-            .then((list) => {
-                if (alive) setMembres(list)
-            })
-            .catch(() => {})
 
         loadApports()
         loadDepensesDossier()

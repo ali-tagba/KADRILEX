@@ -3,28 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { formatFCFA, formatMoisLong, formatDateLongue } from "@/lib/constants/finance"
-
-interface EncBloc {
-    parMois: Record<string, number[]>
-    totals: Record<string, number>
-}
-
-interface BilanFull {
-    annee: number
-    encaissements: {
-        autres: EncBloc
-        parClient: (EncBloc & { clientId: string; nom: string })[]
-        totalEncaissementHT: number
-    }
-    depenses: {
-        categories: { categorie: string; label: string; parMois: number[]; total: number }[]
-        retrocessions: { total: number }
-        totalCharges: number
-        totalChargesParMois: number[]
-    }
-    soldeProvisoire: { parMois: number[]; total: number }
-}
+import {
+    formatFCFA,
+    formatMoisLong,
+    formatDateLongue,
+    type BilanApiResponse as BilanFull,
+} from "@/lib/constants/finance"
 
 interface ApportRow {
     mois: number

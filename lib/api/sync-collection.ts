@@ -46,10 +46,17 @@ export async function syncCollection<T extends { id: string }>(
         }
     }
 
-    // 3) DELETE : items présents dans prev mais plus dans next
+    // 3) DELETE : items présents dans prev mais plus dans next.
+    // L'appelant a déjà retiré l'item de l'état local (optimiste) avant d'appeler
+    // syncCollection — si le serveur refuse (ex: facture déjà payée), on le
+    // remet dans la liste pour ne pas laisser l'écran afficher "supprimé" alors
+    // que ça ne l'est pas.
     for (const item of prev) {
         if (!nextById.has(item.id)) {
-            deleteEntity(`${endpoint}/${item.id}`).catch(showApiError("Suppression"))
+            deleteEntity(`${endpoint}/${item.id}`).catch((e) => {
+                showApiError("Suppression")(e)
+                setter((cur) => (cur.some((x) => x.id === item.id) ? cur : [...cur, item]))
+            })
         }
     }
 }

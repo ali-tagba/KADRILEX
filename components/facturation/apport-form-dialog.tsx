@@ -86,13 +86,6 @@ export function ApportFormDialog({
     )
     const [saving, setSaving] = useState(false)
 
-    /* Client dérivé automatiquement du dossier choisi — sinon, le cabinet devrait
-       retaper un nom qu'il vient de sélectionner via son dossier. Reste modifiable
-       si le dossier n'a pas de client formel rattaché (référence libre). */
-    useEffect(() => {
-        if (clientDeDossier) setClientLibre(clientDeDossier)
-    }, [clientDeDossier])
-
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose()
@@ -138,7 +131,10 @@ export function ApportFormDialog({
                 dossierId: dossierId || null,
                 clientId: selectedDossier?.clientId ?? null,
                 referenceLibre: referenceLibre.trim() || null,
-                clientLibre: clientLibre.trim() || null,
+                // Dérivé du dossier sélectionné quand il en a un (jamais retapé) —
+                // le buffer manuel clientLibre ne sert que quand aucun dossier
+                // n'est choisi ou que le dossier n'a pas de client formel.
+                clientLibre: (clientDeDossier || clientLibre).trim() || null,
                 montantHT,
                 fraisDossier,
                 tauxISB,

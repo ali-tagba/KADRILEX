@@ -10,6 +10,7 @@ import {
     parseJson,
 } from "@/lib/server/api-helpers"
 import { DossierUpdateSchema } from "@/lib/server/schemas"
+import { factureEstSupprimable } from "@/lib/constants/finance"
 import type { Prisma } from "@prisma/client"
 
 function shapeDossier(d: Prisma.DossierGetPayload<{
@@ -293,6 +294,7 @@ export async function DELETE(
             where: { id },
             include: {
                 equipe: true,
+                factures: { select: { montantPaye: true, statut: true } },
                 _count: {
                     select: {
                         audiences: true,
@@ -312,6 +314,16 @@ export async function DELETE(
             equipeIds: existing.equipe.map((e) => e.membreId),
         }
         await requirePermission("dossiers.write", resource)
+
+        // Même garde-fou que DELETE /api/invoices/[id] : une facture avec un
+        // paiement réel ne doit jamais disparaître, même via la suppression du
+        // dossier parent (sinon Paiement est aussi effacé en cascade).
+        if (existing.factures.some((f) => !factureEstSupprimable(f))) {
+            throw new HttpError(
+                400,
+                "Ce dossier contient une facture déjà payée (ou avec un paiement enregistré) — annulez-la (statut Annulée) avant de supprimer le dossier, pour ne pas perdre l'historique d'encaissement."
+            )
+        }
 
         const counts = existing._count
 

@@ -2,34 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
-import { formatFCFA } from "@/lib/constants/finance"
+import {
+    formatFCFA,
+    type BilanApiResponse as BilanData,
+    type BilanEncBloc as EncBloc,
+} from "@/lib/constants/finance"
 import { EncaissementFormDialog, type EncaissementFormDraft } from "./encaissement-form-dialog"
 import { BilanFilterDrawer } from "./bilan-filter-drawer"
 
 const MOIS_COURTS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
-
-interface EncBloc {
-    parMois: Record<string, number[]>
-    totals: Record<string, number>
-    retenuesParMois: Record<string, number[]>
-    retenuesTotals: Record<string, number>
-}
-
-interface BilanData {
-    annee: number
-    encaissements: {
-        autres: EncBloc
-        parClient: (EncBloc & { clientId: string; nom: string })[]
-        totalEncaissementHT: number
-    }
-    depenses: {
-        categories: { categorie: string; label: string; parMois: number[]; total: number }[]
-        retrocessions: { label: string; parMois: number[]; total: number }
-        totalCharges: number
-        totalChargesParMois: number[]
-    }
-    soldeProvisoire: { parMois: number[]; total: number }
-}
 
 interface BilanTabProps {
     clients: { id: string; label: string }[]

@@ -63,24 +63,6 @@ interface DepenseFilterDrawerProps {
 }
 
 export function DepenseFilterDrawer({ open, onClose, filters, onChange }: DepenseFilterDrawerProps) {
-    useEffect(() => {
-        if (!open) return
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose()
-        }
-        document.addEventListener("keydown", onKey)
-        return () => document.removeEventListener("keydown", onKey)
-    }, [open, onClose])
-
-    useEffect(() => {
-        if (!open) return
-        const prev = document.body.style.overflow
-        document.body.style.overflow = "hidden"
-        return () => {
-            document.body.style.overflow = prev
-        }
-    }, [open])
-
     const update = (patch: Partial<DepenseFiltersState>) => onChange({ ...filters, ...patch })
     const reset = () => onChange({ ...INITIAL_DEPENSE_FILTERS, search: filters.search })
     const toggleArr = <T extends string>(arr: T[], v: T): T[] =>
@@ -88,38 +70,7 @@ export function DepenseFilterDrawer({ open, onClose, filters, onChange }: Depens
     const activeCount = countActiveDepenseFilters(filters)
 
     return (
-        <>
-            <div
-                onClick={onClose}
-                className={cn(
-                    "fixed inset-0 z-40 bg-inverse-surface/30 transition-opacity duration-200",
-                    open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                )}
-            />
-            <aside
-                role="dialog"
-                aria-modal="true"
-                className={cn(
-                    "fixed top-0 right-0 z-50 h-full w-full max-w-[420px] bg-surface-container-lowest border-l border-outline-variant shadow-2xl flex flex-col transition-transform duration-300 ease-out",
-                    open ? "translate-x-0" : "translate-x-full"
-                )}
-            >
-                <header className="flex-none flex items-center justify-between px-density-loose py-density-medium border-b border-outline-variant bg-surface-container">
-                    <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-[22px]">tune</span>
-                        <h2 className="font-h2 text-h2 text-primary">Filtres dépenses</h2>
-                        {activeCount > 0 && (
-                            <span className="font-mono-num text-mono-num text-[11px] px-1.5 py-0.5 rounded bg-accent text-white">
-                                {activeCount}
-                            </span>
-                        )}
-                    </div>
-                    <button onClick={onClose} className="p-1 rounded hover:bg-surface-container-low text-outline hover:text-on-surface transition-colors">
-                        <span className="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </header>
-
-                <div className="flex-1 overflow-y-auto scrollbar-thin px-density-loose py-density-medium space-y-density-loose">
+        <FilterDrawerShell open={open} onClose={onClose} title="Filtres dépenses" activeCount={activeCount} onReset={reset}>
                     <Section
                         title="Catégorie"
                         icon="category"
@@ -207,10 +158,92 @@ export function DepenseFilterDrawer({ open, onClose, filters, onChange }: Depens
                         <ToggleRow checked={filters.avecJustificatif} onChange={(b) => update({ avecJustificatif: b, sansJustificatif: b ? false : filters.sansJustificatif })} label="Avec justificatif uniquement" />
                         <ToggleRow checked={filters.sansJustificatif} onChange={(b) => update({ sansJustificatif: b, avecJustificatif: b ? false : filters.avecJustificatif })} label="Sans justificatif uniquement" />
                     </Section>
+        </FilterDrawerShell>
+    )
+}
+
+/* ============================================================
+   Sub-composants partagés (utilisés aussi par paie-filter-drawer)
+   ============================================================ */
+
+/** Coquille commune à tous les tiroirs de filtre (backdrop + aside + header +
+ *  footer Réinitialiser/Voir les résultats), avec Escape-to-close et blocage du
+ *  scroll de la page pendant l'ouverture — pour ne pas la réécrire à chaque
+ *  nouveau tiroir (Dépenses, Bilan, Vue d'ensemble...). */
+export function FilterDrawerShell({
+    open,
+    onClose,
+    title,
+    activeCount,
+    onReset,
+    maxWidthPx = 420,
+    children,
+}: {
+    open: boolean
+    onClose: () => void
+    title: string
+    activeCount: number
+    onReset: () => void
+    maxWidthPx?: number
+    children: React.ReactNode
+}) {
+    useEffect(() => {
+        if (!open) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose()
+        }
+        document.addEventListener("keydown", onKey)
+        return () => document.removeEventListener("keydown", onKey)
+    }, [open, onClose])
+
+    useEffect(() => {
+        if (!open) return
+        const prev = document.body.style.overflow
+        document.body.style.overflow = "hidden"
+        return () => {
+            document.body.style.overflow = prev
+        }
+    }, [open])
+
+    return (
+        <>
+            <div
+                onClick={onClose}
+                className={cn(
+                    "fixed inset-0 z-40 bg-inverse-surface/30 transition-opacity duration-200",
+                    open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                )}
+            />
+            <aside
+                role="dialog"
+                aria-modal="true"
+                className={cn(
+                    "fixed top-0 right-0 z-50 h-full w-full bg-surface-container-lowest border-l border-outline-variant shadow-2xl flex flex-col transition-transform duration-300 ease-out",
+                    open ? "translate-x-0" : "translate-x-full"
+                )}
+                style={{ maxWidth: maxWidthPx }}
+            >
+                <header className="flex-none flex items-center justify-between px-density-loose py-density-medium border-b border-outline-variant bg-surface-container">
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[22px]">tune</span>
+                        <h2 className="font-h2 text-h2 text-primary">{title}</h2>
+                        {activeCount > 0 && (
+                            <span className="font-mono-num text-mono-num text-[11px] px-1.5 py-0.5 rounded bg-accent text-white">
+                                {activeCount}
+                            </span>
+                        )}
+                    </div>
+                    <button onClick={onClose} className="p-1 rounded hover:bg-surface-container-low text-outline hover:text-on-surface transition-colors">
+                        <span className="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </header>
+
+                <div className="flex-1 overflow-y-auto scrollbar-thin px-density-loose py-density-medium space-y-density-loose">
+                    {children}
                 </div>
 
                 <footer className="flex-none flex items-center justify-between gap-3 px-density-loose py-density-medium border-t border-outline-variant bg-surface-container">
-                    <button onClick={reset} className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline-offset-2 hover:underline transition-colors">
+                    <button onClick={onReset} className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline-offset-2 hover:underline transition-colors">
                         Réinitialiser
                     </button>
                     <button onClick={onClose} className="px-4 py-2 rounded bg-accent text-white font-body-sm text-body-sm font-medium hover:bg-opacity-90 transition-colors active:scale-[0.98]">
@@ -221,10 +254,6 @@ export function DepenseFilterDrawer({ open, onClose, filters, onChange }: Depens
         </>
     )
 }
-
-/* ============================================================
-   Sub-composants partagés (utilisés aussi par paie-filter-drawer)
-   ============================================================ */
 
 export function Section({
     title,

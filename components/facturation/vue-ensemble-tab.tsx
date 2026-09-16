@@ -15,7 +15,7 @@ import { mockClients, clientDisplayName } from "@/lib/mock/clients"
 import { mockDossiers } from "@/lib/mock/dossiers"
 import { factureClientName } from "@/lib/mock/invoices"
 import { StatusDot, type StatusTone } from "@/components/ui/status-dot"
-import { Section, CheckboxGroup } from "./depense-filter-drawer"
+import { Section, CheckboxGroup, FilterDrawerShell } from "./depense-filter-drawer"
 
 /* ============================================================
    Types : ligne unifiée du registre
@@ -257,6 +257,19 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
 
     /* `now` figé au mount (lazy useState) — évite l'appel impur Date.now() en render */
     const [now] = useState(() => Date.now())
+
+    /* Période + recherche seules (sans le filtre Type) — réutilisé par le tableau
+       ET par les compteurs du tiroir de filtre, qui doivent rester justes pour
+       un type actuellement masqué. */
+    const matchesSearchAndPeriod = (l: FluxLine, q: string, periodLimit: number | null) => {
+        if (periodLimit !== null && new Date(l.date).getTime() < periodLimit) return false
+        if (q) {
+            const hay = [l.numero, l.libelle, l.tiers, l.dossierNumero ?? ""].join(" ").toLowerCase()
+            if (!hay.includes(q)) return false
+        }
+        return true
+    }
+
     /* === Filtrage === */
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase()
@@ -264,18 +277,29 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
             periodPreset === "ALL"
                 ? null
                 : now - Number(periodPreset) * 24 * 3600 * 1000
-        return allLines.filter((l) => {
-            if (!activeKinds.has(l.kind)) return false
-            if (periodLimit !== null && new Date(l.date).getTime() < periodLimit) return false
-            if (q) {
-                const hay = [l.numero, l.libelle, l.tiers, l.dossierNumero ?? ""]
-                    .join(" ")
-                    .toLowerCase()
-                if (!hay.includes(q)) return false
-            }
-            return true
-        })
+        return allLines.filter((l) => activeKinds.has(l.kind) && matchesSearchAndPeriod(l, q, periodLimit))
     }, [allLines, activeKinds, periodPreset, search, now])
+
+    /* Compteurs par type pour le tiroir de filtre — sur période/recherche
+       uniquement (PAS sur activeKinds), pour rester justes même quand un type
+       est actuellement décoché. */
+    const countsByKind = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        const periodLimit =
+            periodPreset === "ALL" ? null : now - Number(periodPreset) * 24 * 3600 * 1000
+        const byKind: Record<FluxKind, number> = {
+            FACTURE_EMISE: 0,
+            PAIEMENT_RECU: 0,
+            FACTURE_RECUE: 0,
+            PAIEMENT_ENVOYE: 0,
+            DEPENSE_INTERNE: 0,
+            ENCAISSEMENT: 0,
+        }
+        for (const l of allLines) {
+            if (matchesSearchAndPeriod(l, q, periodLimit)) byKind[l.kind] += 1
+        }
+        return byKind
+    }, [allLines, periodPreset, search, now])
 
     const sorted = useMemo(() => {
         const arr = [...filtered]
@@ -512,7 +536,7 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                 onClose={() => setFilterDrawerOpen(false)}
                 activeKinds={activeKinds}
                 onChange={setActiveKinds}
-                counts={totaux.byKind}
+                counts={countsByKind}
             />
         )}
         </>
@@ -532,17 +556,8 @@ function VueEnsembleFilterDrawer({
     onClose: () => void
     activeKinds: Set<FluxKind>
     onChange: (next: Set<FluxKind>) => void
-    counts: Record<FluxKind, { count: number; montant: number }>
+    counts: Record<FluxKind, number>
 }) {
-    useEffect(() => {
-        if (!open) return
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose()
-        }
-        document.addEventListener("keydown", onKey)
-        return () => document.removeEventListener("keydown", onKey)
-    }, [open, onClose])
-
     const toggle = (k: string) => {
         const next = new Set(activeKinds)
         if (next.has(k as FluxKind)) next.delete(k as FluxKind)
@@ -550,63 +565,30 @@ function VueEnsembleFilterDrawer({
         onChange(next)
     }
 
+    const allKinds = Object.keys(KIND_META) as FluxKind[]
+    const activeCount = allKinds.length - activeKinds.size
+
     return (
-        <>
-            <div
-                onClick={onClose}
-                className={cn(
-                    "fixed inset-0 z-40 bg-inverse-surface/30 transition-opacity duration-200",
-                    open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                )}
-            />
-            <aside
-                role="dialog"
-                aria-modal="true"
-                className={cn(
-                    "fixed top-0 right-0 z-50 h-full w-full max-w-[380px] bg-surface-container-lowest border-l border-outline-variant shadow-2xl flex flex-col transition-transform duration-300 ease-out",
-                    open ? "translate-x-0" : "translate-x-full"
-                )}
-            >
-                <header className="flex-none flex items-center justify-between px-density-loose py-density-medium border-b border-outline-variant bg-surface-container">
-                    <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-[22px]">tune</span>
-                        <h2 className="font-h2 text-h2 text-primary">Filtres</h2>
-                    </div>
-                    <button onClick={onClose} className="p-1 rounded hover:bg-surface-container-low text-outline hover:text-on-surface transition-colors">
-                        <span className="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </header>
-
-                <div className="flex-1 overflow-y-auto scrollbar-thin px-density-loose py-density-medium">
-                    <Section title="Type de mouvement" icon="category">
-                        <CheckboxGroup
-                            options={(Object.entries(KIND_META) as [FluxKind, typeof KIND_META[FluxKind]][]).map(([k, meta]) => ({
-                                value: k,
-                                label: `${meta.label} (${counts[k].count})`,
-                                icon: meta.icon,
-                            }))}
-                            selected={Array.from(activeKinds)}
-                            onToggle={toggle}
-                        />
-                    </Section>
-                </div>
-
-                <footer className="flex-none flex items-center justify-between gap-3 px-density-loose py-density-medium border-t border-outline-variant bg-surface-container">
-                    <button
-                        onClick={() => onChange(new Set(Object.keys(KIND_META) as FluxKind[]))}
-                        className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline-offset-2 hover:underline transition-colors"
-                    >
-                        Réinitialiser
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 rounded bg-accent text-white font-body-sm text-body-sm font-medium hover:bg-opacity-90 transition-colors active:scale-[0.98]"
-                    >
-                        Voir les résultats
-                    </button>
-                </footer>
-            </aside>
-        </>
+        <FilterDrawerShell
+            open={open}
+            onClose={onClose}
+            title="Filtres"
+            activeCount={activeCount}
+            onReset={() => onChange(new Set(allKinds))}
+            maxWidthPx={380}
+        >
+            <Section title="Type de mouvement" icon="category">
+                <CheckboxGroup
+                    options={(Object.entries(KIND_META) as [FluxKind, typeof KIND_META[FluxKind]][]).map(([k, meta]) => ({
+                        value: k,
+                        label: `${meta.label} (${counts[k]})`,
+                        icon: meta.icon,
+                    }))}
+                    selected={Array.from(activeKinds)}
+                    onToggle={toggle}
+                />
+            </Section>
+        </FilterDrawerShell>
     )
 }
 

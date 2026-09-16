@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import {
     DIRECTIONS_FACTURE,
     STATUTS_FACTURE,
+    factureEstSupprimable,
     formatDateCourte,
     formatFCFA,
     type StatutFactureKey,
@@ -342,7 +343,7 @@ export function FactureTableView({
                                                 (f.statut === "EMISE" || f.statut === "EN_RETARD" || f.statut === "PARTIELLE")
                                             }
                                             canCancel={f.statut !== "ANNULEE" && f.statut !== "PAYEE"}
-                                            canDelete={!!onDelete && f.montantPaye === 0 && f.statut !== "PAYEE"}
+                                            canDelete={!!onDelete && factureEstSupprimable(f)}
                                         />
                                     </td>
                                 </tr>

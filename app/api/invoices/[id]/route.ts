@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/api-helpers"
 import { FactureUpdateSchema } from "@/lib/server/schemas"
 import { calcTVA, calcTTC, recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
+import { factureEstSupprimable } from "@/lib/constants/finance"
 
 export async function GET(
     _req: NextRequest,
@@ -124,7 +125,7 @@ export async function DELETE(
 
         const facture = await prisma.facture.findUnique({ where: { id } })
         if (!facture) throw new HttpError(404, "Facture introuvable")
-        if (facture.montantPaye > 0 || facture.statut === "PAYEE") {
+        if (!factureEstSupprimable(facture)) {
             throw new HttpError(
                 400,
                 "Cette facture a déjà un paiement enregistré — utilisez « Annuler » (statut Annulée) pour la retirer du suivi sans perdre l'historique."

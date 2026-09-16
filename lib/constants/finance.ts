@@ -191,6 +191,35 @@ export function calcTTC(montantHT: number, tauxTVA: number = TVA_NIGER): number 
 }
 
 /* ============================================================
+   RÉPONSE /api/bilan — type canonique, unique source de vérité pour
+   finance-dashboard.tsx et bilan-tab.tsx (ne pas le redéclarer localement :
+   les deux copies avaient déjà divergé — l'une sans retenuesParMois/Totals).
+   ============================================================ */
+
+export interface BilanEncBloc {
+    parMois: Record<string, number[]>
+    totals: Record<string, number>
+    retenuesParMois: Record<string, number[]>
+    retenuesTotals: Record<string, number>
+}
+
+export interface BilanApiResponse {
+    annee: number
+    encaissements: {
+        autres: BilanEncBloc
+        parClient: (BilanEncBloc & { clientId: string; nom: string })[]
+        totalEncaissementHT: number
+    }
+    depenses: {
+        categories: { categorie: string; label: string; parMois: number[]; total: number }[]
+        retrocessions: { label: string; parMois: number[]; total: number }
+        totalCharges: number
+        totalChargesParMois: number[]
+    }
+    soldeProvisoire: { parMois: number[]; total: number }
+}
+
+/* ============================================================
    STATUT FACTURE auto-dérivé selon montants + dates
    ============================================================ */
 
@@ -206,4 +235,13 @@ export function deriveStatutFacture(args: {
     if (dateEcheance && new Date(dateEcheance).getTime() < Date.now()) return "EN_RETARD"
     if (montantPaye > 0) return "PARTIELLE"
     return "EMISE"
+}
+
+/** Une facture avec un paiement enregistré (même partiel) ou déjà PAYEE ne doit
+ *  jamais être supprimée définitivement — ça effacerait un encaissement réel.
+ *  Utiliser le statut ANNULEE pour la retirer du suivi sans perdre l'historique.
+ *  Règle unique, partagée entre le serveur (API) et le client (boutons "Supprimer") —
+ *  ne pas la redupliquer localement. */
+export function factureEstSupprimable(f: { montantPaye: number; statut: string }): boolean {
+    return f.montantPaye === 0 && f.statut !== "PAYEE"
 }
