@@ -35,8 +35,9 @@ export function FinanceDashboard() {
     const [periode, setPeriode] = useState<"MOIS" | "EXERCICE">("EXERCICE")
     const [bilan, setBilan] = useState<BilanFull | null>(null)
     const [apports, setApports] = useState<ApportRow[]>([])
-    const [loading, setLoading] = useState(true)
+    const [fetchedAnnee, setFetchedAnnee] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const loading = fetchedAnnee !== annee
 
     const isCurrentYear = annee === now.getFullYear()
     const monthIndex = now.getMonth()
@@ -45,7 +46,7 @@ export function FinanceDashboard() {
     const enMois = isCurrentYear && periode === "MOIS"
 
     useEffect(() => {
-        setLoading(true)
+        let ignore = false
         Promise.all([
             fetch(`/api/bilan?annee=${annee}`, { credentials: "include" }).then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -56,12 +57,20 @@ export function FinanceDashboard() {
             ),
         ])
             .then(([b, ap]) => {
+                if (ignore) return
                 setBilan(b)
                 setApports(ap)
                 setError(null)
+                setFetchedAnnee(annee)
             })
-            .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
-            .finally(() => setLoading(false))
+            .catch((e) => {
+                if (ignore) return
+                setError(e instanceof Error ? e.message : "Erreur")
+                setFetchedAnnee(annee)
+            })
+        return () => {
+            ignore = true
+        }
     }, [annee])
 
     const periodeLabel = enMois ? formatMoisLong(annee, monthIndex + 1) : `Exercice ${annee}`

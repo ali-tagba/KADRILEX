@@ -235,9 +235,9 @@ export async function PATCH(
                 where: { id },
                 data: {
                     ...rest,
-                    honoraires: rest.honoraires !== undefined ? (rest.honoraires as any) : undefined,
-                    provisionsVersees: rest.provisionsVersees !== undefined ? (rest.provisionsVersees as any) : undefined,
-                    retrocession: rest.retrocession !== undefined ? (rest.retrocession as any) : undefined,
+                    honoraires: rest.honoraires !== undefined ? (rest.honoraires as Prisma.InputJsonValue) : undefined,
+                    provisionsVersees: rest.provisionsVersees !== undefined ? (rest.provisionsVersees as Prisma.InputJsonValue) : undefined,
+                    retrocession: rest.retrocession !== undefined ? (rest.retrocession as Prisma.InputJsonValue) : undefined,
                     dateOuverture:
                         rest.dateOuverture === undefined
                             ? undefined

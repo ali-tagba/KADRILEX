@@ -1,4 +1,3 @@
-import { safeDict } from "./safe-dict"
 /**
  * Constantes du module Finance.
  * Couvre : facturation (émises/reçues), paiements, dépenses internes, paie.

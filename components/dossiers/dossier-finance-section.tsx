@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
-import type { MockDossier, DossierHonoraire, DossierRetrocession } from "@/lib/mock/dossiers"
+import type { MockDossier, DossierHonoraire, DossierProvision, DossierRetrocession } from "@/lib/mock/dossiers"
 import { getClientForDossier } from "@/lib/mock/dossiers"
 import type { MockFacture } from "@/lib/mock/invoices"
 import { FacturationTab } from "@/components/facturation/facturation-tab"
@@ -183,12 +183,12 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             ? (dossier.honoraires as DossierHonoraire[])
             : []
             
-        let provisions = Array.isArray(dossier.provisionsVersees) 
-            ? (dossier.provisionsVersees as any[]) 
+        let provisions = Array.isArray(dossier.provisionsVersees)
+            ? (dossier.provisionsVersees as DossierProvision[])
             : []
-            
+
         // Fallback for CRM flat JSON import
-        const rawProvisions = dossier.provisionsVersees as any
+        const rawProvisions = dossier.provisionsVersees as unknown as Record<string, unknown> | null
         if (rawProvisions && !Array.isArray(rawProvisions) && typeof rawProvisions === 'object') {
             if (rawProvisions.honorairesConvenus) {
                 const val = parseFloat(String(rawProvisions.honorairesConvenus).replace(/\s/g, ''))

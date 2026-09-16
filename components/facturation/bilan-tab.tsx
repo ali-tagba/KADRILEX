@@ -49,7 +49,7 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
             .finally(() => setLoading(false))
     }
 
-    useEffect(load, [annee]) // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(load, [annee])
 
     const defaultCats = useMemo(
         () => new Set(data?.depenses.categories.filter((c) => c.total > 0).map((c) => c.categorie) ?? []),
