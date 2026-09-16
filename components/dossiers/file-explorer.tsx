@@ -132,6 +132,9 @@ function DropdownMenu({ trigger, children, align = "end" }: DropdownMenuProps) {
     // Calcul des coords + auto-flip + clamp viewport
     // Mise à jour au scroll (le menu suit le trigger) — pas de fermeture pour ne pas
     // gêner le scroll dans la GED.
+    // La hauteur réelle du menu (menuRef) est utilisée dès qu'elle est connue — avant son
+    // premier montage on retombe sur MENU_HEIGHT_APPROX (estimation large, jamais trop petite),
+    // pour ne jamais positionner le menu hors-écran le temps qu'il se mesure lui-même.
     useEffect(() => {
         if (!open) return
         const compute = () => {
@@ -143,19 +146,26 @@ function DropdownMenu({ trigger, children, align = "end" }: DropdownMenuProps) {
                 setOpen(false)
                 return
             }
+            const menuHeight = menuRef.current?.offsetHeight || MENU_HEIGHT_APPROX
             const goUp =
-                window.innerHeight - r.bottom < MENU_HEIGHT_APPROX + 12 &&
-                r.top > MENU_HEIGHT_APPROX
+                window.innerHeight - r.bottom < menuHeight + 12 &&
+                r.top > menuHeight
             let left = align === "end" ? r.right - MENU_WIDTH : r.left
             left = Math.max(MENU_MARGIN, Math.min(left, window.innerWidth - MENU_WIDTH - MENU_MARGIN))
-            const top = goUp ? r.top - MENU_HEIGHT_APPROX - 4 : r.bottom + 4
+            let top = goUp ? r.top - menuHeight - 4 : r.bottom + 4
+            top = Math.max(MENU_MARGIN, Math.min(top, window.innerHeight - menuHeight - MENU_MARGIN))
             setCoords({ top, left })
         }
         compute()
+        // Deuxième passe au frame suivant : le menu vient de se monter avec l'estimation,
+        // on recalcule avec sa vraie hauteur (menuRef.current.offsetHeight) pour corriger
+        // tout écart avant que l'utilisateur ne le voie.
+        const raf = window.requestAnimationFrame(compute)
         // Passive : pour ne pas bloquer le scroll. Capture : pour attraper scrolls sur ancêtres.
         window.addEventListener("scroll", compute, { capture: true, passive: true })
         window.addEventListener("resize", compute)
         return () => {
+            window.cancelAnimationFrame(raf)
             window.removeEventListener("scroll", compute, { capture: true } as EventListenerOptions)
             window.removeEventListener("resize", compute)
         }
