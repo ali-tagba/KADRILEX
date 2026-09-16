@@ -189,6 +189,9 @@ function DropdownMenu({ trigger, children, align = "end" }: DropdownMenuProps) {
             <div
                 ref={triggerRef}
                 className="inline-block"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onDragStart={(e) => e.preventDefault()}
                 onClick={(e) => {
                     e.stopPropagation()
                     setOpen((v) => !v)
@@ -1184,7 +1187,8 @@ function GridView(props: ListProps) {
 
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {folders.map((item) => {
+            {folders.map((item, index) => {
+                const numero = index + 1
                 const col = getFolderColor(item.couleur)
                 const isDragging = draggedItemId === item.id
                 const isDragOver = dragOverTarget === item.id
@@ -1199,7 +1203,7 @@ function GridView(props: ListProps) {
                         onDragLeave={onDragLeave}
                         onDrop={(e) => onDropOnFolder(e, item.id)}
                         onClick={() => onNavigate(item)}
-                        title={item.name}
+                        title={`N°${numero} · ${item.name}`}
                         className={cn(
                             "group relative flex flex-col items-center gap-2.5 p-4 rounded-xl cursor-pointer border shadow-[0px_1px_2px_rgba(31,26,20,0.04)]",
                             "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
@@ -1208,6 +1212,12 @@ function GridView(props: ListProps) {
                             isDragOver && canAccept ? "border-accent ring-2 ring-accent" : "border-outline-variant/40"
                         )}
                     >
+                        <span
+                            className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white/90 text-on-surface-variant font-mono-num text-[10px] font-semibold flex items-center justify-center border border-outline-variant/50 pointer-events-none z-10"
+                            aria-hidden="true"
+                        >
+                            {numero}
+                        </span>
                         <FolderSVG color={col} />
                         <span
                             className="font-body-sm text-body-sm font-semibold text-on-surface text-center line-clamp-2 leading-snug w-full px-1 pointer-events-none"
@@ -1219,7 +1229,8 @@ function GridView(props: ListProps) {
                     </div>
                 )
             })}
-            {files.map((item) => {
+            {files.map((item, index) => {
+                const numero = folders.length + index + 1
                 const { icon, color } = getFileIcon(item.name)
                 const isDragging = draggedItemId === item.id
                 const upload = uploads[item.id]
@@ -1237,7 +1248,7 @@ function GridView(props: ListProps) {
                                 ? `Téléversement en cours… ${Math.round(upload.progress)}%`
                                 : hasUploadError
                                 ? `Échec : ${upload?.error}`
-                                : `${item.name} (double-clic pour ouvrir)`
+                                : `N°${numero} · ${item.name} (double-clic pour ouvrir)`
                         }
                         className={cn(
                             "group relative flex flex-col items-center gap-2.5 p-4 rounded-xl border shadow-[0px_1px_2px_rgba(31,26,20,0.04)] transition-all duration-200",
@@ -1250,6 +1261,14 @@ function GridView(props: ListProps) {
                             isDragging && "opacity-40"
                         )}
                     >
+                        {!hasUploadError && (
+                            <span
+                                className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-surface-container text-on-surface-variant font-mono-num text-[10px] font-semibold flex items-center justify-center border border-outline-variant/50 pointer-events-none z-10"
+                                aria-hidden="true"
+                            >
+                                {numero}
+                            </span>
+                        )}
                         <span
                             className={cn(
                                 "material-symbols-outlined text-[64px] drop-shadow-sm transition-transform duration-300 pointer-events-none",
@@ -1320,7 +1339,8 @@ function ListView(props: ListProps) {
 
     return (
         <div className="border border-outline-variant rounded-md overflow-hidden bg-surface-container-lowest">
-            <div className="grid grid-cols-[auto_1fr_140px_100px_60px] items-center px-3 py-2.5 bg-surface-container border-b border-outline-variant font-label-caps text-label-caps uppercase text-on-surface-variant select-none sticky top-0 z-10">
+            <div className="grid grid-cols-[36px_auto_1fr_140px_100px_60px] items-center px-3 py-2.5 bg-surface-container border-b border-outline-variant font-label-caps text-label-caps uppercase text-on-surface-variant select-none sticky top-0 z-10">
+                <div className="text-center">N°</div>
                 <div className="w-8" />
                 <div>Nom</div>
                 <div>Modifié</div>
@@ -1328,7 +1348,8 @@ function ListView(props: ListProps) {
                 <div />
             </div>
 
-            {folders.map((item) => {
+            {folders.map((item, index) => {
+                const numero = index + 1
                 const col = getFolderColor(item.couleur)
                 const isDragging = draggedItemId === item.id
                 const isDragOver = dragOverTarget === item.id
@@ -1344,11 +1365,12 @@ function ListView(props: ListProps) {
                         onDrop={(e) => onDropOnFolder(e, item.id)}
                         onClick={() => onNavigate(item)}
                         className={cn(
-                            "group grid grid-cols-[auto_1fr_140px_100px_60px] items-center px-3 py-2.5 hover:bg-accent/5 cursor-pointer transition-colors border-b border-outline-variant/40 last:border-b-0",
+                            "group grid grid-cols-[36px_auto_1fr_140px_100px_60px] items-center px-3 py-2.5 hover:bg-accent/5 cursor-pointer transition-colors border-b border-outline-variant/40 last:border-b-0",
                             isDragging && "opacity-40",
                             isDragOver && canAccept && "bg-accent/15 ring-1 ring-accent ring-inset"
                         )}
                     >
+                        <div className="font-mono-num text-[11px] text-on-surface-variant font-semibold text-center select-none">{numero}</div>
                         <div className="w-8 flex items-center justify-center">
                             <span
                                 className={cn("material-symbols-outlined text-[24px]", col.icon)}
@@ -1375,7 +1397,8 @@ function ListView(props: ListProps) {
                 </div>
             )}
 
-            {files.map((item) => {
+            {files.map((item, index) => {
+                const numero = folders.length + index + 1
                 const { icon, color } = getFileIcon(item.name)
                 const isDragging = draggedItemId === item.id
                 const upload = uploads[item.id]
@@ -1389,7 +1412,7 @@ function ListView(props: ListProps) {
                         onDragEnd={onDragEnd}
                         onDoubleClick={() => !isUploading && !hasUploadError && onOpenFile(item)}
                         className={cn(
-                            "group grid grid-cols-[auto_1fr_140px_100px_60px] items-center px-3 py-2 transition-colors border-b border-outline-variant/40 last:border-b-0",
+                            "group grid grid-cols-[36px_auto_1fr_140px_100px_60px] items-center px-3 py-2 transition-colors border-b border-outline-variant/40 last:border-b-0",
                             !isUploading && !hasUploadError &&
                                 "hover:bg-surface-container-low cursor-grab active:cursor-grabbing",
                             isUploading && "bg-accent/5 cursor-progress",
@@ -1397,6 +1420,9 @@ function ListView(props: ListProps) {
                             isDragging && "opacity-40"
                         )}
                     >
+                        <div className="font-mono-num text-[11px] text-on-surface-variant font-semibold text-center select-none">
+                            {hasUploadError ? "—" : numero}
+                        </div>
                         <div className="w-8 flex items-center justify-center">
                             <span
                                 className={cn(
