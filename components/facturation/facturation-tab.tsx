@@ -378,6 +378,15 @@ export function FacturationTab({
                             onViewModeChange={(m) => setFilters((f) => ({ ...f, viewMode: m }))}
                         />
                     </div>
+                    <a
+                        href="/api/invoices/export"
+                        download
+                        className="flex-shrink-0 px-3 py-2 rounded border border-outline-variant text-on-surface-variant font-body-sm text-body-sm font-medium flex items-center gap-1.5 hover:bg-surface-container-low transition-colors"
+                        title="Télécharger toutes les factures en format Excel (XLSX)"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        Excel
+                    </a>
                     <button
                         onClick={openCreate}
                         className="flex-shrink-0 bg-accent text-white px-4 py-2 rounded font-body-sm text-body-sm font-medium flex items-center gap-2 hover:bg-opacity-90 transition-colors shadow-sm active:scale-[0.98]"

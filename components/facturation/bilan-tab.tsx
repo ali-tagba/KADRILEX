@@ -130,6 +130,16 @@ export function BilanTab({ clients, canWrite }: BilanTabProps) {
                         </button>
                     )}
 
+                    <a
+                        href={`/api/bilan/export?annee=${annee}`}
+                        download
+                        className="px-3 py-1.5 rounded border border-outline-variant text-on-surface-variant font-body-sm text-body-sm font-medium flex items-center gap-1.5 hover:bg-surface-container-low transition-colors"
+                        title={`Télécharger le bilan ${annee} en format Excel (XLSX)`}
+                    >
+                        <span className="material-symbols-outlined text-[16px]">download</span>
+                        Excel
+                    </a>
+
                     {canWrite && (
                         <button
                             onClick={() => setFormOpen(true)}

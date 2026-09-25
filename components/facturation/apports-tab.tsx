@@ -156,7 +156,7 @@ export function ApportsTab({ membres, dossiers, canWrite, presetMembreId }: Appo
         }
     }
 
-    const exportUrl = `/api/apports/export?annee=${annee}`
+    const exportUrl = `/api/apports/export?annee=${annee}${membreFiltre ? `&membreId=${encodeURIComponent(membreFiltre)}` : ""}`
 
     return (
         <>

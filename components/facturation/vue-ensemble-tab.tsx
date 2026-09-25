@@ -366,31 +366,42 @@ export function VueEnsembleTab({ factures, depenses }: VueEnsembleTabProps) {
                         tone={totaux.solde >= 0 ? "success" : "error"}
                     />
                 </div>
-                <div className="flex bg-surface-container-low border border-outline-variant rounded p-0.5">
-                    {(
-                        [
-                            { v: "30" as const, label: "30 j" },
-                            { v: "90" as const, label: "90 j" },
-                            { v: "365" as const, label: "1 an" },
-                            { v: "ALL" as const, label: "Tout" },
-                        ]
-                    ).map((opt) => {
-                        const active = periodPreset === opt.v
-                        return (
-                            <button
-                                key={opt.v}
-                                onClick={() => setPeriodPreset(opt.v)}
-                                className={cn(
-                                    "px-2 py-1 rounded font-body-sm text-[11px] transition-all whitespace-nowrap",
-                                    active
-                                        ? "bg-white shadow-[0px_1px_3px_rgba(31,26,20,0.08)] text-primary-container font-semibold"
-                                        : "text-outline hover:text-on-surface"
-                                )}
-                            >
-                                {opt.label}
-                            </button>
-                        )
-                    })}
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-surface-container-low border border-outline-variant rounded p-0.5">
+                        {(
+                            [
+                                { v: "30" as const, label: "30 j" },
+                                { v: "90" as const, label: "90 j" },
+                                { v: "365" as const, label: "1 an" },
+                                { v: "ALL" as const, label: "Tout" },
+                            ]
+                        ).map((opt) => {
+                            const active = periodPreset === opt.v
+                            return (
+                                <button
+                                    key={opt.v}
+                                    onClick={() => setPeriodPreset(opt.v)}
+                                    className={cn(
+                                        "px-2 py-1 rounded font-body-sm text-[11px] transition-all whitespace-nowrap",
+                                        active
+                                            ? "bg-white shadow-[0px_1px_3px_rgba(31,26,20,0.08)] text-primary-container font-semibold"
+                                            : "text-outline hover:text-on-surface"
+                                    )}
+                                >
+                                    {opt.label}
+                                </button>
+                            )
+                        })}
+                    </div>
+                    <a
+                        href={`/api/finance/export/vue-ensemble?period=${periodPreset}`}
+                        download
+                        className="px-3 py-1.5 rounded border border-outline-variant text-on-surface-variant font-body-sm text-body-sm font-medium flex items-center gap-1.5 hover:bg-surface-container-low transition-colors"
+                        title="Télécharger la vue d'ensemble en format Excel (XLSX)"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">download</span>
+                        Excel
+                    </a>
                 </div>
             </header>
 
