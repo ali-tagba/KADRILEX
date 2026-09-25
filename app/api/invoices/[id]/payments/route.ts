@@ -9,7 +9,7 @@ import {
     parseJson,
 } from "@/lib/server/api-helpers"
 import { PaiementCreateSchema } from "@/lib/server/schemas"
-import { recomputeFactureStatut, sumPaiements } from "@/lib/server/finance"
+import { recomputeFactureStatut, sumPaiements, recomputeApport } from "@/lib/server/finance"
 
 export async function POST(
     req: NextRequest,
@@ -22,12 +22,19 @@ export async function POST(
 
         const facture = await prisma.facture.findUnique({
             where: { id },
-            include: { paiements: true },
+            include: {
+                paiements: true,
+                client: true,
+                dossier: { include: { client: true } },
+            },
         })
         if (!facture) throw new HttpError(404, "Facture introuvable")
         if (facture.statut === "ANNULEE") {
             throw new HttpError(400, "Facture annulée, aucun paiement possible")
         }
+
+        const client = facture.client ?? facture.dossier?.client
+        const apporteurId = client?.apporteurId
 
         const result = await prisma.$transaction(async (tx) => {
             const newPaiement = await tx.paiement.create({
@@ -41,6 +48,50 @@ export async function POST(
                     preuveUrl: data.preuveUrl ?? null,
                 },
             })
+
+            // Si le client a un avocat apporteur d'affaires, génère automatiquement l'Apport / Rétrocession
+            if (apporteurId && client) {
+                const montantHT = facture.tvaRate > 0
+                    ? Math.round(data.montant / (1 + facture.tvaRate / 100))
+                    : data.montant
+
+                const computed = recomputeApport({ montantHT })
+                const pDate = new Date(data.date)
+                const clientNom = client.raisonSociale ?? `${client.prenom ?? ""} ${client.nom ?? ""}`.trim()
+
+                await tx.apport.create({
+                    data: {
+                        annee: pDate.getFullYear(),
+                        mois: pDate.getMonth() + 1,
+                        dateReglement: pDate,
+                        dossierId: facture.dossierId ?? null,
+                        clientId: client.id,
+                        paiementId: newPaiement.id,
+                        referenceLibre: `Facture ${facture.numero}`,
+                        clientLibre: clientNom,
+                        montantHT,
+                        fraisDossier: 0,
+                        tauxISB: 30,
+                        montantISB: computed.montantISB,
+                        montantNetApresISB: computed.montantNetApresISB,
+                        tauxSociete: 20,
+                        montantSociete: computed.montantSociete,
+                        montantRetrocessionTotal: computed.montantRetrocessionTotal,
+                        valide: false,
+                        notes: `Rétrocession auto suite paiement Facture ${facture.numero}`,
+                        beneficiaires: {
+                            create: [
+                                {
+                                    membreId: apporteurId,
+                                    pourcentage: 100,
+                                    montant: computed.montantRetrocessionTotal,
+                                },
+                            ],
+                        },
+                    },
+                })
+            }
+
             const allPaiements = [...facture.paiements, newPaiement]
             const montantPaye = sumPaiements(allPaiements)
             const statut = recomputeFactureStatut({

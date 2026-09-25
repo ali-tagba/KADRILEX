@@ -39,6 +39,8 @@ export async function DELETE(
         }
 
         const result = await prisma.$transaction(async (tx) => {
+            // Supprime l'apport généré automatiquement pour ce paiement s'il existe
+            await tx.apport.deleteMany({ where: { paiementId: paymentId } })
             await tx.paiement.delete({ where: { id: paymentId } })
 
             // Recompute montantPaye + statut de la facture

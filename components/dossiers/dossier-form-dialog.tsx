@@ -22,6 +22,7 @@ import { type MockClient, clientDisplayName } from "@/lib/mock/clients"
 import type { MockDossier } from "@/lib/mock/dossiers"
 import { mockDossiers } from "@/lib/mock/dossiers"
 import { TeamPickerExpanded } from "@/components/equipe/team-picker"
+import { useMembres } from "@/lib/hooks/use-membres"
 
 /* ============================================================
    Form draft — exposé pour qu'app/dossiers/page.tsx crée un MockDossier.
@@ -44,10 +45,6 @@ export interface DossierFormDraft {
     notesObservations: string
     responsableId: string | null
     equipeIds: string[]
-    /** Frais d'ouverture (huissier, etc.) — payés par le cabinet, pas par le
-     *  client : génère une Dépense liée au dossier à la création, distincte des
-     *  provisions versées (argent du client). 0 = aucun frais à ce stade. */
-    fraisOuverture: number
 }
 
 interface DossierFormDialogProps {
@@ -92,7 +89,7 @@ export function DossierFormDialog({
         initial?.responsableId ?? null
     )
     const [equipeIds, setEquipeIds] = useState<string[]>(initial?.equipeIds ?? [])
-    const [fraisOuverture, setFraisOuverture] = useState<number>(0)
+    const membres = useMembres()
 
     /* Recherche client */
     const [clientSearch, setClientSearch] = useState("")
@@ -114,6 +111,9 @@ export function DossierFormDialog({
     }, [clients, clientSearch])
 
     const selectedClient = clientId ? clients.find((c) => c.id === clientId) ?? null : null
+    const clientApporteur = selectedClient?.apporteurId
+        ? membres.find((m) => m.id === selectedClient.apporteurId) ?? null
+        : null
     const clientLocked = !!presetClientId
 
     /**
@@ -187,11 +187,18 @@ export function DossierFormDialog({
             description: description.trim(),
             honoraires: honorairesList,
             provisionsVersees: provisionsList,
-            retrocession: retrocessionEnabled && retrocession.beneficiaire.trim() !== "" ? retrocession : null,
+            retrocession: clientApporteur
+                ? {
+                      beneficiaire: `${clientApporteur.prenom} ${clientApporteur.nom}`,
+                      type: "POURCENTAGE" as const,
+                      montant: 56, // Barème cabinet: 30% ISB, 20% Société -> 56% rétrocession
+                  }
+                : retrocessionEnabled && retrocession.beneficiaire.trim() !== ""
+                ? retrocession
+                : null,
             notesObservations: notes.trim(),
             responsableId,
             equipeIds,
-            fraisOuverture,
         })
     }
 
@@ -600,66 +607,61 @@ export function DossierFormDialog({
                         </div>
                     </Section>
 
-                    {/* Frais d'ouverture — payés par le cabinet (huissier, etc.), pas par le
-                        client : distinct des Provisions ci-dessus. Uniquement à la création,
-                        pour éviter de recréer une dépense à chaque modification du dossier. */}
-                    {!initial && (
-                        <Section
-                            title="Frais d'ouverture du dossier (optionnel)"
-                            hint="Payés par le cabinet — ex. frais d'huissier. Distinct des provisions du client."
-                        >
-                            <input
-                                type="number"
-                                min={0}
-                                value={fraisOuverture || ""}
-                                onChange={(e) => setFraisOuverture(Number(e.target.value) || 0)}
-                                placeholder="Montant FCFA — laisser vide si aucun"
-                                className={cn(inputCls, "font-mono-num text-right w-full max-w-[220px]")}
-                            />
-                            {fraisOuverture > 0 && (
-                                <p className="text-xs text-outline mt-1.5">
-                                    Une dépense « Frais d&apos;ouverture de dossier » de {fraisOuverture.toLocaleString("fr-FR")} FCFA sera créée et rattachée à ce dossier.
-                                </p>
-                            )}
-                        </Section>
-                    )}
-
-                    {/* Rétrocession */}
-                    <Section title="Rétrocession d'honoraires">
-                        <label className="flex items-center gap-2 mb-2">
-                            <input
-                                type="checkbox"
-                                checked={retrocessionEnabled}
-                                onChange={e => setRetrocessionEnabled(e.target.checked)}
-                                className="rounded text-accent focus:ring-accent"
-                            />
-                            <span className="text-sm font-medium text-on-surface">Activer la rétrocession</span>
-                        </label>
-                        {retrocessionEnabled && (
-                            <div className="flex items-center gap-2 bg-surface-container-low p-2 border border-outline-variant rounded">
-                                <input
-                                    type="text"
-                                    value={retrocession.beneficiaire}
-                                    onChange={e => setRetrocession({ ...retrocession, beneficiaire: e.target.value })}
-                                    placeholder="Bénéficiaire (ex: Confrère)"
-                                    className={cn(inputCls, "flex-1")}
-                                />
-                                <select
-                                    value={retrocession.type}
-                                    onChange={e => setRetrocession({ ...retrocession, type: e.target.value as ModeHonoraire })}
-                                    className={cn(inputCls, "w-32")}
-                                >
-                                    {MODE_HONORAIRE.map(m => <option key={m} value={m}>{m === "FORFAIT" ? "Forfait" : "Pourcentage"}</option>)}
-                                </select>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={retrocession.montant || ""}
-                                    onChange={e => setRetrocession({ ...retrocession, montant: Number(e.target.value) })}
-                                    placeholder={retrocession.type === "FORFAIT" ? "Montant FCFA" : "% du résultat"}
-                                    className={cn(inputCls, "font-mono-num text-right w-32")}
-                                />
+                    {/* Rétrocession / Apport d'affaires */}
+                    <Section title="Rétrocession / Apport d'affaires">
+                        {clientApporteur ? (
+                            <div className="flex items-center gap-3 p-3 bg-surface-container-low border border-outline-variant rounded-lg">
+                                <span className="material-symbols-outlined text-accent text-[24px]">handshake</span>
+                                <div className="flex-1 text-sm">
+                                    <p className="font-medium text-primary">
+                                        Client apporté par {clientApporteur.prenom} {clientApporteur.nom}
+                                    </p>
+                                    <p className="text-xs text-outline mt-0.5">
+                                        Rétrocession automatique : calculée sur les encaissements réels (barème : 30% ISB, 20% Société, 56% net reversé).
+                                    </p>
+                                </div>
+                                <span className="px-2.5 py-1 bg-accent/10 text-accent font-medium text-xs rounded-full">
+                                    Automatique
+                                </span>
                             </div>
+                        ) : (
+                            <>
+                                <label className="flex items-center gap-2 mb-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={retrocessionEnabled}
+                                        onChange={e => setRetrocessionEnabled(e.target.checked)}
+                                        className="rounded text-accent focus:ring-accent"
+                                    />
+                                    <span className="text-sm font-medium text-on-surface">Activer une rétrocession spécifique</span>
+                                </label>
+                                {retrocessionEnabled && (
+                                    <div className="flex items-center gap-2 bg-surface-container-low p-2 border border-outline-variant rounded">
+                                        <input
+                                            type="text"
+                                            value={retrocession.beneficiaire}
+                                            onChange={e => setRetrocession({ ...retrocession, beneficiaire: e.target.value })}
+                                            placeholder="Bénéficiaire (ex: Confrère)"
+                                            className={cn(inputCls, "flex-1")}
+                                        />
+                                        <select
+                                            value={retrocession.type}
+                                            onChange={e => setRetrocession({ ...retrocession, type: e.target.value as ModeHonoraire })}
+                                            className={cn(inputCls, "w-32")}
+                                        >
+                                            {MODE_HONORAIRE.map(m => <option key={m} value={m}>{m === "FORFAIT" ? "Forfait" : "Pourcentage"}</option>)}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={retrocession.montant || ""}
+                                            onChange={e => setRetrocession({ ...retrocession, montant: Number(e.target.value) })}
+                                            placeholder={retrocession.type === "FORFAIT" ? "Montant FCFA" : "% du résultat"}
+                                            className={cn(inputCls, "font-mono-num text-right w-32")}
+                                        />
+                                    </div>
+                                )}
+                            </>
                         )}
                     </Section>
 

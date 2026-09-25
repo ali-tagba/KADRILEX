@@ -43,8 +43,8 @@ interface FactureFormDialogProps {
     /** Pré-remplissage depuis l'URL ou la fiche dossier */
     presetClientId?: string | null
     presetDossierId?: string | null
-    clients?: any[]
-    dossiers?: any[]
+    clients?: MockClient[]
+    dossiers?: MockDossier[]
     onSave: (draft: FactureFormDraft) => void
     /** Callback déclenché après une (re)génération réussie — pour propager au parent */
     onGenerated?: (updated: { generatedPdfUrl: string; generatedPdfAt: string }) => void
@@ -187,8 +187,8 @@ export function FactureFormDialog({
     const clientsActifs = useMemo(() => clients ?? mockClients, [clients])
     const dossiersFiltrés = useMemo(() => {
         const source = dossiers ?? mockDossiers
-        if (!draft.clientId) return source.filter((d: any) => d.kind === "CLIENT")
-        return source.filter((d: any) => d.clientId === draft.clientId)
+        if (!draft.clientId) return source.filter((d: MockDossier) => d.kind === "CLIENT")
+        return source.filter((d: MockDossier) => d.clientId === draft.clientId)
     }, [draft.clientId, dossiers])
 
     /* Calculs auto */
@@ -277,7 +277,7 @@ export function FactureFormDialog({
                         </div>
                     </div>
 
-                    {/* Sélecteur de Type (Provision/Honoraires) pour Facture ÉMISE */}
+                    {/* Sélecteur de Type (Provision/Honoraires/Frais divers) pour Facture ÉMISE */}
                     {draft.direction === "EMISE" && (
                         <div>
                             <span className="font-label-caps text-label-caps text-outline uppercase mb-2 block">Nature de la facture</span>
@@ -297,10 +297,15 @@ export function FactureFormDialog({
                                         {t === "HONORAIRES" && <span className="material-symbols-outlined text-[16px]">balance</span>}
                                         {t === "PROVISION" && <span className="material-symbols-outlined text-[16px]">savings</span>}
                                         {t === "FRAIS" && <span className="material-symbols-outlined text-[16px]">receipt_long</span>}
-                                        {t === "HONORAIRES" ? "Honoraires" : t === "PROVISION" ? "Provision" : "Frais / Divers"}
+                                        {t === "HONORAIRES" ? "Honoraires" : t === "PROVISION" ? "Provision" : "Frais divers"}
                                     </button>
                                 ))}
                             </div>
+                            {draft.type === "FRAIS" && (
+                                <p className="font-body-xs text-[11px] text-outline mt-1.5">
+                                    Frais divers : frais d&apos;ouverture de dossier, débours, formalités, frais d&apos;huissier refacturés au client.
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -320,7 +325,7 @@ export function FactureFormDialog({
                                     className="w-full border border-outline-variant rounded px-3 py-2 font-body-md bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
                                 >
                                     <option value="">— Choisir un client —</option>
-                                    {clientsActifs.map((c: any) => (
+                                    {clientsActifs.map((c: MockClient) => (
                                         <option key={c.id} value={c.id}>
                                             {clientDisplayName(c)} ({c.numeroClient})
                                         </option>
@@ -337,7 +342,7 @@ export function FactureFormDialog({
                                     <option value="">
                                         {draft.clientId ? "— Aucun dossier (facture client globale) —" : "Choisir un client d'abord"}
                                     </option>
-                                    {dossiersFiltrés.map((d: any) => (
+                                    {dossiersFiltrés.map((d: MockDossier) => (
                                         <option key={d.id} value={d.id}>
                                             {d.numero} · {d.titre.slice(0, 40)}
                                             {d.titre.length > 40 ? "…" : ""}
@@ -372,8 +377,8 @@ export function FactureFormDialog({
                                 >
                                     <option value="">— Aucun (frais cabinet) —</option>
                                     {(dossiers ?? mockDossiers)
-                                        .filter((d: any) => d.kind === "CLIENT")
-                                        .map((d: any) => (
+                                        .filter((d: MockDossier) => d.kind === "CLIENT")
+                                        .map((d: MockDossier) => (
                                             <option key={d.id} value={d.id}>
                                                 {d.numero} · {d.titre.slice(0, 40)}
                                             </option>

@@ -1,16 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { MockDossier, DossierHonoraire, DossierProvision, DossierRetrocession } from "@/lib/mock/dossiers"
 import { getClientForDossier } from "@/lib/mock/dossiers"
 import type { MockFacture } from "@/lib/mock/invoices"
 import { FacturationTab } from "@/components/facturation/facturation-tab"
 import { syncCollection, facturePostBody, facturePatchBody } from "@/lib/api/sync-collection"
-import { ApportFormDialog, type ApportFormDraft } from "@/components/facturation/apport-form-dialog"
 import type { ApportFull } from "@/components/facturation/apports-tab"
-import { DepenseFormDialog, type DepenseFormDraft } from "@/components/facturation/depense-form-dialog"
-import type { MockDepense } from "@/lib/mock/depenses"
 import { formatFCFA, formatFCFACompact as formatCompactFCFA } from "@/lib/constants/finance"
 import { useMembres } from "@/lib/hooks/use-membres"
 
@@ -36,9 +33,6 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
     const [loading, setLoading] = useState(true)
     const [apports, setApports] = useState<ApportFull[]>([])
     const membres = useMembres()
-    const [apportFormOpen, setApportFormOpen] = useState(false)
-    const [depensesDossier, setDepensesDossier] = useState<MockDepense[]>([])
-    const [depenseFormOpen, setDepenseFormOpen] = useState(false)
 
     const client = getClientForDossier(dossier)
     /** Avocat qui a apporté ce client au cabinet — sert de base par défaut aux
@@ -49,10 +43,11 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
      *  pour un ancien dossier de détecter qu'il est devenu obsolète (navigation
      *  d'un dossier à l'autre sans démontage du composant) et de s'auto-ignorer. */
     const dossierIdRef = useRef(dossier.id)
-    dossierIdRef.current = dossier.id
+    useEffect(() => {
+        dossierIdRef.current = dossier.id
+    }, [dossier.id])
 
-    const loadApports = () => {
-        const forId = dossier.id
+    const loadApports = useCallback((forId: string) => {
         fetch(`/api/apports?dossierId=${encodeURIComponent(forId)}`, { credentials: "include" })
             .then((r) => (r.ok ? (r.json() as Promise<ApportFull[]>) : []))
             .then((data) => {
@@ -61,23 +56,10 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             .catch(() => {
                 if (dossierIdRef.current === forId) setApports([])
             })
-    }
-
-    const loadDepensesDossier = () => {
-        const forId = dossier.id
-        fetch(`/api/depenses?dossierId=${encodeURIComponent(forId)}`, { credentials: "include" })
-            .then((r) => (r.ok ? (r.json() as Promise<MockDepense[]>) : []))
-            .then((data) => {
-                if (dossierIdRef.current === forId) setDepensesDossier(data)
-            })
-            .catch(() => {
-                if (dossierIdRef.current === forId) setDepensesDossier([])
-            })
-    }
+    }, [])
 
     useEffect(() => {
         let alive = true
-        setLoading(true)
         fetch(`/api/invoices?dossierId=${encodeURIComponent(dossier.id)}`, { credentials: "include" })
             .then((r) => (r.ok ? (r.json() as Promise<MockFacture[]>) : []))
             .then((list) => {
@@ -97,70 +79,35 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 if (alive) setLoading(false)
             })
 
-        loadApports()
-        loadDepensesDossier()
+        loadApports(dossier.id)
         return () => {
             alive = false
         }
-    }, [dossier.id])
+    }, [dossier.id, loadApports])
 
-    async function handleSaveApport(draft: ApportFormDraft) {
-        const { toast } = await import("@/components/ui/toaster")
-        try {
-            const r = await fetch("/api/apports", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(draft),
-            })
-            if (!r.ok) {
-                const body = await r.json().catch(() => ({}))
-                throw new Error(body.error ?? `HTTP ${r.status}`)
-            }
-            toast.success("Apport enregistré.")
-            setApportFormOpen(false)
-            loadApports()
-        } catch (e) {
-            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
-        }
-    }
+    // Calcul de la rétrocession automatique basée sur les montants réellement encaissés
+    const autoRetrocession = useMemo(() => {
+        const emises = factures.filter((f) => f.direction === "EMISE")
+        const montantHTEncaisse = emises.reduce((sum, f) => {
+            if (f.montantPaye <= 0) return sum
+            const ht = f.tvaRate > 0 ? Math.round(f.montantPaye / (1 + f.tvaRate / 100)) : f.montantPaye
+            return sum + ht
+        }, 0)
 
-    async function handleSaveDepense(draft: DepenseFormDraft) {
-        const { toast } = await import("@/components/ui/toaster")
-        try {
-            const r = await fetch("/api/depenses", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    libelle: draft.libelle,
-                    categorie: draft.categorie,
-                    date: draft.date,
-                    montantHT: draft.montantHT,
-                    tvaRate: draft.tvaRate,
-                    mode: draft.mode,
-                    reference: draft.reference ?? null,
-                    recurrent: draft.recurrent,
-                    recurrenceFrequence: draft.recurrenceFrequence ?? null,
-                    fournisseurNomLibre: draft.fournisseurNomLibre ?? null,
-                    employeId: draft.employeId ?? null,
-                    notes: draft.notes ?? null,
-                    attachmentUrl: draft.attachment?.url ?? null,
-                    statut: draft.statut,
-                    dossierId: draft.dossierId ?? null,
-                }),
-            })
-            if (!r.ok) {
-                const body = await r.json().catch(() => ({}))
-                throw new Error(body.error ?? `HTTP ${r.status}`)
-            }
-            toast.success("Dépense enregistrée.")
-            setDepenseFormOpen(false)
-            loadDepensesDossier()
-        } catch (e) {
-            toast.error("Échec : " + (e instanceof Error ? e.message : "Erreur"))
+        // Barème officiel du cabinet : 30% ISB, 20% Société sur Net après ISB, 56% Rétrocession
+        const isb = Math.round(montantHTEncaisse * 0.30)
+        const netApresISB = montantHTEncaisse - isb
+        const societe = Math.round(netApresISB * 0.20)
+        const retrocessionTotal = netApresISB - societe
+
+        return {
+            montantHTEncaisse,
+            isb,
+            netApresISB,
+            societe,
+            retrocessionTotal,
         }
-    }
+    }, [factures])
 
     /** Sync local → API (mêmes endpoints que la page Finance). */
     const syncFactures = (next: MockFacture[]) => {
@@ -252,7 +199,7 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
             provisions,
             montantProvisions,
         }
-    }, [dossier.honoraires, dossier.provisionsVersees, dossier.retrocession, factures])
+    }, [dossier.honoraires, dossier.provisionsVersees, dossier.retrocession, dossier.dateOuverture, factures])
 
     return (
         <>
@@ -444,89 +391,84 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 </div>
             )}
 
-            {/* Apports avocats liés à ce dossier — même saisie, visible ici ET dans
-                Apports avocats / la fiche de l'avocat concerné (Équipe). */}
-            <div className="px-4 py-3 border-b border-outline-variant">
+            {/* Rétrocession automatique / Apport de l'avocat */}
+            <div className="px-4 py-3 border-b border-outline-variant bg-surface-container-low/40">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-on-surface-variant">
-                        <span className="material-symbols-outlined text-[18px]">handshake</span>
+                        <span className="material-symbols-outlined text-[18px] text-accent">handshake</span>
                         <span className="font-label-caps text-label-caps text-on-surface">
-                            Apports avocats — {formatFCFA(apports.reduce((s, a) => s + a.montantRetrocessionTotal, 0))}
+                            Rétrocession apporteur d&apos;affaires
                         </span>
+                        {apporteurMembre && (
+                            <span className="font-medium text-primary text-sm">
+                                — {apporteurMembre.prenom} {apporteurMembre.nom}
+                            </span>
+                        )}
                     </div>
-                    <button
-                        onClick={() => setApportFormOpen(true)}
-                        className="text-primary-container hover:text-accent inline-flex items-center gap-1 font-body-sm text-body-sm font-medium"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">add</span>
-                        Nouvel apport
-                    </button>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+                        Calcul automatique sur encaissé
+                    </span>
                 </div>
-                {apporteurMembre && (
-                    <p className="text-xs text-outline mb-2">
-                        Client apporté par <span className="font-medium text-on-surface-variant">{apporteurMembre.prenom} {apporteurMembre.nom}</span> — pré-sélectionné comme bénéficiaire par défaut.
-                    </p>
-                )}
-                {apports.length === 0 ? (
-                    <p className="text-sm text-outline italic">Aucun apport enregistré pour ce dossier.</p>
-                ) : (
-                    <ul className="space-y-1">
-                        {apports.map((a) => (
-                            <li key={a.id} className="flex justify-between items-center text-sm py-1 border-t border-outline-variant/30 first:border-0">
-                                <span className="text-on-surface-variant">
-                                    <span className="font-mono-num text-[11px] text-outline mr-2">
-                                        {String(a.mois).padStart(2, "0")}/{a.annee}
-                                    </span>
-                                    {a.beneficiaires.map((b) => `${b.membre.prenom} ${b.membre.nom}`).join(", ")}
-                                </span>
-                                <span className="font-mono-num font-medium text-primary-container">
-                                    {formatFCFA(a.montantRetrocessionTotal)}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
 
-            {/* Dépenses imputées à ce dossier — frais d'ouverture, huissier, etc.
-                Charge payée par le cabinet (pas par le client) mais rattachée à
-                l'affaire pour la traçabilité. */}
-            <div className="px-4 py-3 border-b border-outline-variant">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 text-on-surface-variant">
-                        <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
-                        <span className="font-label-caps text-label-caps text-on-surface">
-                            Dépenses du dossier — {formatFCFA(depensesDossier.reduce((s, d) => s + d.montantTTC, 0))}
-                        </span>
+                {apporteurMembre ? (
+                    <div>
+                        <p className="text-xs text-outline mb-3">
+                            Client apporté par <strong className="text-on-surface-variant">{apporteurMembre.prenom} {apporteurMembre.nom}</strong>. La rétrocession s&apos;applique automatiquement et de manière cumulative sur l&apos;ensemble des sommes encaissées.
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-surface rounded-lg border border-outline-variant">
+                            <div>
+                                <span className="text-[11px] text-outline uppercase font-medium block">Encaissé HT</span>
+                                <span className="font-mono-num font-semibold text-sm text-on-surface">
+                                    {formatFCFA(autoRetrocession.montantHTEncaisse)}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-[11px] text-outline uppercase font-medium block">ISB (30%)</span>
+                                <span className="font-mono-num font-medium text-sm text-outline">
+                                    {formatFCFA(autoRetrocession.isb)}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-[11px] text-outline uppercase font-medium block">Société (20%)</span>
+                                <span className="font-mono-num font-medium text-sm text-outline">
+                                    {formatFCFA(autoRetrocession.societe)}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-[11px] text-accent uppercase font-semibold block">Rétrocession due (56%)</span>
+                                <span className="font-mono-num font-bold text-base text-accent">
+                                    {formatFCFA(autoRetrocession.retrocessionTotal)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {apports.length > 0 && (
+                            <div className="mt-3 pt-2 border-t border-outline-variant/40">
+                                <span className="text-xs font-medium text-outline block mb-1">
+                                    Historique des apports enregistrés :
+                                </span>
+                                <ul className="space-y-1">
+                                    {apports.map((a) => (
+                                        <li key={a.id} className="flex justify-between items-center text-sm py-1 border-t border-outline-variant/30 first:border-0">
+                                            <span className="text-on-surface-variant">
+                                                <span className="font-mono-num text-[11px] text-outline mr-2">
+                                                    {String(a.mois).padStart(2, "0")}/{a.annee}
+                                                </span>
+                                                {a.referenceLibre || `Apport ${a.annee}`}
+                                            </span>
+                                            <span className="font-mono-num font-medium text-primary-container">
+                                                {formatFCFA(a.montantRetrocessionTotal)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
-                    <button
-                        onClick={() => setDepenseFormOpen(true)}
-                        className="text-primary-container hover:text-accent inline-flex items-center gap-1 font-body-sm text-body-sm font-medium"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">add</span>
-                        Nouvelle dépense
-                    </button>
-                </div>
-                {depensesDossier.length === 0 ? (
-                    <p className="text-sm text-outline italic">
-                        Aucune dépense imputée à ce dossier — ex. frais d&apos;ouverture, frais d&apos;huissier.
-                    </p>
                 ) : (
-                    <ul className="space-y-1">
-                        {depensesDossier.map((d) => (
-                            <li key={d.id} className="flex justify-between items-center text-sm py-1 border-t border-outline-variant/30 first:border-0">
-                                <span className="text-on-surface-variant">
-                                    <span className="font-mono-num text-[11px] text-outline mr-2">
-                                        {new Date(d.date).toLocaleDateString("fr-FR")}
-                                    </span>
-                                    {d.libelle}
-                                </span>
-                                <span className="font-mono-num font-medium text-primary-container">
-                                    {formatFCFA(d.montantTTC)}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
+                    <p className="text-sm text-outline italic">
+                        Aucun avocat apporteur associé à ce client. Pour activer le calcul de rétrocession, assignez un avocat apporteur sur la fiche du client.
+                    </p>
                 )}
             </div>
 
@@ -548,36 +490,6 @@ export function DossierFinanceSection({ dossier }: DossierFinanceSectionProps) {
                 )}
             </div>
         </section>
-
-        {apportFormOpen && (
-            <ApportFormDialog
-                apport={null}
-                membres={membres}
-                dossiers={[{
-                    id: dossier.id,
-                    numero: dossier.numero,
-                    titre: dossier.titre,
-                    clientId: dossier.clientId,
-                    client: client ? { raisonSociale: client.raisonSociale ?? null, nom: client.nom ?? null } : null,
-                }]}
-                defaultAnnee={new Date().getFullYear()}
-                defaultMois={new Date().getMonth() + 1}
-                lockedDossierId={dossier.id}
-                defaultBeneficiaireId={client?.apporteurId ?? dossier.responsableId}
-                onSave={handleSaveApport}
-                onClose={() => setApportFormOpen(false)}
-            />
-        )}
-
-        {depenseFormOpen && (
-            <DepenseFormDialog
-                initial={null}
-                employes={membres}
-                onSave={handleSaveDepense}
-                onClose={() => setDepenseFormOpen(false)}
-                lockedDossier={{ id: dossier.id, numero: dossier.numero, titre: dossier.titre }}
-            />
-        )}
         </>
     )
 }

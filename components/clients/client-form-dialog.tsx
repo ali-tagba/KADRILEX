@@ -8,7 +8,7 @@ import {
     type HonorairesType,
 } from "@/lib/constants/legal"
 import type { ClientType, MockClient } from "@/lib/mock/clients"
-import type { Membre } from "@prisma/client"
+import { useMembres } from "@/lib/hooks/use-membres"
 
 /* ============================================================
    Form draft — exposé pour qu'app/clients/page.tsx puisse créer un MockClient.
@@ -127,14 +127,7 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
         initial?.createdAt ? new Date(initial.createdAt).toISOString().slice(0, 10) : ""
     )
     const [apporteurId, setApporteurId] = useState<string | null>(initial?.apporteurId ?? null)
-    const [membres, setMembres] = useState<Membre[]>([])
-
-    useEffect(() => {
-        fetch("/api/employes", { credentials: "include" })
-            .then((r) => (r.ok ? (r.json() as Promise<Membre[]>) : []))
-            .then(setMembres)
-            .catch(() => {})
-    }, [])
+    const membres = useMembres()
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -242,7 +235,7 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
                         <div className="bg-error-container/20 border border-error/50 rounded-lg p-4 mb-4 flex items-start gap-3">
                             <span className="material-symbols-outlined text-error mt-0.5">warning</span>
                             <div>
-                                <h4 className="font-label-caps text-error mb-1">Conflit d'intérêts potentiel</h4>
+                                <h4 className="font-label-caps text-error mb-1">Conflit d&apos;intérêts potentiel</h4>
                                 <p className="font-body-sm text-on-surface text-sm">
                                     Un client actif nommé <strong>{isPM ? duplicateClient.raisonSociale : `${duplicateClient.prenom} ${duplicateClient.nom}`}</strong> avec les mêmes coordonnées existe déjà dans la base.
                                 </p>
@@ -545,11 +538,14 @@ export function ClientFormDialog({ initial, onSave, onClose, existingClients = [
                                     className={inputCls}
                                 >
                                     <option value="">— Non renseigné —</option>
-                                    {membres.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.prenom} {m.nom}
-                                        </option>
-                                    ))}
+                                    {membres
+                                        .filter((m) => m.actif !== false)
+                                        .sort((a, b) => (a.nom || "").localeCompare(b.nom || ""))
+                                        .map((m) => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.prenom} {m.nom}
+                                            </option>
+                                        ))}
                                 </select>
                                 <p className="font-body-xs text-body-xs text-outline mt-1">
                                     L&apos;avocat qui a apporté ce client au cabinet — distinct de l&apos;équipe qui traite ses dossiers. Sert de base par défaut aux apports/rétrocessions.

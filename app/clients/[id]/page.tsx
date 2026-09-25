@@ -18,6 +18,9 @@ import { DiligencesSection } from "@/components/diligences/diligences-section"
 import { computeClientActivity } from "@/lib/mock/client-activity"
 import { useCurrentUser } from "@/lib/auth/current-user-context"
 import { patchEntity, showApiError } from "@/lib/api/patch"
+import { useMembres } from "@/lib/hooks/use-membres"
+import { MembreAvatar } from "@/components/equipe/membre-avatar"
+import { InlineSelectCell, type InlineOption } from "@/components/facturation/inline-cell-editor"
 
 function formatRelativeOrDate(iso: string): string {
     const d = new Date(iso)
@@ -63,6 +66,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const [editOpen, setEditOpen] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const searchParams = useSearchParams()
+    const membres = useMembres()
+    const apporteurOptions: InlineOption<string>[] = useMemo(() => [
+        { value: "", label: "— Non renseigné —" },
+        ...membres
+            .filter((m) => m.actif !== false)
+            .sort((a, b) => (a.nom || "").localeCompare(b.nom || ""))
+            .map((m) => ({ value: m.id, label: `${m.prenom} ${m.nom}` })),
+    ], [membres])
+    const apporteur = client?.apporteurId ? membres.find((m) => m.id === client.apporteurId) ?? null : null
 
     // Si l'URL contient ?edit=1 (depuis la liste), ouvre la dialog au boot
     useEffect(() => {
@@ -385,6 +397,30 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 {formatClientSince(client.createdAt)}
                             </p>
                             <div className="flex items-center gap-3 mt-2 flex-wrap font-body-sm text-body-sm">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container border border-outline-variant text-on-surface">
+                                    <span className="material-symbols-outlined text-[15px] text-accent">handshake</span>
+                                    <span className="text-[12px] text-outline font-medium">Apporteur :</span>
+                                    <InlineSelectCell
+                                        trigger={
+                                            apporteur ? (
+                                                <span className="inline-flex items-center gap-1 font-medium text-primary">
+                                                    <MembreAvatar membre={apporteur} size="xs" />
+                                                    <span className="text-[12px]">{apporteur.prenom} {apporteur.nom}</span>
+                                                </span>
+                                            ) : (
+                                                <span className="text-outline text-[12px] italic cursor-pointer hover:text-accent">
+                                                    + Assigner un avocat
+                                                </span>
+                                            )
+                                        }
+                                        options={apporteurOptions}
+                                        selected={client.apporteurId ?? ""}
+                                        onSelect={(v) => patchClient({ apporteurId: v || null })}
+                                        title="Modifier l'avocat apporteur"
+                                        menuHeader="Avocat apporteur"
+                                        align="start"
+                                    />
+                                </span>
                                 {client.avocatEnCharge && (
                                     <span className="inline-flex items-center gap-1 text-on-surface-variant">
                                         <span className="material-symbols-outlined text-[14px] text-outline">
